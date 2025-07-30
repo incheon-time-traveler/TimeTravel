@@ -4,8 +4,15 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Onboarding1 from '../assets/onboarding1';
-import Onboarding2 from '../assets/onboarding2';
+import { Image } from 'react-native';
+
+const Onboarding1 = () => (
+  <Image
+    source={require('../assets/onboarding1.png')}
+    style={{ width: 300, height: 300 }}
+    resizeMode="contain"
+  />
+);
 
 const { width, height } = Dimensions.get('window');
 
@@ -39,7 +46,7 @@ const OnboardingScreen = () => {
     {
       title: '지도에서 추억을 찾아보세요',
       description: '지도에서 여행한 장소를 확인하고 추억을 다시 떠올려보세요.',
-      component: <Onboarding2 />
+      component: <Onboarding1 />
     },
   ];
 

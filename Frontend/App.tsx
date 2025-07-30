@@ -70,6 +70,7 @@ function MainTabs() {
 
 export default function App() {
   const [isLoading, setIsLoading] = useState(true);
+  const [showLoading, setShowLoading] = useState(true);
   const [viewedOnboarding, setViewedOnboarding] = useState(false);
 
   useEffect(() => {
@@ -89,15 +90,20 @@ export default function App() {
     }
   };
 
-  if (isLoading) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" />
-      </View>
-    );
-  }
-  if (isLoading) {
+  // Show loading screen for 1.5 seconds
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowLoading(false);
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (isLoading || showLoading) {
     return <LoadingScreen />;
+  }
+
+  if (!viewedOnboarding) {
+    return <OnboardingScreen />;
   }
 
   return (

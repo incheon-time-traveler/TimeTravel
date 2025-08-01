@@ -35,6 +35,7 @@ INSTALLED_APPS = [
     'accounts',
     'courses',
     'spots',
+    'data_loader',
 
     # rest_framework
     'rest_framework',
@@ -90,7 +91,7 @@ DATABASES = {
         'USER': 'postgres',
         'PASSWORD': 'postgres',
         'HOST': 'db',  # docker-compose에서 지정한 서비스명
-        'PORT': '5433',
+        'PORT': '5432',
     }
 }
 

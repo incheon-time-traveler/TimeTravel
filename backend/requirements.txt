@@ -7,7 +7,9 @@ djangorestframework-simplejwt==5.2.2
 dotenv==0.9.9
 gunicorn==23.0.0
 idna==3.10
+numpy==1.24.3
 packaging==25.0
+pandas==2.0.3
 pillow==11.3.0
 psycopg2-binary==2.9.10
 PyJWT==2.9.0

@@ -23,4 +23,6 @@ urlpatterns = [
     path('api/v1/users/', include('accounts.urls')),
     path('api/v1/routes/', include('courses.urls')),
     path('api/v1/spots/', include('spots.urls')),
+    # 추가: courses 앱을 api/courses/로도 접근 가능하도록
+    path('api/courses/', include('courses.urls')),
 ]

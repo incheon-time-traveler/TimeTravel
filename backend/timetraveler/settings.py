@@ -83,17 +83,25 @@ WSGI_APPLICATION = 'timetraveler.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-# Postgresql
+# SQLite for local development
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'postgres',
-        'USER': 'postgres',
-        'PASSWORD': 'postgres',
-        'HOST': 'db',  # docker-compose에서 지정한 서비스명
-        'PORT': '5432',
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
+
+# Postgresql (for production)
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql',
+#         'NAME': 'postgres',
+#         'USER': 'postgres',
+#         'PASSWORD': 'postgres',
+#         'HOST': 'localhost',  # Docker 컨테이너 외부에서 접근할 때는 localhost
+#         'PORT': '5433',  # Docker Compose에서 포트 매핑이 5433:5432
+#     }
+# }
 
 
 # Password validation

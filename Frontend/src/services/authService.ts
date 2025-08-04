@@ -1,14 +1,22 @@
 import axios from 'axios';
+import { Linking } from 'react-native';
 
-const API_BASE = 'http://<YOUR_BACKEND_URL>/api/v1';
+const API_BASE = 'http://localhost:8000/api/v1';
 
-export const socialSignup = (provider: 'google' | 'kakao', token: string) =>
-  axios.post(`${API_BASE}/users/signup`, { provider, token });
+export const signInWithGoogle = () => {
+  const url = `${API_BASE}/users/google/login/`;
+  Linking.openURL(url);
+};
 
-export const socialLogin = (provider: 'google' | 'kakao', token: string) =>
-  axios.post(`${API_BASE}/users/login`, { provider, token });
+export const signInWithKakao = () => {
+  const url = `${API_BASE}/users/kakao/login/`;
+  Linking.openURL(url);
+};
 
-export const socialLogout = (accessToken: string) =>
-  axios.post(`${API_BASE}/users/logout`, {}, {
-    headers: { Authorization: `Bearer ${accessToken}` }
-  }); 
+export const updateUserProfile = async (userId: number, profileData: any, token: string) => {
+  return axios.put(`${API_BASE}/users/profile/${userId}/update/`, profileData, {
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+}; 

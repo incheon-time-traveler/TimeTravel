@@ -1,13 +1,14 @@
 import React from 'react';
+import { signInWithGoogle, signInWithKakao } from '../services/authService';
 import { View, Button, Alert, Text, StyleSheet, TouchableOpacity } from 'react-native';
 
 const LoginScreen = ({ navigation }: any) => {
   const handleGoogleLogin = () => {
-    Alert.alert('구글 로그인', '구글 로그인 기능이 준비 중입니다.');
+    signInWithGoogle();
   };
 
   const handleKakaoLogin = () => {
-    Alert.alert('카카오 로그인', '카카오 로그인 기능이 준비 중입니다.');
+    signInWithKakao();
   };
 
   const handleSignupPress = () => {
@@ -45,9 +46,7 @@ const LoginScreen = ({ navigation }: any) => {
         </TouchableOpacity>
       </View>
 
-      <Text style={styles.note}>
-        * 소셜 로그인 기능은 현재 개발 중입니다.
-      </Text>
+      
     </View>
   );
 };

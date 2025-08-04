@@ -12,7 +12,20 @@ import GalleryScreen from './src/screens/GalleryScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import OnboardingScreen from './src/screens/OnboardingScreen';
 import LoadingScreen from './src/screens/LoadingScreen';
+import LoginSuccessScreen from './src/screens/LoginSuccessScreen';
+import SignupScreen from './src/screens/SignupScreen';
+import LoginScreen from './src/screens/LoginScreen';
+import ProfileSetupScreen from './src/screens/ProfileSetupScreen';
 import { RootStackParamList, RootTabParamList } from './src/types/navigation';
+
+const linking = {
+  prefixes: ['http://localhost:5173', 'timetravel://'],
+  config: {
+    screens: {
+      LoginSuccess: 'login-success',
+    },
+  },
+};
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<RootTabParamList>();
@@ -68,27 +81,36 @@ function MainTabs() {
   );
 }
 
+
+
 export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [showLoading, setShowLoading] = useState(true);
   const [viewedOnboarding, setViewedOnboarding] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
-  useEffect(() => {
-    checkOnboardingStatus();
+    useEffect(() => {
+    const checkAuthAndOnboarding = async () => {
+      try {
+        const token = await AsyncStorage.getItem('accessToken');
+        const viewed = await AsyncStorage.getItem('@viewedOnboarding');
+        if (token) {
+          setIsLoggedIn(true);
+        }
+        if (viewed) {
+          setViewedOnboarding(true);
+        }
+      } catch (error) {
+        console.log('Error checking auth/onboarding status: ', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    checkAuthAndOnboarding();
   }, []);
 
-  const checkOnboardingStatus = async () => {
-    try {
-      const value = await AsyncStorage.getItem('@viewedOnboarding');
-      if (value !== null) {
-        setViewedOnboarding(true);
-      }
-    } catch (error) {
-      console.log('Error @checkOnboardingStatus: ', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  
 
   // Show loading screen for 1.5 seconds
   useEffect(() => {
@@ -107,13 +129,19 @@ export default function App() {
   }
 
   return (
-    <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {!viewedOnboarding ? (
-          <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+    <NavigationContainer linking={linking} fallback={<ActivityIndicator color="blue" size="large" />}>
+            <Stack.Navigator screenOptions={{ headerShown: false }}>
+        {isLoggedIn ? (
+          <Stack.Screen name="MainTabs" component={MainTabs} />
         ) : (
-          <Stack.Screen name="Main" component={MainTabs} />
+          <>
+            {!viewedOnboarding && <Stack.Screen name="Onboarding" component={OnboardingScreen} />}
+            <Stack.Screen name="Signup" component={SignupScreen} />
+            <Stack.Screen name="Login" component={LoginScreen} />
+            <Stack.Screen name="ProfileSetup" component={ProfileSetupScreen} />
+          </>
         )}
+        <Stack.Screen name="LoginSuccess" component={LoginSuccessScreen} options={{ presentation: 'modal' }} />
       </Stack.Navigator>
     </NavigationContainer>
   );

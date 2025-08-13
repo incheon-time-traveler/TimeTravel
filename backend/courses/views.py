@@ -82,7 +82,6 @@ def generate_travel_course(request):
             mission_accepted=mission_accepted,
             move_to_other_region=move_to_other_region
         )
-        
         if result['success']:
             return Response(result, status=status.HTTP_200_OK)
         else:

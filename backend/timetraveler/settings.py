@@ -9,8 +9,12 @@ https://docs.djangoproject.com/en/5.2/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
-
+import os
 from pathlib import Path
+from dotenv import load_dotenv
+
+load_dotenv()
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -36,7 +40,10 @@ INSTALLED_APPS = [
     'courses',
     'spots',
     'data_loader',
-    'storages', # S3
+    'photos',
+    
+    # S3
+    'storages',
 
     # rest_framework
     'rest_framework',
@@ -95,31 +102,34 @@ WSGI_APPLICATION = 'timetraveler.wsgi.application'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 # SQLite for local development
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'postgres',
-        'USER': 'postgres',
-        'PASSWORD': 'postgres',
-        'HOST': 'db',  # docker-compose에서 지정한 서비스명
-        'PORT': '5432',
-        # 'ENGINE': 'django.db.backends.sqlite3',
-        # 'NAME': BASE_DIR / 'db.sqlite3',
-    }
-}
-
-# Postgresql (for production)
 # DATABASES = {
 #     'default': {
 #         'ENGINE': 'django.db.backends.postgresql',
 #         'NAME': 'postgres',
 #         'USER': 'postgres',
 #         'PASSWORD': 'postgres',
-#         'HOST': 'localhost',  # Docker 컨테이너 외부에서 접근할 때는 localhost
-#         'PORT': '5433',  # Docker Compose에서 포트 매핑이 5433:5432
+#         'HOST': 'db',  # docker-compose에서 지정한 서비스명
+#         'PORT': '5432',
+#         # 'ENGINE': 'django.db.backends.sqlite3',
+#         # 'NAME': BASE_DIR / 'db.sqlite3',
 #     }
 # }
 
+
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.getenv("PGDATABASE", "postgres"),
+        "USER": os.getenv("PGUSER", "postgres"),
+        "PASSWORD": os.getenv("PGPASSWORD", ""),
+        "HOST": os.getenv("PGHOST", "127.0.0.1"),
+        "PORT": os.getenv("PGPORT", "5432"),
+        "CONN_MAX_AGE": 60,  # 연결 재사용
+        "OPTIONS": {
+            "connect_timeout": 5,  # 빨리 실패해서 원인 파악 쉬움
+        },
+    }
+}
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators

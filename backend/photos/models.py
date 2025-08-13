@@ -18,7 +18,7 @@ class Photo(models.Model):
     user_id = models.ForeignKey(settings.AUTH_USER_MODEL, null=False, on_delete=models.CASCADE, related_name='user_photos')
     route_id = models.ForeignKey(Route, on_delete=models.CASCADE, related_name='user_photos')
     spot_id = models.ForeignKey(Spot, on_delete=models.CASCADE, related_name='user_photos')
-    image_url = models.TextField()
+    image_url = models.ImageField(upload_to='uploads/') # 사진 저장 URL(S3)
     is_used = models.BooleanField(default=False) # 스탬프 사용 여부
     created_at = models.DateTimeField(auto_now_add=True) # 생성 일시    
     used_at = models.DateTimeField(auto_now=True) # 스탬프 사용 일시

@@ -36,6 +36,7 @@ INSTALLED_APPS = [
     'courses',
     'spots',
     'data_loader',
+    'storages', # S3
 
     # rest_framework
     'rest_framework',
@@ -59,6 +60,16 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+# S3
+# EC2에 IAM Role 연결되어 있음 (Access/Secret key 필요 없음)
+AWS_ACCESS_KEY_ID = None
+AWS_SECRET_ACCESS_KEY = None
+AWS_STORAGE_BUCKET_NAME = 'timetraveler-prod-images'
+AWS_S3_REGION_NAME = 'ap-northeast-2'
+
+# Media
+DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 
 ROOT_URLCONF = 'timetraveler.urls'
 

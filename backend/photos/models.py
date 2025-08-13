@@ -13,7 +13,6 @@ from spots.models import Spot
 # | is_used |  | boolean | 스탬프 사용 여부 |
 # | used_at |  | datetime | 스탬프 사용 일시 |
 
-
 class Photo(models.Model):
     id = models.AutoField(primary_key=True)
     user_id = models.ForeignKey(settings.AUTH_USER_MODEL, null=False, on_delete=models.CASCADE, related_name='user_photos')

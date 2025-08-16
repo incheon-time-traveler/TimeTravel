@@ -25,4 +25,6 @@ urlpatterns = [
     path('api/v1/spots/', include('spots.urls')),
     # 추가: courses 앱을 api/courses/로도 접근 가능하도록
     path('api/courses/', include('courses.urls')),
+    # 챗봇 API 추가
+    path('api/v1/chatbot/', include('chatbot.urls')),
 ]

@@ -36,6 +36,7 @@ INSTALLED_APPS = [
     'courses',
     'spots',
     'data_loader',
+    'chatbot',
 
     # rest_framework
     'rest_framework',

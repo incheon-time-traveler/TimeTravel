@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="NONE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="f16bb387-b8fa-4e49-bc1a-bd33264bf9e0" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/Frontend/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/Frontend/.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Frontend/App.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/Frontend/App.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Frontend/android/app/src/main/AndroidManifest.xml" beforeDir="false" afterPath="$PROJECT_DIR$/Frontend/android/app/src/main/AndroidManifest.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Frontend/android/build.gradle" beforeDir="false" afterPath="$PROJECT_DIR$/Frontend/android/build.gradle" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Frontend/babel.config.js" beforeDir="false" afterPath="$PROJECT_DIR$/Frontend/babel.config.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Frontend/ios/Podfile.lock" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Frontend/ios/TimeTravelApp.xcodeproj/project.pbxproj" beforeDir="false" afterPath="$PROJECT_DIR$/Frontend/ios/TimeTravelApp.xcodeproj/project.pbxproj" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Frontend/ios/TimeTravelApp.xcworkspace/contents.xcworkspacedata" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Frontend/ios/TimeTravelApp/Info.plist" beforeDir="false" afterPath="$PROJECT_DIR$/Frontend/ios/TimeTravelApp/Info.plist" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Frontend/package-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/Frontend/package-lock.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Frontend/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/Frontend/package.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Frontend/src/assets/onboarding1.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Frontend/src/assets/onboarding1.svg" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Frontend/src/assets/onboarding1.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Frontend/src/assets/onboarding2.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Frontend/src/screens/GalleryScreen.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Frontend/src/screens/HomeScreen.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Frontend/src/screens/LoadingScreen.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Frontend/src/screens/LoginScreen.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Frontend/src/screens/MapScreen.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Frontend/src/screens/ProfileScreen.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Frontend/src/screens/ProfileSetupScreen.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Frontend/src/screens/SignupScreen.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Frontend/src/screens/TripsScreen.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Frontend/src/services/authService.ts" beforeDir="false" afterPath="$PROJECT_DIR$/Frontend/src/services/authService.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Frontend/src/types/navigation.ts" beforeDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="ClangdSettings">
+    <option name="formatViaClangd" value="false" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="ProjectColorInfo"><![CDATA[{
+  "customColor": "",
+  "associatedIndex": 1
+}]]></component>
+  <component name="ProjectId" id="31S19sjxskMyHN2D0SxKHd2leyp" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.cidr.known.project.marker": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "RunOnceActivity.readMode.enableVisualFormatting": "true",
+    "cf.first.check.clang-format": "false",
+    "cidr.known.project.marker": "true",
+    "git-widget-placeholder": "merge",
+    "kotlin-language-version-configured": "true"
+  }
+}]]></component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="f16bb387-b8fa-4e49-bc1a-bd33264bf9e0" name="Changes" comment="" />
+      <created>1755502512181</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1755502512181</updated>
+    </task>
+    <servers />
+  </component>
+</project>

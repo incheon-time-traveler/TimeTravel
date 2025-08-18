@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Button, Alert, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { Text, View, Button, Alert, StyleSheet, TouchableOpacity } from 'react-native';
+import { INCHEON_BLUE_LIGHT, INCHEON_GRAY } from '../../styles/fonts';
 
 const SignupScreen = ({ navigation }: any) => {
   const handleGoogleSignup = () => {
@@ -19,7 +19,7 @@ const SignupScreen = ({ navigation }: any) => {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: INCHEON_BLUE_LIGHT }]}>
       <View style={styles.header}>
         <Text style={styles.title}>TimeTravel</Text>
         <Text style={styles.subtitle}>새로운 계정을 만들어보세요</Text>
@@ -61,21 +61,22 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: INCHEON_BLUE_LIGHT,
   },
   header: {
     alignItems: 'center',
     marginBottom: 50,
   },
   title: {
+    fontFamily: 'NeoDunggeunmoPro-Regular',
     fontSize: 32,
-    fontWeight: 'bold',
     marginBottom: 10,
-    color: '#333',
+    color: INCHEON_GRAY,
   },
   subtitle: {
+    fontFamily: 'NeoDunggeunmoPro-Regular',
     fontSize: 16,
-    color: '#666',
+    color: INCHEON_GRAY,
     textAlign: 'center',
   },
   buttonContainer: {
@@ -101,9 +102,9 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   googleButtonText: {
+    fontFamily: 'NeoDunggeunmoPro-Regular',
     color: '#333',
     fontSize: 16,
-    fontWeight: '600',
   },
   kakaoButton: {
     backgroundColor: '#FEE500',
@@ -121,9 +122,9 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   kakaoButtonText: {
+    fontFamily: 'NeoDunggeunmoPro-Regular',
     color: '#000000',
     fontSize: 16,
-    fontWeight: '600',
   },
   dividerContainer: {
     flexDirection: 'row',
@@ -138,9 +139,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#ddd',
   },
   dividerText: {
-    marginHorizontal: 15,
-    color: '#999',
+    fontFamily: 'NeoDunggeunmoPro-Regular',
     fontSize: 14,
+    color: INCHEON_GRAY,
+    marginHorizontal: 8,
   },
   loginPrompt: {
     flexDirection: 'row',
@@ -149,18 +151,21 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   loginPromptText: {
-    color: '#666',
+    fontFamily: 'NeoDunggeunmoPro-Regular',
     fontSize: 14,
+    color: INCHEON_GRAY,
   },
   loginLink: {
+    fontFamily: 'NeoDunggeunmoPro-Regular',
     color: '#007AFF',
     fontSize: 14,
-    fontWeight: '600',
     marginLeft: 5,
   },
   note: {
+    fontFamily: 'NeoDunggeunmoPro-Regular',
     fontSize: 12,
-    color: '#999',
+    color: INCHEON_GRAY,
+    marginTop: 16,
     textAlign: 'center',
   },
 });

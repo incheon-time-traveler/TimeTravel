@@ -1,77 +1,179 @@
-import React, { useEffect, useState } from 'react';
-import { View, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, StyleSheet, Platform, Text } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import HomeScreen from './src/screens/HomeScreen';
-import MapScreen from './src/screens/MapScreen';
-import TripsScreen from './src/screens/TripsScreen';
-import GalleryScreen from './src/screens/GalleryScreen';
-import ProfileScreen from './src/screens/ProfileScreen';
 import OnboardingScreen from './src/screens/OnboardingScreen';
-import LoadingScreen from './src/screens/LoadingScreen';
-import { RootStackParamList, RootTabParamList } from './src/types/navigation';
+import HomeScreen from './src/screens/Main/HomeScreen';
+import MapScreen from './src/screens/Main/MapScreen';
+import TripsScreen from './src/screens/Main/TripsScreen';
+import GalleryScreen from './src/screens/Main/GalleryScreen';
+import ProfileScreen from './src/screens/Profile/ProfileScreen';
+import CameraScreen from './src/screens/Main/CameraScreen';
+import FloatingChatBotButton from './src/components/ui/FloatingChatBotButton';
+import ChatScreen from './src/screens/Chat/ChatScreen';
+import { INCHEON_BLUE } from './src/styles/fonts';
 
-const Stack = createNativeStackNavigator<RootStackParamList>();
-const Tab = createBottomTabNavigator<RootTabParamList>();
+const Tab = createBottomTabNavigator();
+const Stack = createNativeStackNavigator();
 
-function MainTabs() {
+// Map 스택 네비게이터
+function MapStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="MapMain" component={MapScreen} />
+      <Stack.Screen name="Camera" component={CameraScreen} />
+    </Stack.Navigator>
+  );
+}
+
+// 메인 탭 네비게이터
+function MainTabNavigator() {
   return (
     <Tab.Navigator
       initialRouteName="Trips"
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarShowLabel: true,
-        tabBarLabelStyle: {
-          fontWeight: route.name === 'Trips' ? 'bold' : 'normal',
-          fontSize: 14,
-          marginBottom: 4,
-        },
+        tabBarShowLabel: false, // 직접 label 렌더링
         tabBarStyle: {
-          height: 80,
-          borderTopLeftRadius: 28,
-          borderTopRightRadius: 28,
-          position: 'absolute',
-          left: 0,
-          right: 0,
-          bottom: 0,
           backgroundColor: '#fff',
           borderTopWidth: 0,
-          elevation: 10,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.08,
-          shadowRadius: 8,
+          height: 80,
+          elevation: 0,
+          shadowOpacity: 0,
+          paddingBottom: 10,
+          paddingTop: 14,
+        },
+        tabBarLabelStyle: {
+          fontFamily: 'NeoDunggeunmoPro-Regular',
+          fontSize: 10,
+          color: '#000000',
         },
         tabBarIcon: ({ focused, color, size }) => {
           let iconName = '';
-          let iconColor = focused ? '#000' : '#bbb';
-          if (route.name === 'Home') iconName = 'home-outline';
-          else if (route.name === 'Map') iconName = 'location-outline';
-          else if (route.name === 'Trips') iconName = 'bookmark-outline';
-          else if (route.name === 'Gallery') iconName = 'image-outline';
-          else if (route.name === 'Profile') iconName = 'person-outline';
-          return <Ionicons name={iconName} size={28} color={iconColor} />;
+          let label = '';
+          switch (route.name) {
+            case 'Home':
+              iconName = 'home-outline';
+              label = 'Home';
+              break;
+            case 'Map':
+              iconName = 'map-outline';
+              label = 'Map';
+              break;
+            case 'Trips':
+              iconName = 'compass-outline'; // 여행 느낌
+              label = 'Trips';
+              break;
+            case 'Gallery':
+              iconName = 'images-outline'; // 갤러리 느낌
+              label = 'Gallery';
+              break;
+            case 'Profile':
+              iconName = 'person-outline';
+              label = 'Profile';
+              break;
+            default:
+              iconName = 'ellipse-outline';
+              label = '';
+          }
+          return <TabBarIconWithLabel name={iconName} label={label} focused={focused} />;
         },
-        tabBarActiveTintColor: '#000',
+        tabBarActiveTintColor: INCHEON_BLUE,
         tabBarInactiveTintColor: '#bbb',
       })}
     >
-      <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Map" component={MapScreen} />
-      <Tab.Screen name="Trips" component={TripsScreen} />
-      <Tab.Screen name="Gallery" component={GalleryScreen} />
-      <Tab.Screen name="Profile" component={ProfileScreen} />
+      <Tab.Screen 
+        name="Home" 
+        component={HomeScreen} 
+        options={{
+          tabBarLabel: ({ color, focused }) => (
+            <Text style={{ color, fontSize: 14, marginBottom: 4 }}>
+              Home
+            </Text>
+          ),
+        }}
+      />
+      <Tab.Screen 
+        name="Map" 
+        component={MapStack} 
+        options={{
+          tabBarLabel: ({ color, focused }) => (
+            <Text style={{ color, fontSize: 14, marginBottom: 4 }}>
+              Map
+            </Text>
+          ),
+        }}
+      />
+      <Tab.Screen 
+        name="Trips" 
+        component={TripsScreen} 
+        options={{
+          tabBarLabel: ({ color, focused }) => (
+            <Text style={{ color, fontSize: 14, marginBottom: 4 }}>
+              Trips
+            </Text>
+          ),
+        }}
+      />
+      <Tab.Screen 
+        name="Gallery" 
+        component={GalleryScreen} 
+        options={{
+          tabBarLabel: ({ color, focused }) => (
+            <Text style={{ color, fontSize: 14, marginBottom: 4 }}>
+              Gallery
+            </Text>
+          ),
+        }}
+      />
+      <Tab.Screen 
+        name="Profile" 
+        component={ProfileScreen} 
+        options={{
+          tabBarLabel: ({ color, focused }) => (
+            <Text style={{ color, fontSize: 14, marginBottom: 4 }}>
+              Profile
+            </Text>
+          ),
+        }}
+      />
     </Tab.Navigator>
   );
 }
 
+function TabBarIconWithLabel({ name, label, focused }: { name: string; label: string; focused: boolean }) {
+  return (
+    <View style={{
+      alignItems: 'center',
+      justifyContent: 'center',
+      minWidth: 56,
+      flexDirection: 'column',
+    }}>
+      <Ionicons name={name} size={32} color={focused ? INCHEON_BLUE : '#888'} />
+      <Text
+        style={{
+          fontFamily: 'NeoDunggeunmoPro-Regular',
+          fontSize: 14,
+          color: focused ? INCHEON_BLUE : '#888',
+          marginTop: 0,
+          width: 56,
+          textAlign: 'center',
+        }}
+        numberOfLines={1}
+        ellipsizeMode='tail'
+      >
+        {label}
+      </Text>
+    </View>
+  );
+}
+
 export default function App() {
-  const [isLoading, setIsLoading] = useState(true);
-  const [showLoading, setShowLoading] = useState(true);
-  const [viewedOnboarding, setViewedOnboarding] = useState(false);
+  const [chatVisible, setChatVisible] = useState(false);
+  const [isOnboardingComplete, setIsOnboardingComplete] = useState<boolean | null>(null);
 
   useEffect(() => {
     checkOnboardingStatus();
@@ -79,42 +181,39 @@ export default function App() {
 
   const checkOnboardingStatus = async () => {
     try {
-      const value = await AsyncStorage.getItem('@viewedOnboarding');
-      if (value !== null) {
-        setViewedOnboarding(true);
-      }
+      const viewedOnboarding = await AsyncStorage.getItem('@viewedOnboarding');
+      setIsOnboardingComplete(viewedOnboarding === 'true');
     } catch (error) {
-      console.log('Error @checkOnboardingStatus: ', error);
-    } finally {
-      setIsLoading(false);
+      console.error('온보딩 상태 확인 실패:', error);
+      setIsOnboardingComplete(false);
     }
   };
 
-  // Show loading screen for 1.5 seconds
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setShowLoading(false);
-    }, 1500);
-    return () => clearTimeout(timer);
-  }, []);
-
-  if (isLoading || showLoading) {
-    return <LoadingScreen />;
+  if (isOnboardingComplete === null) {
+    // 로딩 상태
+    return null;
   }
 
-  if (!viewedOnboarding) {
-    return <OnboardingScreen />;
-  }
-
-  return (
-    <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {!viewedOnboarding ? (
+  if (!isOnboardingComplete) {
+    // 온보딩 화면 표시
+    return (
+      <NavigationContainer>
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
           <Stack.Screen name="Onboarding" component={OnboardingScreen} />
-        ) : (
-          <Stack.Screen name="Main" component={MainTabs} />
-        )}
-      </Stack.Navigator>
-    </NavigationContainer>
+          <Stack.Screen name="Main" component={MainTabNavigator} />
+        </Stack.Navigator>
+      </NavigationContainer>
+    );
+  }
+
+  // 메인 앱 표시
+  return (
+    <>
+      <NavigationContainer>
+        <MainTabNavigator />
+      </NavigationContainer>
+      <FloatingChatBotButton onPress={() => setChatVisible(true)} />
+      <ChatScreen visible={chatVisible} onClose={() => setChatVisible(false)} />
+    </>
   );
-}
+} 

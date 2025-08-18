@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { Text, View, TextInput, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
 const ageOptions = ['10대', '20대', '30대', '40대', '50대 이상'];
@@ -102,22 +102,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   title: {
+    fontFamily: 'NeoDunggeunmoPro-Regular',
     fontSize: 28,
-    fontWeight: 'bold',
     marginTop: 40,
     marginBottom: 10,
     color: '#333',
   },
   subtitle: {
+    fontFamily: 'NeoDunggeunmoPro-Regular',
     fontSize: 14,
     color: '#666',
     marginBottom: 30,
     textAlign: 'center',
   },
   label: {
+    fontFamily: 'NeoDunggeunmoPro-Regular',
     alignSelf: 'flex-start',
     fontSize: 16,
-    fontWeight: '600',
     color: '#222',
     marginTop: 18,
     marginBottom: 8,
@@ -150,9 +151,9 @@ const styles = StyleSheet.create({
     marginLeft: 2,
   },
   checkButtonText: {
+    fontFamily: 'NeoDunggeunmoPro-Regular',
     color: '#222',
     fontSize: 13,
-    fontWeight: 'bold',
   },
   optionsRow: {
     flexDirection: 'row',
@@ -175,12 +176,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#e6f0ff',
   },
   optionText: {
+    fontFamily: 'NeoDunggeunmoPro-Regular',
     color: '#fff',
     fontSize: 15,
   },
   optionTextSelected: {
+    fontFamily: 'NeoDunggeunmoPro-Regular',
     color: '#007AFF',
-    fontWeight: 'bold',
   },
   completeButton: {
     marginTop: 32,
@@ -196,9 +198,9 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   completeButtonText: {
+    fontFamily: 'NeoDunggeunmoPro-Regular',
     color: '#fff',
     fontSize: 18,
-    fontWeight: 'bold',
   },
 });
 

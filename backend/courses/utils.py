@@ -3,6 +3,7 @@ import numpy as np
 import math
 from django.db.models import Q
 from spots.models import Spot
+from .serializers import RouteSerializer
 
 
 # --- 1. 기본 함수 및 설정 ---
@@ -406,3 +407,13 @@ def generate_course(user_answers, num_places, user_lat, user_lon, mission_accept
             'mission_spot_count': 0,
             'user_region_name': None
         } 
+
+
+def save_course(result):
+    serializer = RouteSerializer(data=result)
+    if serializer.is_valid():
+        route = serializer.save()
+    
+    routeId = route.id
+    for spot in result['course_spots']:
+        RouteSpot.objects.create(route_id=routeId, spot_id=spot['spot_id'], order=spot['order'])

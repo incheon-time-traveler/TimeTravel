@@ -1,33 +1,71 @@
 from django.shortcuts import render, get_object_or_404
 from rest_framework.response import Response
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework import status
-from .models import Route, RouteSpot
-from .serializers import RouteSerializer, RouteDetailSerializer
-from .utils import generate_course
+from .models import Route, RouteSpot, UserRouteSpot
+from .serializers import RouteSerializer, RouteDetailSerializer, UserRouteSpotSerializer
+from .utils import generate_course, save_course
+from rest_framework.permissions import IsAuthenticated
 
 
 # Create your views here.
-@api_view(['GET', 'POST'])
+"""
+코스 관련
+코스 조회, 코스 상세 조회, 유저 코스 생성, 유저 코스 조회, 잠금 해제제
+"""    
+# 코스 조회
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def routes(request):
-    if request.method == 'POST':
-        serializer = RouteSerializer(data=request.data['route'])
-        if serializer.is_valid():
-            serializer.save()
-            for spot in request.data['spots']:
-                RouteSpot.objects.create(route_id=serializer.data['id'], spot_id=spot['id'], order_number=spot['order_number'])
-            return Response(serializer.data, status=201)
-        return Response(serializer.errors, status=400) 
-    else:
+    # 전체 코스 조회
+    if request.method == 'GET':
         routes = Route.objects.all()
         serializer = RouteSerializer(routes, many=True)
         return Response(serializer.data, status=200)
 
+# 코스 상세 조회
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def route_detail(request, route_id):
     route_spots = get_object_or_404(RouteSpot, route_id=route_id)
     serializer = RouteDetailSerializer(route_spots, many=True)
     return Response(serializer.data, status=200)
+
+# 유저 코스 생성
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def generate_user_course(request):
+    if request.method == "POST":
+        user = request.user
+        route_id = request.data.get('route_id')
+        route_spots = RouteSpot.objects.filter(route_id=route_id)
+        serializer = UserRouteSpotSerializer(data=request.data)
+        if serializer.is_valid(raise_exception=True):
+            for route_spot in route_spots:
+                serializer.save(user_id=user.id, route_spot_id=route_spot.id)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+# 유저 코스 조회
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def user_routes(request):
+    user = request.user
+    routes = UserRouteSpot.objects.all().filter(user_id=user.id)
+    serializer = UserRouteSpotSerializer(routes, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+# 잠금 해제
+@api_view(['PATCH'])
+@permission_classes([IsAuthenticated])
+def unlock_route_spot(request):
+    if request.method == "PATCH":
+        user = request.user
+        serializer = UserRouteSpotUpdateSerializer(data=request.data, partial=True)
+        if serializer.is_valid(raise_exception=True):
+            serializer.save(user_id=user.id)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(['POST'])
@@ -82,6 +120,9 @@ def generate_travel_course(request):
             mission_accepted=mission_accepted,
             move_to_other_region=move_to_other_region
         )
+        # 코스 저장 <- 추가함
+        save_course(result)
+
         if result['success']:
             return Response(result, status=status.HTTP_200_OK)
         else:
@@ -151,3 +192,4 @@ def get_mission_proposal(request):
             {'error': f'서버 오류가 발생했습니다: {str(e)}'}, 
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+

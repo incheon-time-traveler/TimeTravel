@@ -4,15 +4,8 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Image } from 'react-native';
-
-const Onboarding1 = () => (
-  <Image
-    source={require('../assets/onboarding1.png')}
-    style={{ width: 300, height: 300 }}
-    resizeMode="contain"
-  />
-);
+import { Onboarding1 } from '../assets/images/onboarding1';
+import { Onboarding2 } from '../assets/images/onboarding2';
 
 const { width, height } = Dimensions.get('window');
 
@@ -39,14 +32,14 @@ const OnboardingScreen = () => {
 
   const pages = [
     {
-      title: '여행의 추억을 간직하세요',
-      description: '당신의 여정을 아름답게 기록하고 추억을 간직하세요.',
+      title: '인천 타임머신에 오신 것을 환영합니다',
+      description: '과거와 현재를 연결하는 특별한 여행을 시작해보세요.',
       component: <Onboarding1 />,
     },
     {
       title: '지도에서 추억을 찾아보세요',
       description: '지도에서 여행한 장소를 확인하고 추억을 다시 떠올려보세요.',
-      component: <Onboarding1 />
+      component: <Onboarding2 />
     },
   ];
 

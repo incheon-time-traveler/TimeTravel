@@ -1,10 +1,9 @@
 export type RootStackParamList = {
   Onboarding: undefined;
   Main: undefined;
-  // Add other screen params as needed
 };
 
-export type RootTabParamList = {
+export type MainTabParamList = {
   Home: undefined;
   Map: undefined;
   Trips: undefined;

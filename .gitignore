@@ -1,0 +1,9 @@
+
+# never commit local AWS creds
+backend/.aws/
+
+
+# never commit local AWS creds
+backend/.aws/
+
+TT-backup.git/

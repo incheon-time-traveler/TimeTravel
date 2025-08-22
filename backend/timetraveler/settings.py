@@ -68,15 +68,38 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-# S3
-# EC2에 IAM Role 연결되어 있음 (Access/Secret key 필요 없음)
-AWS_ACCESS_KEY_ID = None
-AWS_SECRET_ACCESS_KEY = None
+# S3 설정
+# 로컬 개발용 - 환경변수에서 키 가져오기
+AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
+AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
 AWS_STORAGE_BUCKET_NAME = 'timetraveler-prod-images'
 AWS_S3_REGION_NAME = 'ap-northeast-2'
 
-# Media
-DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+# 프로필 관련 문제 해결을 위해 명시적으로 None 설정
+# AWS_S3_SESSION_PROFILE = "timetraveler-dev"  # ← django-storages가 인식하는 설정
+
+# 버킷 정책이 uploads/* 하위만 허용하도록 설정된 경우
+AWS_LOCATION = 'uploads'
+
+# S3 정책 설정
+AWS_QUERYSTRING_AUTH = True            # presigned URL 사용
+AWS_DEFAULT_ACL = None                 # ACL 사용하지 않음
+AWS_S3_FILE_OVERWRITE = False          # 같은 이름이면 새 파일명으로 저장
+AWS_S3_ADDRESSING_STYLE = "virtual"    # 현대 리전에서 권장
+AWS_S3_SIGNATURE_VERSION = "s3v4"      # 보안을 위해 권장
+
+# Django 4.2+ 스타일의 STORAGES 설정
+STORAGES = {
+    "default": {
+        "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+    },
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    },
+}
+
+# 미디어 URL 설정
+MEDIA_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com/{AWS_LOCATION}/'
 
 ROOT_URLCONF = 'timetraveler.urls'
 

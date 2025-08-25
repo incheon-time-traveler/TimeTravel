@@ -268,4 +268,5 @@ pyrightconfig.json
 # Data files
 incheon_info_db.csv
 
-
+# chatbot data
+chatbot/data/

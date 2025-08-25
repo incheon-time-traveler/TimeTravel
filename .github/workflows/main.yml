@@ -26,6 +26,7 @@ jobs:
             git pull origin main
 
             echo "🧹 Stop existing containers"
+            cd /home/ubuntu/TimeTravel/backend
             docker-compose down || true
 
             echo "🔧 Build & Run containers"

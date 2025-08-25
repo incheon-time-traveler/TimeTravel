@@ -29,7 +29,12 @@ SECRET_KEY = 'django-insecure-6(4f+@(z&esdyujg^e39m1c$b$nz3-^ep8*&ba@c4(s-@pocdx
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    "13.124.44.173",  # EC2 퍼블릭 IP
+    "localhost",
+    "127.0.0.1",
+    # 필요하면 도메인도 추가
+]
 
 
 # Application definition

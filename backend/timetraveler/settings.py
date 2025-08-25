@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'spots',
     'data_loader',
     'photos',
+    'chatbot',
     
     # S3
     'storages',

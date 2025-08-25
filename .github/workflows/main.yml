@@ -20,7 +20,7 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             set -e  # 중간에 오류 발생하면 멈추도록
-            cd /home/ubuntu/myproject
+            cd /home/ubuntu/TimeTravel
 
             echo "📦 Pull latest code"
             git pull origin main

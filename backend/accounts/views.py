@@ -20,7 +20,7 @@ load_dotenv()
 # 구글 로그인 요청 보내기
 @api_view(['GET', 'POST'])
 def google_login(request):
-    client_id = os.getenv("GOOGLE_CLIENT_ID")
+    client_id = os.getenv("GOOGLE_CLIENT_ID", "your_google_client_id_here")
     redirect_uri = "http://127.0.0.1:8000/accounts/google/callback/"
     scope = "openid email profile"
     response_type = "code"
@@ -98,7 +98,7 @@ def google_callback(request):
 @api_view(['GET'])
 def kakao_login(request):
     client_id = os.getenv("KAKAO_REST_API_KEY")
-    redirect_uri = os.getenv("KAKAO_REDIRECT_URI")
+    redirect_uri = os.getenv("KAKAO_REDIRECT_URI", "http://localhost:8000/accounts/kakao/callback/")
     response_type = "code"
 
     kakao_auth_url = (

@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { generateMapHtml, getCurrentLocation, requestLocationPermission } from '../../services/mapService';
+import { validateApiKeys } from '../../config/apiKeys';
 import { INCHEON_BLUE, INCHEON_GRAY } from '../../styles/fonts';
 import MissionNotification from '../../components/MissionNotification';
 import HistoricalPhotoSelector from '../../components/HistoricalPhotoSelector';
@@ -26,7 +27,7 @@ const MapScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [showMissionNotification, setShowMissionNotification] = useState(false);
   const [currentMission, setCurrentMission] = useState<Mission | null>(null);
   const [showPhotoSelector, setShowPhotoSelector] = useState(false);
-  const [locationCheckInterval, setLocationCheckInterval] = useState<NodeJS.Timeout | null>(null);
+  const [locationCheckInterval, setLocationCheckInterval] = useState<ReturnType<typeof setInterval> | null>(null);
 
   // 미션 위치 데이터를 지도용 형식으로 변환
   const missionLocations = missions.map(mission => ({
@@ -38,6 +39,14 @@ const MapScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   }));
 
   useEffect(() => {
+    // API 키 검증
+    console.log('🔍 MapScreen 마운트 - API 키 검증 시작');
+    const apiKeysValid = validateApiKeys();
+    
+    if (!apiKeysValid) {
+      console.warn('⚠️ API 키가 올바르게 설정되지 않았습니다. 카카오맵이 제대로 작동하지 않을 수 있습니다.');
+    }
+    
     initializeMap();
     startLocationMonitoring();
     return () => {

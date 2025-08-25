@@ -3,7 +3,7 @@ module.exports = {
   plugins: [
     ['module:react-native-dotenv', {
       moduleName: '@env',
-      path: '.env',
+      path: '../.env',  // 프로젝트 루트의 .env 파일
       blacklist: null,
       whitelist: null,
       safe: false,

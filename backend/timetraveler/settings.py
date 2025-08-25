@@ -29,7 +29,7 @@ SECRET_KEY = 'django-insecure-6(4f+@(z&esdyujg^e39m1c$b$nz3-^ep8*&ba@c4(s-@pocdx
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '13.124.44.173', '*']
 
 
 # Application definition
@@ -145,14 +145,15 @@ WSGI_APPLICATION = 'timetraveler.wsgi.application'
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.getenv("PG_DATABASE", "postgres"),
+        "NAME": os.getenv("PG_NAME", "postgres"),
         "USER": os.getenv("PG_USER", "postgres"),
         "PASSWORD": os.getenv("PG_PASSWORD", "postgres"),
-        'HOST': 'host.docker.internal',
+        'HOST': os.getenv("PG_HOST", "localhost"),
         "PORT": os.getenv("PG_PORT", "5432"),
         "CONN_MAX_AGE": 60,
         "OPTIONS": {
-            "connect_timeout": 5,
+            "connect_timeout": 10,
+            "client_encoding": "UTF8",
         },
     }
 }

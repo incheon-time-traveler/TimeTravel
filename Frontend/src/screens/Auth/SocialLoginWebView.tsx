@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
-import { saveTokens } from '../../services/authService';
+import authService from '../../services/authService';
 
 interface SocialLoginWebViewProps {
   provider: 'google' | 'kakao';
@@ -28,7 +28,7 @@ const SocialLoginWebView: React.FC<SocialLoginWebViewProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const handleNavigationStateChange = (navState: any) => {
+  const handleNavigationStateChange = async (navState: any) => {
     const { url } = navState;
     
     // 로그인 성공 시 URL에서 토큰 추출
@@ -39,7 +39,7 @@ const SocialLoginWebView: React.FC<SocialLoginWebViewProps> = ({
         
         if (accessToken) {
           // 토큰 저장
-          saveTokens(accessToken);
+          await authService.saveTokens({ access: accessToken, refresh: '' });
           
           // 성공 콜백 호출
           onLoginSuccess({

@@ -1,119 +1,206 @@
-import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BACKEND_API } from '../config/apiKeys';
 
-const API_BASE = BACKEND_API.BASE_URL;
+export interface User {
+  id: number;
+  username: string;
+  nickname: string;
+  useremail: string;
+  age?: string;
+  gender?: string;
+  phone?: string;
+}
 
-// axios 인스턴스 생성
-const apiClient = axios.create({
-  baseURL: API_BASE,
-  timeout: 10000,
-});
+export interface AuthTokens {
+  access: string;
+  refresh: string;
+}
 
-// 요청 인터셉터 - 토큰 자동 추가
-apiClient.interceptors.request.use(
-  async (config) => {
-    const token = await AsyncStorage.getItem('accessToken');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+export interface LoginResponse {
+  user: User;
+  tokens: AuthTokens;
+}
+
+class AuthService {
+  private baseURL: string;
+
+  constructor() {
+    this.baseURL = BACKEND_API.BASE_URL;
+  }
+
+  // 토큰 저장
+  async saveTokens(tokens: AuthTokens): Promise<void> {
+    try {
+      await AsyncStorage.setItem('access_token', tokens.access);
+      await AsyncStorage.setItem('refresh_token', tokens.refresh);
+    } catch (error) {
+      console.error('토큰 저장 오류:', error);
+      throw error;
     }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
   }
-);
 
-// 응답 인터셉터 - 토큰 만료 처리
-apiClient.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    if (error.response?.status === 401) {
-      // 토큰 만료 시 로그아웃 처리
-      await AsyncStorage.removeItem('accessToken');
-      await AsyncStorage.removeItem('refreshToken');
+  // 토큰 가져오기
+  async getTokens(): Promise<AuthTokens | null> {
+    try {
+      const access = await AsyncStorage.getItem('access_token');
+      const refresh = await AsyncStorage.getItem('refresh_token');
+      
+      if (access && refresh) {
+        return { access, refresh };
+      }
+      return null;
+    } catch (error) {
+      console.error('토큰 가져오기 오류:', error);
+      return null;
     }
-    return Promise.reject(error);
-  }
-);
-
-// 소셜 로그인 URL 가져오기
-export const getSocialLoginUrl = (provider: 'google' | 'kakao') => {
-  return `${API_BASE}/accounts/${provider}/login/`;
-};
-
-// 토큰 저장
-export const saveTokens = async (accessToken: string, refreshToken?: string) => {
-  await AsyncStorage.setItem('accessToken', accessToken);
-  if (refreshToken) {
-    await AsyncStorage.setItem('refreshToken', refreshToken);
-  }
-};
-
-// 토큰 가져오기
-export const getTokens = async () => {
-  const accessToken = await AsyncStorage.getItem('accessToken');
-  const refreshToken = await AsyncStorage.getItem('refreshToken');
-  return { accessToken, refreshToken };
-};
-
-// 토큰 삭제 (로그아웃)
-export const removeTokens = async () => {
-  await AsyncStorage.removeItem('accessToken');
-  await AsyncStorage.removeItem('refreshToken');
-};
-
-// 토큰 갱신
-export const refreshAccessToken = async () => {
-  const refreshToken = await AsyncStorage.getItem('refreshToken');
-  if (!refreshToken) {
-    throw new Error('Refresh token not found');
   }
 
-  try {
-    const response = await apiClient.post('/accounts/api/token/refresh/', {
-      refresh: refreshToken
-    });
-    
-    const newAccessToken = response.data.access;
-    await AsyncStorage.setItem('accessToken', newAccessToken);
-    return newAccessToken;
-  } catch (error) {
-    await removeTokens();
-    throw error;
+  // 액세스 토큰만 가져오기
+  async getAccessToken(): Promise<string | null> {
+    try {
+      return await AsyncStorage.getItem('access_token');
+    } catch (error) {
+      console.error('액세스 토큰 가져오기 오류:', error);
+      return null;
+    }
   }
-};
 
-// 로그아웃
-export const logout = async () => {
-  try {
-    const { accessToken } = await getTokens();
-    if (accessToken) {
-      await apiClient.post('/accounts/logout/', {
-        refresh_token: await AsyncStorage.getItem('refreshToken')
+  // 사용자 정보 저장
+  async saveUser(user: User): Promise<void> {
+    try {
+      await AsyncStorage.setItem('user', JSON.stringify(user));
+    } catch (error) {
+      console.error('사용자 정보 저장 오류:', error);
+      throw error;
+    }
+  }
+
+  // 사용자 정보 가져오기
+  async getUser(): Promise<User | null> {
+    try {
+      const userStr = await AsyncStorage.getItem('user');
+      if (userStr) {
+        return JSON.parse(userStr);
+      }
+      return null;
+    } catch (error) {
+      console.error('사용자 정보 가져오기 오류:', error);
+      return null;
+    }
+  }
+
+  // 로그인 상태 확인
+  async isLoggedIn(): Promise<boolean> {
+    try {
+      const tokens = await this.getTokens();
+      return tokens !== null;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  // 로그아웃
+  async logout(): Promise<void> {
+    try {
+      await AsyncStorage.multiRemove([
+        'access_token',
+        'refresh_token',
+        'user'
+      ]);
+    } catch (error) {
+      console.error('로그아웃 오류:', error);
+      throw error;
+    }
+  }
+
+  // 토큰 갱신
+  async refreshToken(): Promise<AuthTokens | null> {
+    try {
+      const refresh = await AsyncStorage.getItem('refresh_token');
+      if (!refresh) {
+        return null;
+      }
+
+      const response = await fetch(`${this.baseURL}/v1/users/refresh/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ refresh }),
       });
+
+      if (response.ok) {
+        const data = await response.json();
+        const tokens: AuthTokens = {
+          access: data.access,
+          refresh: data.refresh || refresh, // 새로운 refresh 토큰이 없으면 기존 것 사용
+        };
+        await this.saveTokens(tokens);
+        return tokens;
+      }
+      return null;
+    } catch (error) {
+      console.error('토큰 갱신 오류:', error);
+      return null;
     }
-  } catch (error) {
-    console.log('Logout error:', error);
-  } finally {
-    await removeTokens();
   }
-};
 
-// 사용자 프로필 가져오기
-export const getUserProfile = async (userId: number) => {
-  const response = await apiClient.get(`/accounts/profile/${userId}/`);
-  return response.data;
-};
+  // 사용자 프로필 업데이트
+  async updateProfile(userId: number, profileData: Partial<User>): Promise<User | null> {
+    try {
+      const accessToken = await this.getAccessToken();
+      if (!accessToken) {
+        return null;
+      }
 
-// 사용자 프로필 업데이트
-export const updateUserProfile = async (userId: number, profileData: any) => {
-  const response = await apiClient.put(`/accounts/profile/${userId}/`, profileData);
-  return response.data;
-};
+      const response = await fetch(`${this.baseURL}/v1/users/profile/${userId}/`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify(profileData),
+      });
 
-// 인증 상태 확인
-export const isAuthenticated = async () => {
-  const accessToken = await AsyncStorage.getItem('accessToken');
-  return !!accessToken;
-}; 
+      if (response.ok) {
+        const user = await response.json();
+        await this.saveUser(user);
+        return user;
+      }
+      return null;
+    } catch (error) {
+      console.error('프로필 업데이트 오류:', error);
+      return null;
+    }
+  }
+
+  // 사용자 프로필 조회
+  async getProfile(userId: number): Promise<User | null> {
+    try {
+      const accessToken = await this.getAccessToken();
+      if (!accessToken) {
+        return null;
+      }
+
+      const response = await fetch(`${this.baseURL}/v1/users/profile/${userId}/`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
+
+      if (response.ok) {
+        const user = await response.json();
+        await this.saveUser(user);
+        return user;
+      }
+      return null;
+    } catch (error) {
+      console.error('프로필 조회 오류:', error);
+      return null;
+    }
+  }
+}
+
+export const authService = new AuthService();
+export default authService; 

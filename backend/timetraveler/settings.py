@@ -148,7 +148,7 @@ DATABASES = {
         "NAME": os.getenv("PG_DATABASE", "postgres"),
         "USER": os.getenv("PG_USER", "postgres"),
         "PASSWORD": os.getenv("PG_PASSWORD", "postgres"),
-        'HOST': 'host.docker.internal',
+        'HOST': os.getenv("PG_HOST", "db"),
         "PORT": os.getenv("PG_PORT", "5432"),
         "CONN_MAX_AGE": 60,
         "OPTIONS": {

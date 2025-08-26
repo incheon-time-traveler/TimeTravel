@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     'data_loader',
     'photos',
     'chatbot',
+    'questions',
     
     # S3
     'storages',

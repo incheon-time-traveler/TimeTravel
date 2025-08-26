@@ -1,5 +1,5 @@
 from django.db import models
-from django.settings import AUTH_USER_MODEL
+from django.conf import settings
 
 # Create your models here.
 """1. 어떤 여행을 원하시나요?
@@ -45,7 +45,7 @@ class Answer(models.Model):
     )
 
     id = models.AutoField(primary_key=True)
-    user_id = models.ForeignKey(AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='answers')
+    user_id = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='answers')
     question_id = models.ForeignKey(Question, on_delete=models.CASCADE, related_name='answers')
     response = models.CharField(max_length=100, choices=RESPONSE_TYPE)
     created_at = models.DateTimeField(auto_now_add=True)

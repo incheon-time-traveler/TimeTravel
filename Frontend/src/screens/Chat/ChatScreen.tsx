@@ -10,40 +10,14 @@ import {
   KeyboardAvoidingView,
   Platform,
   Modal,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { INCHEON_BLUE, INCHEON_BLUE_LIGHT, INCHEON_GRAY } from '../../styles/fonts';
 import { ChatMessage, ChatBotResponse } from '../../types/chat';
+import { ChatbotService } from '../../services/chatbotService';
 
 const { width, height } = Dimensions.get('window');
-
-// 하드코딩된 챗봇 응답들
-const CHATBOT_RESPONSES: { [key: string]: ChatBotResponse } = {
-  '안녕': {
-    text: '안녕하세요! 인천 여행 도우미입니다. 무엇을 도와드릴까요?',
-    suggestions: ['인천 추천 코스', '대불호텔 정보', '인천대공원 가는법', '미션 도움말']
-  },
-  '인천 추천': {
-    text: '인천의 추천 코스는 다음과 같습니다:\n\n1️⃣ 대불호텔 - 인천의 역사\n2️⃣ 인천대공원 - 자연과 휴식\n3️⃣ 월미도 - 바다와 낭만\n4️⃣ 송도국제도시 - 미래형 도시',
-    suggestions: ['대불호텔 상세정보', '인천대공원 가는법', '월미도 정보']
-  },
-  '대불호텔': {
-    text: '대불호텔은 1883년 인천 개항과 함께 지어진 역사적인 건물입니다. 현재는 인천의 상징적인 관광지로 많은 사람들이 찾고 있어요!',
-    suggestions: ['대불호텔 가는법', '대불호텔 미션', '주변 맛집']
-  },
-  '인천대공원': {
-    text: '인천대공원은 1996년에 조성된 시민들의 휴식 공간입니다. 넓은 공원과 아름다운 자연을 즐길 수 있어요!',
-    suggestions: ['인천대공원 가는법', '인천대공원 미션', '주변 관광지']
-  },
-  '미션': {
-    text: '미션을 완료하려면 해당 장소에 가서 사진을 찍고, 과거 사진과 비교해보세요! 각 장소마다 특별한 역사적 의미가 담겨있답니다.',
-    suggestions: ['대불호텔 미션', '인천대공원 미션', '미션 힌트']
-  },
-  '도움말': {
-    text: '저는 인천 여행을 도와주는 AI 어시스턴트입니다!\n\n• 여행 코스 추천\n• 장소 정보 제공\n• 미션 도움말\n• 길찾기 안내\n\n무엇이든 물어보세요!',
-    suggestions: ['인천 추천 코스', '미션 도움말', '길찾기']
-  }
-};
 
 const ChatScreen: React.FC<{ visible: boolean; onClose: () => void }> = ({ visible, onClose }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -56,6 +30,8 @@ const ChatScreen: React.FC<{ visible: boolean; onClose: () => void }> = ({ visib
     }
   ]);
   const [inputText, setInputText] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [userId] = useState(() => ChatbotService.generateUserId());
   const scrollViewRef = useRef<ScrollView>(null);
 
   useEffect(() => {
@@ -66,8 +42,8 @@ const ChatScreen: React.FC<{ visible: boolean; onClose: () => void }> = ({ visib
     }
   }, [visible, messages]);
 
-  const handleSendMessage = () => {
-    if (!inputText.trim()) return;
+  const handleSendMessage = async () => {
+    if (!inputText.trim() || isLoading) return;
 
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
@@ -78,37 +54,42 @@ const ChatScreen: React.FC<{ visible: boolean; onClose: () => void }> = ({ visib
     };
 
     setMessages(prev => [...prev, userMessage]);
+    const currentInput = inputText;
     setInputText('');
+    setIsLoading(true);
 
-    // 챗봇 응답 생성
-    setTimeout(() => {
-      const botResponse = generateBotResponse(inputText);
+    try {
+      // 백엔드 API 호출
+      const response = await ChatbotService.chatWithBot({
+        user_question: currentInput,
+        user_id: userId,
+      });
+
       const botMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
-        text: botResponse.text,
+        text: response.ai_answer,
         isUser: false,
         timestamp: new Date(),
         type: 'text'
       };
       setMessages(prev => [...prev, botMessage]);
-    }, 500);
-  };
-
-  const generateBotResponse = (userInput: string): ChatBotResponse => {
-    const lowerInput = userInput.toLowerCase();
-    
-    // 키워드 매칭
-    for (const [keyword, response] of Object.entries(CHATBOT_RESPONSES)) {
-      if (lowerInput.includes(keyword.toLowerCase())) {
-        return response;
-      }
+    } catch (error) {
+      console.error('챗봇 응답 오류:', error);
+      
+      // 오류 메시지 표시
+      const errorMessage: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        text: '죄송합니다. 일시적인 오류가 발생했습니다. 잠시 후 다시 시도해주세요.',
+        isUser: false,
+        timestamp: new Date(),
+        type: 'text'
+      };
+      setMessages(prev => [...prev, errorMessage]);
+      
+      Alert.alert('오류', '챗봇과의 대화 중 문제가 발생했습니다.');
+    } finally {
+      setIsLoading(false);
     }
-
-    // 기본 응답
-    return {
-      text: '죄송합니다. 더 구체적으로 질문해주시면 도움을 드릴 수 있어요!',
-      suggestions: ['인천 추천 코스', '미션 도움말', '도움말']
-    };
   };
 
   const handleSuggestionPress = (suggestion: string) => {
@@ -163,6 +144,16 @@ const ChatScreen: React.FC<{ visible: boolean; onClose: () => void }> = ({ visib
                 </Text>
               </View>
             ))}
+            {isLoading && (
+              <View style={[styles.messageBubble, styles.botMessage]}>
+                <Text style={[styles.messageText, styles.botMessageText]}>
+                  생각 중입니다...
+                </Text>
+                <Text style={styles.timestamp}>
+                  {formatTime(new Date())}
+                </Text>
+              </View>
+            )}
           </ScrollView>
 
           {/* 입력 영역 */}
@@ -175,13 +166,19 @@ const ChatScreen: React.FC<{ visible: boolean; onClose: () => void }> = ({ visib
               placeholderTextColor={INCHEON_GRAY}
               multiline
               maxLength={200}
+              editable={!isLoading}
             />
             <TouchableOpacity
-              style={[styles.sendButton, !inputText.trim() && styles.sendButtonDisabled]}
+              style={[
+                styles.sendButton, 
+                (!inputText.trim() || isLoading) && styles.sendButtonDisabled
+              ]}
               onPress={handleSendMessage}
-              disabled={!inputText.trim()}
+              disabled={!inputText.trim() || isLoading}
             >
-              <Text style={styles.sendButtonText}>전송</Text>
+              <Text style={styles.sendButtonText}>
+                {isLoading ? '전송 중...' : '전송'}
+              </Text>
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
@@ -193,10 +190,13 @@ const ChatScreen: React.FC<{ visible: boolean; onClose: () => void }> = ({ visib
             {['인천 추천 코스', '대불호텔 정보', '미션 도움말', '길찾기'].map((suggestion, index) => (
               <TouchableOpacity
                 key={index}
-                style={styles.suggestionButton}
+                style={[styles.suggestionButton, isLoading && styles.suggestionButtonDisabled]}
                 onPress={() => handleSuggestionPress(suggestion)}
+                disabled={isLoading}
               >
-                <Text style={styles.suggestionText}>{suggestion}</Text>
+                <Text style={[styles.suggestionText, isLoading && styles.suggestionTextDisabled]}>
+                  {suggestion}
+                </Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -349,6 +349,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: INCHEON_GRAY,
     fontFamily: 'NeoDunggeunmoPro-Regular',
+  },
+  suggestionButtonDisabled: {
+    opacity: 0.7,
+  },
+  suggestionTextDisabled: {
+    color: INCHEON_GRAY,
+    opacity: 0.5,
   },
 });
 

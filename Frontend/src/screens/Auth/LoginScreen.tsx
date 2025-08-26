@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Text, View, Button, Alert, StyleSheet, TouchableOpacity, Modal } from 'react-native';
-import { getSocialLoginUrl } from '../../services/authService';
+import { OAUTH_URLS } from '../../config/apiKeys';
 import SocialLoginWebView from './SocialLoginWebView';
 import { INCHEON_BLUE_LIGHT, INCHEON_GRAY } from '../../styles/fonts';
 
@@ -11,7 +11,12 @@ const LoginScreen = ({ navigation }: any) => {
 
   const handleSocialLogin = (provider: 'google' | 'kakao') => {
     try {
-      const url = getSocialLoginUrl(provider);
+      let url: string;
+      if (provider === 'google') {
+        url = OAUTH_URLS.GOOGLE_LOGIN;
+      } else {
+        url = OAUTH_URLS.KAKAO_LOGIN;
+      }
       setCurrentProvider(provider);
       setLoginUrl(url);
       setShowWebView(true);

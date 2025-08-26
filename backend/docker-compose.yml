@@ -12,17 +12,27 @@ services:
       - .env
     volumes:
       - .:/app
-    depends_on:
-      - db
+    # Linux에서 host.docker.internal을 사용할 수 있도록 설정
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    # locale을 UTF-8로 설정
+    environment:
+      - LANG=C.UTF-8
+      - LANGUAGE=C.UTF-8
+      - LC_ALL=C.UTF-8
     
   # db:
   #   image: postgres:14
-  #   container_name: postgres
-  #   ports:
-  #     - "5433:5432"
   #   environment:
   #     - POSTGRES_USER=postgres
   #     - POSTGRES_PASSWORD=postgres
   #     - POSTGRES_DB=postgres
   #   volumes:
   #     - postgres_data:/var/lib/postgresql/data
+  #   ports:
+  #     - "5432:5432"        # 호스트에서 접근 필요할 때만 유지
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+  #     interval: 5s
+  #     timeout: 3s
+  #     retries: 10

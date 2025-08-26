@@ -24,12 +24,17 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-6(4f+@(z&esdyujg^e39m1c$b$nz3-^ep8*&ba@c4(s-@pocdx'
+SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-6(4f+@(z&esdyujg^e39m1c$b$nz3-^ep8*&ba@c4(s-@pocdx')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    "13.124.44.173",  # EC2 퍼블릭 IP
+    "localhost",
+    "127.0.0.1",
+    # 필요하면 도메인도 추가
+]
 
 
 # Application definition
@@ -41,6 +46,7 @@ INSTALLED_APPS = [
     'spots',
     'data_loader',
     'photos',
+    'chatbot',
     
     # S3
     'storages',
@@ -48,6 +54,7 @@ INSTALLED_APPS = [
     # rest_framework
     'rest_framework',
     'rest_framework_simplejwt',
+    'drf_yasg', # API docs
     
     # django
     'django.contrib.admin',
@@ -68,15 +75,38 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-# S3
-# EC2에 IAM Role 연결되어 있음 (Access/Secret key 필요 없음)
-AWS_ACCESS_KEY_ID = None
-AWS_SECRET_ACCESS_KEY = None
-AWS_STORAGE_BUCKET_NAME = 'timetraveler-prod-images'
-AWS_S3_REGION_NAME = 'ap-northeast-2'
+# S3 설정
+# 환경변수에서 키 가져오기
+AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
+AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
+AWS_STORAGE_BUCKET_NAME = os.getenv('AWS_STORAGE_BUCKET_NAME', 'timetraveler-prod-images')
+AWS_S3_REGION_NAME = os.getenv('AWS_S3_REGION_NAME', 'ap-northeast-2')
 
-# Media
-DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+# 프로필 관련 문제 해결을 위해 명시적으로 None 설정
+# AWS_S3_SESSION_PROFILE = "timetraveler-dev"  # ← django-storages가 인식하는 설정
+
+# 버킷 정책이 uploads/* 하위만 허용하도록 설정된 경우
+AWS_LOCATION = 'uploads'
+
+# S3 정책 설정
+AWS_QUERYSTRING_AUTH = True            # presigned URL 사용
+AWS_DEFAULT_ACL = None                 # ACL 사용하지 않음
+AWS_S3_FILE_OVERWRITE = False          # 같은 이름이면 새 파일명으로 저장
+AWS_S3_ADDRESSING_STYLE = "virtual"    # 현대 리전에서 권장
+AWS_S3_SIGNATURE_VERSION = "s3v4"      # 보안을 위해 권장
+
+# Django 4.2+ 스타일의 STORAGES 설정
+STORAGES = {
+    "default": {
+        "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+    },
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    },
+}
+
+# 미디어 URL 설정
+MEDIA_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com/{AWS_LOCATION}/'
 
 ROOT_URLCONF = 'timetraveler.urls'
 
@@ -101,35 +131,37 @@ WSGI_APPLICATION = 'timetraveler.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-# SQLite for local development
-DATABASES = {
-    'default': {
-#         'ENGINE': 'django.db.backends.postgresql',
-#         'NAME': 'postgres',
-#         'USER': 'postgres',
-#         'PASSWORD': 'postgres',
-#         'HOST': 'db',  # docker-compose에서 지정한 서비스명
-#         'PORT': '5432',
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-}
-
-
+# SQLite
 # DATABASES = {
-#     "default": {
-#         "ENGINE": "django.db.backends.postgresql",
-#         "NAME": os.getenv("PGDATABASE", "postgres"),
-#         "USER": os.getenv("PGUSER", "postgres"),
-#         "PASSWORD": os.getenv("PGPASSWORD", "postgres"),
-#         "HOST": os.getenv("PGHOST", "127.0.0.1"),
-#         "PORT": os.getenv("PGPORT", "5432"),
-#         "CONN_MAX_AGE": 60,  # 연결 재사용
-#         "OPTIONS": {
-#             "connect_timeout": 5,  # 빨리 실패해서 원인 파악 쉬움
-#         },
+#     'default': {
+# #         'ENGINE': 'django.db.backends.postgresql',
+# #         'NAME': 'postgres',
+# #         'USER': 'postgres',
+# #         'PASSWORD': 'postgres',
+# #         'HOST': 'db',  # docker-compose에서 지정한 서비스명
+# #         'PORT': '5432',
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': BASE_DIR / 'db.sqlite3',
 #     }
 # }
+
+
+# Postgres RDS
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.getenv("PG_NAME", "postgres"),
+        "USER": os.getenv("PG_USER", "postgres"),
+        "PASSWORD": os.getenv("PG_PASSWORD", "postgres"),
+        "HOST": os.getenv("PG_HOST", "localhost"),
+        "PORT": os.getenv("PG_PORT", "5432"),
+        "CONN_MAX_AGE": 60,
+        "OPTIONS": {
+            "connect_timeout": 5,
+            "client_encoding": "UTF8",  # Explicitly set encoding
+        },
+    }
+}
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
@@ -165,7 +197,9 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = 'static/'
+# STATIC_URL = 'static/'
+STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')  # ← 여기가 핵심
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field

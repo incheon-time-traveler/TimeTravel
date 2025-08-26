@@ -14,7 +14,6 @@ from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode, tools_condition
 from langgraph.checkpoint.memory import MemorySaver
 
-
 from .tool_module import *
 
 # 환경 변수 설정
@@ -76,8 +75,21 @@ def analyze_question_node(state: State):
     last_message = state["messages"][-1]
     
     if isinstance(last_message, HumanMessage):
-        # 질문 분석 실행
-        analysis_result = analyze_user_question.invoke(last_message.content)
+        # GPS 좌표 정보 추출 (프론트에서 전달받은 경우)
+        user_lat = None
+        user_lon = None
+        
+        # 메시지에 GPS 정보가 포함되어 있는지 확인
+        if hasattr(last_message, 'additional_kwargs') and last_message.additional_kwargs:
+            user_lat = last_message.additional_kwargs.get('user_lat')
+            user_lon = last_message.additional_kwargs.get('user_lon')
+        
+        # 질문 분석 실행 (GPS 좌표 포함)
+        analysis_result = analyze_user_question.invoke(
+            last_message.content,
+            user_lat=user_lat,
+            user_lon=user_lon
+        )
         
         return {
             "question_analysis": analysis_result,
@@ -111,7 +123,9 @@ def chatbot(state: State):
     4. 블로그 후기가 필요하면 카카오 블로그 검색 후 크롤링해
     5. 화장실에 대한 질문(restroom=True)이면 restroom_tool을 사용해서 CSV에서 위치 정보를 찾아 제공해
     6. 길찾기(route=True)면 resolve_place와 build_kakaomap_route를 순서대로 호출해서 웹 링크를 제공해
-    7. 질문이 명확하지 않으면 구체적으로 물어봐
+       - 이동수단은 사용자 질문에서 추출한 transport_mode를 사용해 (car, foot, bicycle, publictransit)
+    7. 위치 기반 검색(맛집/카페)에서 "근처", "주변"만 있으면 현재 위치 정보를 요청하고, 구체적 위치명이 있으면 해당 위치 기반으로 검색
+    8. 질문이 명확하지 않으면 구체적으로 물어봐
     
     길찾기(route=True)는 최대 2번만 tool을 호출(먼저 resolve_place, 다음 build_kakaomap_route)하고 결과를 안내한 뒤 끝내.
     화장실(restroom=True)은 1번만 tool 호출하고 결과 안내 후 끝내. 추가 tool_call 금지.

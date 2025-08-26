@@ -23,6 +23,7 @@ from langchain_community.utilities import OpenWeatherMapAPIWrapper
 os.environ["HF_TOKEN"] = os.getenv("HUGGINGFACE_API_KEY")
 os.environ["TAVILY_API_KEY"] = os.getenv("TAVILY_API_KEY")
 os.environ["OPENWEATHERMAP_API_KEY"] = os.getenv("OPENWEATHERMAP_API_KEY")
+os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
 os.environ["USER_AGENT"] = os.getenv("USER_AGENT")
 KAKAO_REST_API_KEY = os.getenv("KAKAO_REST_API_KEY")
 
@@ -68,7 +69,7 @@ except Exception as e:
 
 # 1. 질문 분리 및 분석 tool
 @tool
-def analyze_user_question(user_question: str) -> dict:
+def analyze_user_question(user_question: str, user_lat: str = None, user_lon: str = None) -> dict:
     """사용자의 질문을 분석하여 어떤 종류의 질문인지 분류하고 필요한 정보를 추출합니다."""
     
     question_types = {
@@ -88,8 +89,24 @@ def analyze_user_question(user_question: str) -> dict:
         "place_name": None,    # 장소명
         "query": None,         # 검색어
         "needs_clarification": False,
-        "clarification_question": None
+        "clarification_question": None,
+        "transport_mode": "car",  # 기본값은 자동차
+        "needs_current_location": False,  # 현재 위치 정보 필요 여부
+        "latitude": None,      # 사용자 GPS 위도
+        "longitude": None,     # 사용자 GPS 경도
+        "has_coordinates": False,  # GPS 좌표 보유 여부
+        "location_type": None  # 위치 타입: "specific_place", "current_location", "unknown"
     }
+    
+    # 프론트에서 전달받은 GPS 좌표가 있으면 설정
+    if user_lat and user_lon:
+        try:
+            extracted_info["latitude"] = float(user_lat)
+            extracted_info["longitude"] = float(user_lon)
+            extracted_info["has_coordinates"] = True
+        except ValueError:
+            # GPS 좌표 변환 실패 시 무시
+            pass
     
     # 질문을 소문자로 변환하여 분석
     question_lower = user_question.lower()
@@ -107,18 +124,44 @@ def analyze_user_question(user_question: str) -> dict:
         # 위치 정보 추출
         if any(keyword in question_lower for keyword in ["근처", "가까운", "주변"]):
             question_types["location"] = True
-            # 구체적인 위치 추출 (예: "인천역 근처", "송도 근처")
+            
+            # 1단계: 구체적인 위치명이 있는지 먼저 확인
             location_patterns = [
                 r"([가-힣]+역)\s*근처",
                 r"([가-힣]+동)\s*근처", 
                 r"([가-힣]+구)\s*근처",
                 r"([가-힣]+)\s*근처"
             ]
+            
+            location_found = False
             for pattern in location_patterns:
                 match = re.search(pattern, user_question)
                 if match:
                     extracted_info["location"] = match.group(1)
+                    extracted_info["location_type"] = "specific_place"  # 특정 장소
+                    location_found = True
                     break
+            
+            # 2단계: 구체적 위치가 없으면 현재 위치 관련 키워드 확인
+            if not location_found:
+                current_location_keywords = ["근처", "주변", "가까운", "여기", "현재"]
+                has_current_location_keyword = any(keyword in question_lower for keyword in current_location_keywords)
+                
+                if has_current_location_keyword:
+                    # 현재 위치 관련 질문
+                    extracted_info["location"] = "current_location"
+                    extracted_info["location_type"] = "current_location"  # 현재 위치
+                    if extracted_info["has_coordinates"]:
+                        # GPS 좌표가 있으면 현재 위치로 설정
+                        extracted_info["needs_current_location"] = False
+                    else:
+                        # GPS 좌표가 없으면 요청
+                        extracted_info["needs_current_location"] = True
+                else:
+                    # 위치 정보가 명확하지 않음
+                    extracted_info["location"] = None
+                    extracted_info["location_type"] = "unknown"  # 위치 불명
+                    extracted_info["needs_current_location"] = True
     
     # 카페 관련 질문 확인
     if any(keyword in question_lower for keyword in ["카페", "커피", "디저트"]):
@@ -128,17 +171,44 @@ def analyze_user_question(user_question: str) -> dict:
         # 위치 정보 추출
         if any(keyword in question_lower for keyword in ["근처", "가까운", "주변"]):
             question_types["location"] = True
+            
+            # 1단계: 구체적인 위치명이 있는지 먼저 확인
             location_patterns = [
                 r"([가-힣]+역)\s*근처",
                 r"([가-힣]+동)\s*근처", 
                 r"([가-힣]+구)\s*근처",
                 r"([가-힣]+)\s*근처"
             ]
+            
+            location_found = False
             for pattern in location_patterns:
                 match = re.search(pattern, user_question)
                 if match:
                     extracted_info["location"] = match.group(1)
+                    extracted_info["location_type"] = "specific_place"  # 특정 장소
+                    location_found = True
                     break
+            
+            # 2단계: 구체적 위치가 없으면 현재 위치 관련 키워드 확인
+            if not location_found:
+                current_location_keywords = ["근처", "주변", "가까운", "여기", "현재"]
+                has_current_location_keyword = any(keyword in question_lower for keyword in current_location_keywords)
+                
+                if has_current_location_keyword:
+                    # 현재 위치 관련 질문
+                    extracted_info["location"] = "current_location"
+                    extracted_info["location_type"] = "current_location"  # 현재 위치
+                    if extracted_info["has_coordinates"]:
+                        # GPS 좌표가 있으면 현재 위치로 설정
+                        extracted_info["needs_current_location"] = False
+                    else:
+                        # GPS 좌표가 없으면 요청
+                        extracted_info["needs_current_location"] = True
+                else:
+                    # 위치 정보가 명확하지 않음
+                    extracted_info["location"] = None
+                    extracted_info["location_type"] = "unknown"  # 위치 불명
+                    extracted_info["needs_current_location"] = True
     
     # 날씨 관련 질문 확인
     if any(keyword in question_lower for keyword in ["날씨", "기온", "비", "맑음"]):
@@ -173,6 +243,16 @@ def analyze_user_question(user_question: str) -> dict:
     if any(keyword in question_lower for keyword in ["길찾기", "가는 법", "가는 길", "가는길", "어떻게 가", "경로", "루트"]):
         question_types["route"] = True
         extracted_info["query"] = user_question
+        
+        # 이동수단 분석
+        if any(keyword in question_lower for keyword in ["버스", "지하철", "전철", "대중교통", "대중 교통"]):
+            extracted_info["transport_mode"] = "publictransit"
+        elif any(keyword in question_lower for keyword in ["도보", "걸어서", "걸어가", "걸어서 가"]):
+            extracted_info["transport_mode"] = "foot"
+        elif any(keyword in question_lower for keyword in ["자전거", "자전거로", "자전거 타고"]):
+            extracted_info["transport_mode"] = "bicycle"
+        elif any(keyword in question_lower for keyword in ["차", "자동차", "운전", "드라이브"]):
+            extracted_info["transport_mode"] = "car"
 
     # 질문이 명확하지 않은 경우 확인
     if not any(question_types.values()):
@@ -231,14 +311,7 @@ restroom_tool = create_retriever_tool(
 # 5. 카페 추천 tool
 @tool
 def get_near_cafe_in_kakao(query: str, location: str = None, latitude: str = None, longitude: str = None) -> list:
-    """사용자에게 카페를 추천합니다. 위치 정보가 있으면 해당 지역 근처의 카페를 검색합니다.
-    
-    Args:
-        query: 검색할 카페 키워드 (예: "카페", "커피", "디저트")
-        location: 위치명 (예: "인천역", "송도")
-        latitude: 위도 (GPS 좌표)
-        longitude: 경도 (GPS 좌표)
-    """
+    """사용자에게 카페를 추천합니다. 위치 정보가 있으면 해당 지역 근처의 카페를 검색합니다."""
     # KAKAO local 사용
     url = KAKAO_URL + "/local/search/keyword.json"
     headers = {
@@ -295,14 +368,7 @@ def get_near_cafe_in_kakao(query: str, location: str = None, latitude: str = Non
 # 6. 맛집 추천 tool
 @tool
 def get_near_restaurant_in_kakao(query: str, location: str = None, latitude: str = None, longitude: str = None) -> list:
-    """사용자에게 음식점이나 식당을 추천합니다. 위치 정보가 있으면 해당 지역 근처의 맛집을 검색합니다.
-    
-    Args:
-        query: 검색할 맛집 키워드 (예: "맛집", "음식점", "식당")
-        location: 위치명 (예: "인천역", "송도")
-        latitude: 위도 (GPS 좌표)
-        longitude: 경도 (GPS 좌표)
-    """
+    """사용자에게 음식점이나 식당을 추천합니다. 위치 정보가 있으면 해당 지역 근처의 맛집을 검색합니다."""
     # KAKAO local 사용
     url = KAKAO_URL + "/local/search/keyword.json"
     headers = {
@@ -438,14 +504,7 @@ def ask_for_clarification(question: str) -> str:
 # 10. GPS 좌표 파싱 tool
 @tool
 def parse_gps_coordinates(user_input: str) -> dict:
-    """사용자 입력에서 GPS 좌표를 파싱합니다.
-    
-    Args:
-        user_input: 사용자 입력 (예: "위도: 37.456, 경도: 126.705 주변 맛집")
-    
-    Returns:
-        GPS 좌표 정보가 담긴 딕셔너리
-    """
+    """사용자 입력에서 GPS 좌표를 파싱합니다."""
     import re
     
     result = {
@@ -490,14 +549,7 @@ def parse_gps_coordinates(user_input: str) -> dict:
 # 11. 위치 기반 맛집 검색 통합 tool
 @tool
 def search_restaurants_by_location(user_input: str) -> dict:
-    """사용자 입력을 분석하여 위치 기반으로 맛집을 검색합니다.
-    
-    Args:
-        user_input: 사용자 입력 (예: "여기 주변 맛집", "인천역 근처 맛집", "위도: 37.456, 경도: 126.705 주변 맛집")
-    
-    Returns:
-        검색 결과와 위치 정보
-    """
+    """사용자 입력을 분석하여 위치 기반으로 맛집을 검색합니다."""
     # GPS 좌표 파싱
     gps_info = parse_gps_coordinates(user_input)
     
@@ -551,10 +603,12 @@ def search_restaurants_by_location(user_input: str) -> dict:
             result["restaurants"] = restaurants
             result["message"] = f"{location} 근처 맛집을 찾았습니다."
         else:
-            result["message"] = "위치 정보를 찾을 수 없습니다. 구체적인 위치를 말씀해주세요."
+            result["message"] = "현재 위치 정보가 필요합니다. GPS 좌표를 입력해주세요. (예: 위도: 37.456, 경도: 126.705 주변 맛집)"
             
     elif gps_info.get("needs_current_location"):
-        result["message"] = "현재 위치 정보가 필요합니다. GPS 좌표를 입력해주세요."
+        result["message"] = "현재 위치 정보가 필요합니다. GPS 좌표를 입력해주세요. (예: 위도: 37.456, 경도: 126.705 주변 맛집)"
+    elif "current_location" in user_input and not gps_info["has_coordinates"]:
+        result["message"] = "현재 위치 정보가 필요합니다. GPS 좌표를 입력해주세요. (예: 위도: 37.456, 경도: 126.705 주변 맛집)"
         
     else:
         result["message"] = "위치 정보가 필요합니다. '근처', '주변' 또는 GPS 좌표를 포함해서 질문해주세요."
@@ -564,14 +618,7 @@ def search_restaurants_by_location(user_input: str) -> dict:
 # 12. 위치 기반 카페 검색 통합 tool
 @tool
 def search_cafes_by_location(user_input: str) -> dict:
-    """사용자 입력을 분석하여 위치 기반으로 카페를 검색합니다.
-    
-    Args:
-        user_input: 사용자 입력 (예: "여기 주변 카페", "송도 근처 카페", "위도: 37.456, 경도: 126.705 주변 카페")
-    
-    Returns:
-        검색 결과와 위치 정보
-    """
+    """사용자 입력을 분석하여 위치 기반으로 카페를 검색합니다."""
     # GPS 좌표 파싱
     gps_info = parse_gps_coordinates(user_input)
     
@@ -625,10 +672,12 @@ def search_cafes_by_location(user_input: str) -> dict:
             result["cafes"] = cafes
             result["message"] = f"{location} 근처 카페를 찾았습니다."
         else:
-            result["message"] = "위치 정보를 찾을 수 없습니다. 구체적인 위치를 말씀해주세요."
+            result["message"] = "현재 위치 정보가 필요합니다. GPS 좌표를 입력해주세요. (예: 위도: 37.456, 경도: 126.705 주변 카페)"
             
     elif gps_info.get("needs_current_location"):
-        result["message"] = "현재 위치 정보가 필요합니다. GPS 좌표를 입력해주세요."
+        result["message"] = "현재 위치 정보가 필요합니다. GPS 좌표를 입력해주세요. (예: 위도: 37.456, 경도: 126.705 주변 카페)"
+    elif "current_location" in user_input and not gps_info["has_coordinates"]:
+        result["message"] = "현재 위치 정보가 필요합니다. GPS 좌표를 입력해주세요. (예: 위도: 37.456, 경도: 126.705 주변 카페)"
         
     else:
         result["message"] = "위치 정보가 필요합니다. '근처', '주변' 또는 GPS 좌표를 포함해서 질문해주세요."
@@ -675,5 +724,32 @@ def resolve_place(query: str) -> dict:
 @tool
 def build_kakaomap_route(start_lat: str, start_lon: str, end_lat: str, end_lon: str, by: str = "car") -> dict:
     """출발지, 도착지, 이동수단으로 카카오맵 길찾기 앱/웹 링크를 생성합니다."""
-    web_url = f"{KAKAO_MAP_URL}?sp={start_lat},{start_lon}&ep={end_lat},{end_lon}&by={by}"
-    return {"url": web_url}
+    # 이동수단별 카카오맵 파라미터 매핑
+    transport_mapping = {
+        "car": "car",           # 자동차
+        "walk": "foot",         # 도보
+        "bicycle": "bicycle",   # 자전거
+        "public_transit": "publictransit",  # 대중교통
+        "bus": "publictransit", # 버스
+        "subway": "publictransit", # 지하철
+        "train": "publictransit"   # 기차
+    }
+    
+    # 기본값은 자동차
+    transport_type = transport_mapping.get(by.lower(), "car")
+    
+    web_url = f"{KAKAO_MAP_URL}?sp={start_lat},{start_lon}&ep={end_lat},{end_lon}&by={transport_type}"
+    
+    # 이동수단별 설명 추가
+    transport_descriptions = {
+        "car": "자동차",
+        "foot": "도보",
+        "bicycle": "자전거", 
+        "publictransit": "대중교통"
+    }
+    
+    return {
+        "url": web_url,
+        "transport_type": transport_descriptions.get(transport_type, "자동차"),
+        "message": f"카카오맵 {transport_descriptions.get(transport_type, '자동차')} 길찾기 링크를 생성했습니다."
+    }

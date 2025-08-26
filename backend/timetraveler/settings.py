@@ -24,10 +24,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-6(4f+@(z&esdyujg^e39m1c$b$nz3-^ep8*&ba@c4(s-@pocdx'
+SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-6(4f+@(z&esdyujg^e39m1c$b$nz3-^ep8*&ba@c4(s-@pocdx')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
 
 ALLOWED_HOSTS = [
     "13.124.44.173",  # EC2 퍼블릭 IP
@@ -76,11 +76,11 @@ MIDDLEWARE = [
 ]
 
 # S3 설정
-# 로컬 개발용 - 환경변수에서 키 가져오기
+# 환경변수에서 키 가져오기
 AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
 AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
-AWS_STORAGE_BUCKET_NAME = 'timetraveler-prod-images'
-AWS_S3_REGION_NAME = 'ap-northeast-2'
+AWS_STORAGE_BUCKET_NAME = os.getenv('AWS_STORAGE_BUCKET_NAME', 'timetraveler-prod-images')
+AWS_S3_REGION_NAME = os.getenv('AWS_S3_REGION_NAME', 'ap-northeast-2')
 
 # 프로필 관련 문제 해결을 위해 명시적으로 None 설정
 # AWS_S3_SESSION_PROFILE = "timetraveler-dev"  # ← django-storages가 인식하는 설정

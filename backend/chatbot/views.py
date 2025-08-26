@@ -12,15 +12,15 @@ def chat_with_bot(request):
     graph = get_or_create_graph()
 
     try:
-        # 사용자 질문 받기
-        user_input = request.POST.get("user_question")
+        # 사용자 질문 받기 (JSON 또는 POST 데이터 모두 지원)
+        user_input = request.data.get("user_question") or request.POST.get("user_question")
         
         # # 사용자 위치 받기
-        # user_lat = request.POST.get("user_lat")
-        # user_lon = request.POST.get("user_lon")
+        # user_lat = request.data.get("user_lat") or request.POST.get("user_lat")
+        # user_lon = request.data.get("user_lon") or request.POST.get("user_lon")
 
         # 사용자 고유 정보 받기
-        user_id = request.POST.get("user_id")
+        user_id = request.data.get("user_id") or request.POST.get("user_id")
 
         config = {"configurable": {"thread_id": user_id}}
 

@@ -31,14 +31,18 @@ const SocialLoginWebView: React.FC<SocialLoginWebViewProps> = ({
   const handleNavigationStateChange = async (navState: any) => {
     const { url } = navState;
     
-    // 로그인 성공 시 URL에서 토큰 추출
-    if (url.includes('login-success')) {
+    console.log('Navigation URL:', url); // 디버깅용 로그
+    
+    // 인증 성공 페이지 처리 (/auth/success)
+    if (url.includes('/auth/success')) {
       try {
         const urlParams = new URL(url);
         const accessToken = urlParams.searchParams.get('access');
         
+        console.log('Access Token from auth success page:', accessToken); // 디버깅용 로그
+        
         if (accessToken) {
-          // 토큰 저장
+          // 토큰 저장 (refresh 토큰은 쿠키에서 관리되므로 빈 문자열)
           await authService.saveTokens({ access: accessToken, refresh: '' });
           
           // 성공 콜백 호출
@@ -48,16 +52,53 @@ const SocialLoginWebView: React.FC<SocialLoginWebViewProps> = ({
           });
           
           return;
+        } else {
+          console.error('No access token found in auth success page');
+          onLoginError('액세스 토큰을 찾을 수 없습니다.');
         }
       } catch (error) {
-        console.error('Token extraction error:', error);
+        console.error('Auth success page token extraction error:', error);
         onLoginError('토큰 추출 중 오류가 발생했습니다.');
       }
     }
     
+    // 카카오/구글 콜백 URL 감지 (디버깅용)
+    if (url.includes('/callback/') && url.includes('code=')) {
+      console.log('OAuth callback detected, waiting for backend processing...');
+    }
+    
     // 에러 처리
-    if (url.includes('error') || url.includes('denied')) {
-      onLoginError('로그인이 취소되었습니다.');
+    if (url.includes('error') || url.includes('denied') || url.includes('redirect_uri_mismatch')) {
+      console.error('OAuth error detected:', url);
+      onLoginError('OAuth 인증 중 오류가 발생했습니다. 설정을 확인해주세요.');
+    }
+  };
+
+  // WebView에서 postMessage 처리
+  const handleMessage = async (event: any) => {
+    try {
+      const data = JSON.parse(event.nativeEvent.data);
+      console.log('Received message from WebView:', data);
+      
+      if (data.type === 'LOGIN_SUCCESS' && data.accessToken) {
+        console.log('Processing login success message with token:', data.accessToken);
+        
+        // 토큰 저장
+        await authService.saveTokens({ access: data.accessToken, refresh: '' });
+        
+        // 성공 콜백 호출
+        onLoginSuccess({
+          accessToken: data.accessToken,
+          provider,
+        });
+        
+        return;
+      } else if (data.type === 'AUTO_RETURN') {
+        console.log('Auto return message received');
+        // 자동 반환 메시지 - 무시
+      }
+    } catch (error) {
+      console.error('Error processing WebView message:', error);
     }
   };
 
@@ -107,6 +148,7 @@ const SocialLoginWebView: React.FC<SocialLoginWebViewProps> = ({
         source={{ uri: loginUrl }}
         style={styles.webview}
         onNavigationStateChange={handleNavigationStateChange}
+        onMessage={handleMessage}
         onLoadStart={handleLoadStart}
         onLoadEnd={handleLoadEnd}
         onError={handleError}

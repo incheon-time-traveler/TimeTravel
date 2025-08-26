@@ -4,6 +4,13 @@
  * 1. 프로젝트 루트에 .env 파일 생성
  * 2. 필요한 API 키들을 설정
  * 3. 앱 재시작
+ * 
+ * 백엔드 환경변수 설정 (.env):
+ * - FRONTEND_URL=http://localhost:5173 (프론트엔드 URL)
+ * - GOOGLE_CLIENT_ID=your_google_client_id
+ * - GOOGLE_CLIENT_SECRET=your_google_client_secret
+ * - KAKAO_REST_API_KEY=your_kakao_rest_api_key
+ * - KAKAO_REDIRECT_URI=http://localhost:8000/v1/users/kakao/callback/
  */
 
 // 백엔드 API URL
@@ -20,6 +27,6 @@ export const CHATBOT_API = {
 export const OAUTH_URLS = {
   GOOGLE_LOGIN: `${BACKEND_API.BASE_URL}/v1/users/google/login/`,
   KAKAO_LOGIN: `${BACKEND_API.BASE_URL}/v1/users/kakao/login/`,
-  GOOGLE_REDIRECT: 'http://localhost:8000/accounts/google/callback/',
-  KAKAO_REDIRECT: 'http://localhost:8000/accounts/google/callback/',
+  GOOGLE_REDIRECT: `${BACKEND_API.BASE_URL}/v1/users/google/callback/`,
+  KAKAO_REDIRECT: `${BACKEND_API.BASE_URL}/v1/users/kakao/callback/`,
 }; 

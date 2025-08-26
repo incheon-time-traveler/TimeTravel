@@ -11,6 +11,5 @@ urlpatterns = [
     path("api/token/refresh/", CookieTokenRefreshView.as_view(), name="token_refresh"),
     path('logout/', views.logout, name='logout'),
     path('profile/<int:user_id>/', views.profile, name = 'profile'),
-    path('profile/<int:user_id>/update/', views.profile, name = 'profile-update'),
     path('profile/<int:user_id>/delete/', views.delete_profile, name = 'delete-profile'),
 ]

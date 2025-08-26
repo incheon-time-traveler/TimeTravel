@@ -1,3 +1,5 @@
+import { KAKAO_REST_API_KEY, KAKAO_REDIRECT_URI } from '@env';
+
 /**
  * 환경변수 설정 가이드:
  * 
@@ -27,6 +29,8 @@ export const CHATBOT_API = {
 export const OAUTH_URLS = {
   GOOGLE_LOGIN: `${BACKEND_API.BASE_URL}/v1/users/google/login/`,
   KAKAO_LOGIN: `${BACKEND_API.BASE_URL}/v1/users/kakao/login/`,
-  GOOGLE_REDIRECT: `${BACKEND_API.BASE_URL}/v1/users/google/callback/`,
-  KAKAO_REDIRECT: `${BACKEND_API.BASE_URL}/v1/users/kakao/callback/`,
+  KAKAO_REST_API_KEY: KAKAO_REST_API_KEY,
+  KAKAO_REDIRECT_URI: KAKAO_REDIRECT_URI,
+  GOOGLE_REDIRECT: `${BACKEND_API.BASE_URL}/v1/users/google/callback/?`,
+  KAKAO_REDIRECT: (code: string) => `${BACKEND_API.BASE_URL}/v1/users/kakao/callback/?code=${code}`,
 }; 

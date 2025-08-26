@@ -8,7 +8,8 @@ import {
   Modal,
 } from 'react-native';
 import { OAUTH_URLS } from '../../config/apiKeys';
-import SocialLoginWebView from './SocialLoginWebView';
+// Lazy-load SocialLoginWebView to avoid early native module initialization
+let SocialLoginWebView: any;
 
 const LoginScreen = ({ navigation }: any) => {
   const [showWebView, setShowWebView] = useState(false);
@@ -30,9 +31,25 @@ const LoginScreen = ({ navigation }: any) => {
     }
   };
 
+  // const handleSocialLogin = (provider: 'google' | 'kakao') => {
+  //   setLoginProvider(provider);
+  //   setLoginUrl(provider === 'google' ? OAUTH_URLS.GOOGLE_LOGIN : OAUTH_URLS.KAKAO_LOGIN);
+  //   setShowWebView(true);
+  // };
+
   const handleSocialLogin = (provider: 'google' | 'kakao') => {
+    console.log('Social login clicked:', provider);
     setLoginProvider(provider);
-    setLoginUrl(provider === 'google' ? OAUTH_URLS.GOOGLE_LOGIN : OAUTH_URLS.KAKAO_LOGIN);
+    // Use backend login endpoints in in-app WebView
+    const url = provider === 'google' ? OAUTH_URLS.GOOGLE_LOGIN : OAUTH_URLS.KAKAO_LOGIN;
+    setLoginUrl(url);
+    if (!SocialLoginWebView) {
+      try {
+        SocialLoginWebView = require('./SocialLoginWebView').default;
+      } catch (e) {
+        console.warn('Failed to load SocialLoginWebView:', e);
+      }
+    }
     setShowWebView(true);
   };
 
@@ -80,13 +97,19 @@ const LoginScreen = ({ navigation }: any) => {
         animationType="slide"
         presentationStyle="pageSheet"
       >
-        <SocialLoginWebView
-          provider={loginProvider}
-          loginUrl={loginUrl}
-          onLoginSuccess={handleLoginSuccess}
-          onLoginError={handleLoginError}
-          onClose={() => setShowWebView(false)}
-        />
+        {SocialLoginWebView ? (
+          <SocialLoginWebView
+            provider={loginProvider}
+            loginUrl={loginUrl}
+            onLoginSuccess={handleLoginSuccess}
+            onLoginError={handleLoginError}
+            onClose={() => setShowWebView(false)}
+          />
+        ) : (
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+            <Text>로그인 화면을 불러오는 중...</Text>
+          </View>
+        )}
       </Modal>
     </View>
   );
@@ -138,4 +161,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default LoginScreen; 
+export default LoginScreen;

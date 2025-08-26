@@ -1,0 +1,25 @@
+/**
+ * 환경변수 설정 가이드:
+ * 
+ * 1. 프로젝트 루트에 .env 파일 생성
+ * 2. 필요한 API 키들을 설정
+ * 3. 앱 재시작
+ */
+
+// 백엔드 API URL
+export const BACKEND_API = {
+  BASE_URL: __DEV__ ? 'http://10.0.2.2:8000' : 'https://your-production-url.com',
+};
+
+// 챗봇 API 설정
+export const CHATBOT_API = {
+  CHAT_URL: `${BACKEND_API.BASE_URL}/v1/chatbot/`,
+};
+
+// OAuth URL 설정
+export const OAUTH_URLS = {
+  GOOGLE_LOGIN: `${BACKEND_API.BASE_URL}/v1/users/google/login/`,
+  KAKAO_LOGIN: `${BACKEND_API.BASE_URL}/v1/users/kakao/login/`,
+  GOOGLE_REDIRECT: 'http://localhost:8000/accounts/google/callback/',
+  KAKAO_REDIRECT: 'http://localhost:8000/accounts/google/callback/',
+}; 

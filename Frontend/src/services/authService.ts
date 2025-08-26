@@ -1,22 +1,206 @@
-import axios from 'axios';
-import { Linking } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { BACKEND_API } from '../config/apiKeys';
 
-const API_BASE = 'http://localhost:8000/api/v1';
+export interface User {
+  id: number;
+  username: string;
+  nickname: string;
+  useremail: string;
+  age?: string;
+  gender?: string;
+  phone?: string;
+}
 
-export const signInWithGoogle = () => {
-  const url = `${API_BASE}/users/google/login/`;
-  Linking.openURL(url);
-};
+export interface AuthTokens {
+  access: string;
+  refresh: string;
+}
 
-export const signInWithKakao = () => {
-  const url = `${API_BASE}/users/kakao/login/`;
-  Linking.openURL(url);
-};
+export interface LoginResponse {
+  user: User;
+  tokens: AuthTokens;
+}
 
-export const updateUserProfile = async (userId: number, profileData: any, token: string) => {
-  return axios.put(`${API_BASE}/users/profile/${userId}/update/`, profileData, {
-    headers: {
-      Authorization: `Bearer ${token}`
+class AuthService {
+  private baseURL: string;
+
+  constructor() {
+    this.baseURL = BACKEND_API.BASE_URL;
+  }
+
+  // 토큰 저장
+  async saveTokens(tokens: AuthTokens): Promise<void> {
+    try {
+      await AsyncStorage.setItem('access_token', tokens.access);
+      await AsyncStorage.setItem('refresh_token', tokens.refresh);
+    } catch (error) {
+      console.error('토큰 저장 오류:', error);
+      throw error;
     }
-  });
-}; 
+  }
+
+  // 토큰 가져오기
+  async getTokens(): Promise<AuthTokens | null> {
+    try {
+      const access = await AsyncStorage.getItem('access_token');
+      const refresh = await AsyncStorage.getItem('refresh_token');
+      
+      if (access && refresh) {
+        return { access, refresh };
+      }
+      return null;
+    } catch (error) {
+      console.error('토큰 가져오기 오류:', error);
+      return null;
+    }
+  }
+
+  // 액세스 토큰만 가져오기
+  async getAccessToken(): Promise<string | null> {
+    try {
+      return await AsyncStorage.getItem('access_token');
+    } catch (error) {
+      console.error('액세스 토큰 가져오기 오류:', error);
+      return null;
+    }
+  }
+
+  // 사용자 정보 저장
+  async saveUser(user: User): Promise<void> {
+    try {
+      await AsyncStorage.setItem('user', JSON.stringify(user));
+    } catch (error) {
+      console.error('사용자 정보 저장 오류:', error);
+      throw error;
+    }
+  }
+
+  // 사용자 정보 가져오기
+  async getUser(): Promise<User | null> {
+    try {
+      const userStr = await AsyncStorage.getItem('user');
+      if (userStr) {
+        return JSON.parse(userStr);
+      }
+      return null;
+    } catch (error) {
+      console.error('사용자 정보 가져오기 오류:', error);
+      return null;
+    }
+  }
+
+  // 로그인 상태 확인
+  async isLoggedIn(): Promise<boolean> {
+    try {
+      const tokens = await this.getTokens();
+      return tokens !== null;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  // 로그아웃
+  async logout(): Promise<void> {
+    try {
+      await AsyncStorage.multiRemove([
+        'access_token',
+        'refresh_token',
+        'user'
+      ]);
+    } catch (error) {
+      console.error('로그아웃 오류:', error);
+      throw error;
+    }
+  }
+
+  // 토큰 갱신
+  async refreshToken(): Promise<AuthTokens | null> {
+    try {
+      const refresh = await AsyncStorage.getItem('refresh_token');
+      if (!refresh) {
+        return null;
+      }
+
+      const response = await fetch(`${this.baseURL}/v1/users/refresh/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ refresh }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const tokens: AuthTokens = {
+          access: data.access,
+          refresh: data.refresh || refresh, // 새로운 refresh 토큰이 없으면 기존 것 사용
+        };
+        await this.saveTokens(tokens);
+        return tokens;
+      }
+      return null;
+    } catch (error) {
+      console.error('토큰 갱신 오류:', error);
+      return null;
+    }
+  }
+
+  // 사용자 프로필 업데이트
+  async updateProfile(userId: number, profileData: Partial<User>): Promise<User | null> {
+    try {
+      const accessToken = await this.getAccessToken();
+      if (!accessToken) {
+        return null;
+      }
+
+      const response = await fetch(`${this.baseURL}/v1/users/profile/${userId}/`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify(profileData),
+      });
+
+      if (response.ok) {
+        const user = await response.json();
+        await this.saveUser(user);
+        return user;
+      }
+      return null;
+    } catch (error) {
+      console.error('프로필 업데이트 오류:', error);
+      return null;
+    }
+  }
+
+  // 사용자 프로필 조회
+  async getProfile(userId: number): Promise<User | null> {
+    try {
+      const accessToken = await this.getAccessToken();
+      if (!accessToken) {
+        return null;
+      }
+
+      const response = await fetch(`${this.baseURL}/v1/users/profile/${userId}/`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
+
+      if (response.ok) {
+        const user = await response.json();
+        await this.saveUser(user);
+        return user;
+      }
+      return null;
+    } catch (error) {
+      console.error('프로필 조회 오류:', error);
+      return null;
+    }
+  }
+}
+
+export const authService = new AuthService();
+export default authService; 

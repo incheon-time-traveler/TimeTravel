@@ -171,6 +171,7 @@ def kakao_callback(request):
 
 # 로그아웃
 @api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def logout(request):
     try:
         refresh_token = request.data["refresh_token"]

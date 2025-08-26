@@ -17,13 +17,12 @@ export class ChatbotService {
    */
   static async chatWithBot(request: ChatbotRequest): Promise<ChatbotResponse> {
     try {
-      const formData = new FormData();
-      formData.append('user_question', request.user_question);
-      formData.append('user_id', request.user_id);
-
       const response = await fetch(this.baseUrl, {
         method: 'POST',
-        body: formData,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(request),
       });
 
       if (!response.ok) {

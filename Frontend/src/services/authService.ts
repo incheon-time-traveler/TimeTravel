@@ -33,6 +33,11 @@ class AuthService {
     try {
       await AsyncStorage.setItem('access_token', tokens.access);
       await AsyncStorage.setItem('refresh_token', tokens.refresh);
+      // 개발 모드에서 저장 검증 로그
+      if (typeof __DEV__ !== 'undefined' && __DEV__) {
+        const verifyAccess = await AsyncStorage.getItem('access_token');
+        console.log('[authService.saveTokens][Verify] access prefix:', verifyAccess?.slice(0, 12) + '...');
+      }
     } catch (error) {
       console.error('토큰 저장 오류:', error);
       throw error;

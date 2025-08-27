@@ -30,16 +30,19 @@ const SocialLoginWebView: React.FC<SocialLoginWebViewProps> = ({
 
   const handleNavigationStateChange = async (navState: any) => {
     const { url } = navState;
+    console.log('[SocialLoginWebView] Navigated URL:', url);
     
     // 로그인 성공 시 URL에서 토큰 추출
     if (url.includes('login-success')) {
       try {
         const urlParams = new URL(url);
         const accessToken = urlParams.searchParams.get('access');
+        console.log('[SocialLoginWebView] Parsed access token:', accessToken);
         
         if (accessToken) {
           // 토큰 저장
           await authService.saveTokens({ access: accessToken, refresh: '' });
+          console.log('[SocialLoginWebView] saveTokens() success');
           
           // 성공 콜백 호출
           onLoginSuccess({
@@ -48,15 +51,18 @@ const SocialLoginWebView: React.FC<SocialLoginWebViewProps> = ({
           });
           
           return;
+        } else {
+          console.log('[SocialLoginWebView] No access token found in URL');
         }
       } catch (error) {
-        console.error('Token extraction error:', error);
+        console.error('[SocialLoginWebView] Token extraction error:', error);
         onLoginError('토큰 추출 중 오류가 발생했습니다.');
       }
     }
     
     // 에러 처리
     if (url.includes('error') || url.includes('denied')) {
+      console.warn('[SocialLoginWebView] Login cancelled or error URL detected:', url);
       onLoginError('로그인이 취소되었습니다.');
     }
   };
@@ -64,16 +70,19 @@ const SocialLoginWebView: React.FC<SocialLoginWebViewProps> = ({
   const handleLoadStart = () => {
     setLoading(true);
     setError(null);
+    console.log('[SocialLoginWebView] Load start - provider:', provider, 'loginUrl:', loginUrl);
   };
 
   const handleLoadEnd = () => {
     setLoading(false);
+    console.log('[SocialLoginWebView] Load end');
   };
 
   const handleError = (syntheticEvent: any) => {
     const { nativeEvent } = syntheticEvent;
     setError('네트워크 오류가 발생했습니다.');
     setLoading(false);
+    console.error('[SocialLoginWebView] WebView error:', nativeEvent);
   };
 
   if (error) {

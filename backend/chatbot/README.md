@@ -88,7 +88,7 @@ pip install -r requirements.txt
 
 # 또는
 
-pip install requests beautifulsoup4 langchain langchain-core langchain-community langchain-chroma langchain-huggingface langchain-tavily langchain-openai langchain-upstage langgraph
+pip install requests beautifulsoup4 langchain langchain-core langchain-community langchain-chroma langchain-huggingface langchain-tavily langchain-openai langchain-upstage langgraph sentence-transformers pyowm faiss-cpu
 ```
 
 2. 환경 변수 설정 (`.env` 파일 또는 시스템 환경 변수)

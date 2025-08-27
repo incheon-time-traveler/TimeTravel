@@ -21,10 +21,13 @@ load_dotenv()
 @api_view(['GET', 'POST'])
 def google_login(request):
     # TODO: 아래 하드코딩 값들은 환경변수(.env)로 이동해야 합니다.
-    client_id = os.getenv("GOOGLE_CLIENT_ID", "your_google_client_id_here")
+    client_id = os.getenv("GOOGLE_CLIENT_ID")
     redirect_uri = "https://incheon-time-traveler.duckdns.org/v1/users/google/callback/"
     scope = "openid email profile"
     response_type = "code"
+    # 외부 브라우저(RN Linking) 플로우 지원을 위한 state 설정
+    # 앱에서 /google/login?client=app 로 호출하면 state=app 으로 전달
+    state = "app" if request.GET.get("client") == "app" else "web"
 
     google_auth_url = (
         "https://accounts.google.com/o/oauth2/v2/auth?"
@@ -33,6 +36,7 @@ def google_login(request):
             "redirect_uri": redirect_uri,
             "response_type": response_type,
             "scope": scope,
+            "state": state,
             "prompt": "select_account",
         })
     )
@@ -52,7 +56,13 @@ def generate_tokens_for_user(user):
 @api_view(['GET', 'POST'])
 def google_callback(request):
     User = get_user_model()
-    
+    # Debug diagnostics for incoming callback
+    try:
+        print("[google_callback] full_path:", request.get_full_path())
+        print("[google_callback] query:", dict(request.GET))
+    except Exception:
+        pass
+
     # Google 에서 준 인가 코드
     code = request.GET.get("code")
     if not code:
@@ -61,9 +71,15 @@ def google_callback(request):
     
     # Google에서 엑세스 토큰 요청
     access_token = get_access_token(code)
+    if not access_token:
+        print("[google_callback] Failed to exchange code for access_token")
+        return redirect("/")
     
     # 사용자 정보 요청
     email, name, nickname = get_user_info(access_token)
+    if not email:
+        print("[google_callback] Failed to fetch userinfo with access_token")
+        return redirect("/")
     
     # 사용자 생성 또는 로그인
     user, created = User.objects.get_or_create(
@@ -81,9 +97,12 @@ def google_callback(request):
     refresh_token = RefreshToken.for_user(user)
     access_token = str(refresh_token.access_token)
     
-    # React Native WebView에서 토큰을 감지할 수 있도록 우리 도메인의 특정 경로로 리다이렉트합니다.
-    # TODO: 경로는 하드코딩되어 있으며, 추후 환경변수로 분리하세요.
-    response = redirect(f"https://incheon-time-traveler.duckdns.org/login-success?access={access_token}")
+    # TODO: 아래 리다이렉트 대상(도메인/스킴)은 하드코딩이며 .env로 이동하세요.
+    app_scheme_success = f"timetravelapp://login-success?access={access_token}"
+    web_success = f"https://incheon-time-traveler.duckdns.org/login-success?access={access_token}"
+    state = request.GET.get("state", "web")
+    # Google은 WebView 금지 → 앱에서 Linking 사용 시(state=app) 커스텀 스킴으로 리다이렉트
+    response = redirect(app_scheme_success if state == "app" else web_success)
     response.set_cookie(
         key='refresh_token',
         value=str(refresh_token),

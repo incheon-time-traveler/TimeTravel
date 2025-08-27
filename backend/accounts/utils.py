@@ -18,8 +18,18 @@ def get_access_token(code):
         "grant_type": "authorization_code",
     }
     response = requests.post(token_url, data=data)
-    token_data = response.json()
+    try:
+        token_data = response.json()
+    except Exception:
+        print("[get_access_token] non-JSON response", response.status_code, response.text[:200])
+        return None
+    if response.status_code != 200:
+        print("[get_access_token] error", response.status_code, token_data)
+        return None
     access_token = token_data.get("access_token")
+    if not access_token:
+        print("[get_access_token] missing access_token in", token_data)
+        return None
     return access_token
 
 
@@ -29,13 +39,20 @@ def get_user_info(access_token):
         userinfo_url,
         headers={"Authorization": f"Bearer {access_token}"}
     )
-    userinfo = userinfo_response.json()
+    try:
+        userinfo = userinfo_response.json()
+    except Exception:
+        print("[get_user_info] non-JSON response", userinfo_response.status_code, userinfo_response.text[:200])
+        return None, None, None
+    if userinfo_response.status_code != 200:
+        print("[get_user_info] error", userinfo_response.status_code, userinfo)
+        return None, None, None
     email = userinfo.get("email")
     name = userinfo.get("name")
     nickname = ""
     if not email:
-        return redirect("/")
-    
+        print("[get_user_info] missing email in userinfo", userinfo)
+        return None, None, None
     return email, name, nickname
 
 

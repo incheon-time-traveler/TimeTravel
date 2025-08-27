@@ -33,6 +33,7 @@ ALLOWED_HOSTS = [
     "13.124.44.173",  # EC2 퍼블릭 IP
     "localhost",
     "127.0.0.1",
+    "http://incheon-time-traveler.duckdns.org/",
     # 필요하면 도메인도 추가
 ]
 

@@ -160,14 +160,16 @@ def kakao_callback(request):
     refresh_token = RefreshToken.for_user(user)
     access_token = str(refresh_token.access_token)
     
-    response = redirect(f"http://localhost:5173/login-success?access={access_token}")
+    # React Native WebView에서 토큰을 감지할 수 있도록 우리 도메인의 특정 경로로 리다이렉트합니다.
+    # TODO: 경로/도메인은 하드코딩되어 있으며, 추후 환경변수로 분리하세요.
+    response = redirect(f"https://incheon-time-traveler.duckdns.org/login-success?access={access_token}")
     response.set_cookie(
         key='refresh_token',
         value=str(refresh_token),
         httponly=True,
-        secure=False,  # 개발 환경에서는 False
+        secure=True,  # HTTPS 운영 환경
         samesite='Lax',
-        domain='localhost',  # 도메인 설정
+        domain='incheon-time-traveler.duckdns.org',  # 운영 도메인
         path='/',  # 경로 설정
         max_age=60 * 60 * 24 * 14  # 14일
     )

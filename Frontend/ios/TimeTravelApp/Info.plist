@@ -59,5 +59,15 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<false/>
+	<!-- Deep link URL scheme for Google login callback -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>timetravelapp</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Text, View, Button, Alert, StyleSheet, TouchableOpacity, Modal, Linking } from 'react-native';
 import { OAUTH_URLS } from '../../config/apiKeys';
+import authService from '../../services/authService';
 import SocialLoginWebView from './SocialLoginWebView';
 import { INCHEON_BLUE_LIGHT, INCHEON_GRAY } from '../../styles/fonts';
 
@@ -15,17 +16,21 @@ const LoginScreen = ({ navigation }: any) => {
   useEffect(() => {
     const handleDeepLink = (event: { url: string }) => {
       const { url } = event;
+      console.log('[LoginScreen] Deep link received:', url);
       if (url.startsWith(APP_LOGIN_SUCCESS_SCHEME)) {
         try {
           const parsed = new URL(url);
           const accessToken = parsed.searchParams.get('access');
+          console.log('[LoginScreen] Parsed access token from deep link:', accessToken?.slice(0, 12) + '...' );
           if (accessToken) {
             // Google 외부 브라우저 플로우에서의 성공 처리
             handleLoginSuccess({ accessToken, provider: 'google' });
           } else {
+            console.warn('[LoginScreen] Deep link missing access token');
             handleLoginError('토큰이 포함되어 있지 않습니다.');
           }
         } catch (e) {
+          console.error('[LoginScreen] Deep link parse error:', e);
           handleLoginError('딥링크 파싱 중 오류가 발생했습니다.');
         }
       }
@@ -35,7 +40,10 @@ const LoginScreen = ({ navigation }: any) => {
     // 앱이 이미 링크로 열렸을 수 있으므로 초기 URL 체크
     (async () => {
       const initialUrl = await Linking.getInitialURL();
-      if (initialUrl) handleDeepLink({ url: initialUrl });
+      if (initialUrl) {
+        console.log('[LoginScreen] Initial URL on app start:', initialUrl);
+        handleDeepLink({ url: initialUrl });
+      }
     })();
 
     return () => subscription.remove();
@@ -48,6 +56,8 @@ const LoginScreen = ({ navigation }: any) => {
         // Google은 WebView 금지 → 외부 브라우저로 열기
         // TODO: client=app 같은 플래그는 .env/상수로 이동하세요.
         url = `${OAUTH_URLS.GOOGLE_LOGIN}?client=app`;
+        setCurrentProvider('google');
+        console.log('[LoginScreen] Opening Google OAuth URL externally:', url);
         Linking.openURL(url);
         // 외부 브라우저 → 콜백 → 백엔드에서 timetravelapp://login-success?access=... 로 리다이렉트
         // 위 딥링크 리스너에서 토큰 처리
@@ -58,6 +68,7 @@ const LoginScreen = ({ navigation }: any) => {
         setShowWebView(true);
       }
     } catch (error) {
+      console.error('[LoginScreen] handleSocialLogin error:', error);
       Alert.alert('오류', '로그인 URL을 가져오는 중 오류가 발생했습니다.');
     }
   };
@@ -70,16 +81,36 @@ const LoginScreen = ({ navigation }: any) => {
     handleSocialLogin('kakao');
   };
 
-  const handleLoginSuccess = (userData: any) => {
+  const handleLoginSuccess = async (userData: any) => {
+    try {
+      console.log('[LoginScreen] Login success payload:', userData);
+    } catch {}
+    // provider 우선순위: 전달된 userData.provider -> state.currentProvider
+    const provider = userData?.provider ?? currentProvider ?? 'unknown';
+    if (provider && provider !== currentProvider) setCurrentProvider(provider);
+    // 토큰 저장 (구글 딥링크 플로우 포함)
+    const access = userData?.accessToken;
+    if (access) {
+      try {
+        console.log('[LoginScreen] Saving access token (prefix):', access.slice(0, 12) + '...');
+        await authService.saveTokens({ access, refresh: '' });
+        console.log('[LoginScreen] saveTokens() success');
+      } catch (e) {
+        console.error('[LoginScreen] saveTokens() failed:', e);
+      }
+    } else {
+      console.warn('[LoginScreen] No access token provided in success payload');
+    }
     setShowWebView(false);
     Alert.alert(
       '로그인 성공',
-      `${currentProvider === 'google' ? '구글' : '카카오'} 로그인이 완료되었습니다!`,
+      `${provider === 'google' ? '구글' : provider === 'kakao' ? '카카오' : '소셜'} 로그인이 완료되었습니다!`,
       [
         {
           text: '확인',
           onPress: () => {
             // 메인 화면으로 이동
+            console.log('[LoginScreen] Navigating to Home after login');
             navigation.navigate('Home');
           }
         }
@@ -88,6 +119,7 @@ const LoginScreen = ({ navigation }: any) => {
   };
 
   const handleLoginError = (error: string) => {
+    console.warn('[LoginScreen] Login error:', error);
     setShowWebView(false);
     Alert.alert('로그인 실패', error);
   };

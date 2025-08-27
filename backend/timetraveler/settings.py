@@ -30,13 +30,19 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-6(4f+@(z&esdyujg^e39m1c$b$
 DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
 
 ALLOWED_HOSTS = [
-    "13.124.44.173",  # EC2 퍼블릭 IP
-    "localhost",
-    "127.0.0.1",
-    "10.0.2.2",       # React Native Android 에뮬레이터
+    "*",
+    # "13.124.44.173",  # EC2 퍼블릭 IP
+    # "localhost",
+    # "127.0.0.1",
+    # "http://incheon-time-traveler.duckdns.org/"
     # 필요하면 도메인도 추가
 ]
 
+CSRF_TRUSTED_ORIGINS = ["https://incheon-time-traveler.duckdns.org", "http://incheon-time-traveler.duckdns.org"]
+
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
 
 # Application definition
 

@@ -75,12 +75,20 @@ RESTROOM_CSV=csv_path
 USER_AGENT=user-agent
 ```
 
+## 필요한 데이터 다운로드
+
+- 구글 드라이브 안에 `AI_chatbot/최종 사용 데이터` 안에 있는 데이터 다운로드 후 chatbot 앱 안에 data 폴더 만들어서 넣어주기.
+- 이때, spot_db_in_local에는 이상한 글씨 써진 폴더 하나, .sqlite 하나로 되어 있어야 함!
 
 ## 설치 및 실행
 
 1. 필요한 패키지 설치:
 ```bash
 pip install -r requirements.txt
+
+# 또는
+
+pip install requests beautifulsoup4 langchain langchain-core langchain-community langchain-chroma langchain-huggingface langchain-tavily langchain-openai langchain-upstage langgraph sentence-transformers pyowm faiss-cpu
 ```
 
 2. 환경 변수 설정 (`.env` 파일 또는 시스템 환경 변수)

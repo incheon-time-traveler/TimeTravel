@@ -38,6 +38,11 @@ ALLOWED_HOSTS = [
     # 필요하면 도메인도 추가
 ]
 
+CSRF_TRUSTED_ORIGINS = ["https://incheon-time-traveler.duckdns.org", "http://incheon-time-traveler.duckdns.org"]
+
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
 
 # Application definition
 

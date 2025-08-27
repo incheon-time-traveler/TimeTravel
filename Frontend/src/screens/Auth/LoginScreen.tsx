@@ -95,6 +95,8 @@ const LoginScreen = ({ navigation }: any) => {
         console.log('[LoginScreen] Saving access token (prefix):', access.slice(0, 12) + '...');
         await authService.saveTokens({ access, refresh: '' });
         console.log('[LoginScreen] saveTokens() success');
+        const storedAccess = await authService.getAccessToken();
+        console.log('[LoginScreen][Verify] retrieved access prefix:', storedAccess?.slice(0, 12) + '...');
       } catch (e) {
         console.error('[LoginScreen] saveTokens() failed:', e);
       }

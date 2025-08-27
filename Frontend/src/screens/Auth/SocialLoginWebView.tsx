@@ -43,6 +43,9 @@ const SocialLoginWebView: React.FC<SocialLoginWebViewProps> = ({
           // 토큰 저장
           await authService.saveTokens({ access: accessToken, refresh: '' });
           console.log('[SocialLoginWebView] saveTokens() success');
+          // 저장 검증
+          const stored = await authService.getTokens();
+          console.log('[SocialLoginWebView][Verify] retrieved access prefix:', stored?.access?.slice(0, 12) + '...');
           
           // 성공 콜백 호출
           onLoginSuccess({

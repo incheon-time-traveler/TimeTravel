@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Text, View, Button, Alert, StyleSheet, TouchableOpacity, Modal } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Text, View, Button, Alert, StyleSheet, TouchableOpacity, Modal, Linking } from 'react-native';
 import { OAUTH_URLS } from '../../config/apiKeys';
 import SocialLoginWebView from './SocialLoginWebView';
 import { INCHEON_BLUE_LIGHT, INCHEON_GRAY } from '../../styles/fonts';
@@ -9,24 +9,60 @@ const LoginScreen = ({ navigation }: any) => {
   const [currentProvider, setCurrentProvider] = useState<'google' | 'kakao' | null>(null);
   const [loginUrl, setLoginUrl] = useState('');
 
+  // TODO: 앱 딥링크 스킴은 .env로 이동하세요. 네이티브 설정(Android intent-filter, iOS URL Types) 필요.
+  const APP_LOGIN_SUCCESS_SCHEME = 'timetravelapp://login-success';
+
+  useEffect(() => {
+    const handleDeepLink = (event: { url: string }) => {
+      const { url } = event;
+      if (url.startsWith(APP_LOGIN_SUCCESS_SCHEME)) {
+        try {
+          const parsed = new URL(url);
+          const accessToken = parsed.searchParams.get('access');
+          if (accessToken) {
+            // Google 외부 브라우저 플로우에서의 성공 처리
+            handleLoginSuccess({ accessToken, provider: 'google' });
+          } else {
+            handleLoginError('토큰이 포함되어 있지 않습니다.');
+          }
+        } catch (e) {
+          handleLoginError('딥링크 파싱 중 오류가 발생했습니다.');
+        }
+      }
+    };
+
+    const subscription = Linking.addEventListener('url', handleDeepLink);
+    // 앱이 이미 링크로 열렸을 수 있으므로 초기 URL 체크
+    (async () => {
+      const initialUrl = await Linking.getInitialURL();
+      if (initialUrl) handleDeepLink({ url: initialUrl });
+    })();
+
+    return () => subscription.remove();
+  }, []);
+
   const handleSocialLogin = (provider: 'google' | 'kakao') => {
     try {
       let url: string;
       if (provider === 'google') {
-        url = OAUTH_URLS.GOOGLE_LOGIN;
+        // Google은 WebView 금지 → 외부 브라우저로 열기
+        // TODO: client=app 같은 플래그는 .env/상수로 이동하세요.
+        url = `${OAUTH_URLS.GOOGLE_LOGIN}?client=app`;
+        Linking.openURL(url);
+        // 외부 브라우저 → 콜백 → 백엔드에서 timetravelapp://login-success?access=... 로 리다이렉트
+        // 위 딥링크 리스너에서 토큰 처리
       } else {
         url = OAUTH_URLS.KAKAO_LOGIN;
+        setCurrentProvider(provider);
+        setLoginUrl(url);
+        setShowWebView(true);
       }
-      console.log('clicked', url)
-      setCurrentProvider(provider);
-      setLoginUrl(url);
-      setShowWebView(true);
     } catch (error) {
       Alert.alert('오류', '로그인 URL을 가져오는 중 오류가 발생했습니다.');
     }
   };
 
-  const handleGoogleLogin = () => {
+  const handleGoogleLogin = async () => {
     handleSocialLogin('google');
   };
 

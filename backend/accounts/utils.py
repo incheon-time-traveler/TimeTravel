@@ -13,7 +13,8 @@ def get_access_token(code):
         "code": code,
         "client_id": os.getenv("GOOGLE_CLIENT_ID"),
         "client_secret": os.getenv("GOOGLE_CLIENT_SECRET"),
-        "redirect_uri": "http://127.0.0.1:8000/accounts/google/callback/",
+        # TODO: redirect_uri는 하드코딩되어 있으며 .env로 이동해야 합니다.
+        "redirect_uri": "https://incheon-time-traveler.duckdns.org/v1/users/google/callback/",
         "grant_type": "authorization_code",
     }
     response = requests.post(token_url, data=data)

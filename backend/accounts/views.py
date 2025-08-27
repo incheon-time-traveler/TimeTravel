@@ -20,8 +20,9 @@ load_dotenv()
 # 구글 로그인 요청 보내기
 @api_view(['GET', 'POST'])
 def google_login(request):
+    # TODO: 아래 하드코딩 값들은 환경변수(.env)로 이동해야 합니다.
     client_id = os.getenv("GOOGLE_CLIENT_ID", "your_google_client_id_here")
-    redirect_uri = "http://127.0.0.1:8000/accounts/google/callback/"
+    redirect_uri = "https://incheon-time-traveler.duckdns.org/v1/users/google/callback/"
     scope = "openid email profile"
     response_type = "code"
 
@@ -80,14 +81,16 @@ def google_callback(request):
     refresh_token = RefreshToken.for_user(user)
     access_token = str(refresh_token.access_token)
     
-    response = redirect(f"http://localhost:5173/login-success?access={access_token}")
+    # React Native WebView에서 토큰을 감지할 수 있도록 우리 도메인의 특정 경로로 리다이렉트합니다.
+    # TODO: 경로는 하드코딩되어 있으며, 추후 환경변수로 분리하세요.
+    response = redirect(f"https://incheon-time-traveler.duckdns.org/login-success?access={access_token}")
     response.set_cookie(
         key='refresh_token',
         value=str(refresh_token),
         httponly=True,
-        secure=False,  # 개발 환경에서는 False
+        secure=True,  # HTTPS에서는 True
         samesite='Lax',
-        domain='localhost',  # 도메인 설정
+        domain='incheon-time-traveler.duckdns.org',  # 운영 도메인
         path='/',  # 경로 설정
         max_age=60 * 60 * 24 * 14  # 14일
     )
@@ -97,8 +100,9 @@ def google_callback(request):
 # 카카오 로그인
 @api_view(['GET'])
 def kakao_login(request):
-    client_id = os.getenv("KAKAO_REST_API_KEY")
-    redirect_uri = os.getenv("KAKAO_REDIRECT_URI", "http://localhost:8000/accounts/kakao/callback/")
+    # TODO: 아래 하드코딩 값들은 환경변수(.env)로 이동해야 합니다.
+    client_id = os.getenv("KAKAO_REST_API_KEY", "REPLACE_WITH_KAKAO_REST_API_KEY")
+    redirect_uri = "https://incheon-time-traveler.duckdns.org/v1/users/kakao/callback/"
     response_type = "code"
 
     kakao_auth_url = (
@@ -122,10 +126,11 @@ def kakao_callback(request):
 
     # 1. access token 요청
     token_url = "https://kauth.kakao.com/oauth/token"
+    # TODO: 아래 client_id, redirect_uri는 하드코딩되어 있으며 .env로 이동해야 합니다.
     data = {
         "grant_type": "authorization_code",
-        "client_id": os.getenv("KAKAO_REST_API_KEY"),
-        "redirect_uri": os.getenv("KAKAO_REDIRECT_URI"),
+        "client_id": os.getenv("KAKAO_REST_API_KEY", "REPLACE_WITH_KAKAO_REST_API_KEY"),
+        "redirect_uri": "https://incheon-time-traveler.duckdns.org/v1/users/kakao/callback/",
         "code": code,
     }
     token_response = requests.post(token_url, data=data)

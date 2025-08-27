@@ -102,18 +102,27 @@ def google_callback(request):
     web_success = f"https://incheon-time-traveler.duckdns.org/login-success?access={access_token}"
     state = request.GET.get("state", "web")
     # Google은 WebView 금지 → 앱에서 Linking 사용 시(state=app) 커스텀 스킴으로 리다이렉트
-    response = redirect(app_scheme_success if state == "app" else web_success)
-    response.set_cookie(
-        key='refresh_token',
-        value=str(refresh_token),
-        httponly=True,
-        secure=True,  # HTTPS에서는 True
-        samesite='Lax',
-        domain='incheon-time-traveler.duckdns.org',  # 운영 도메인
-        path='/',  # 경로 설정
-        max_age=60 * 60 * 24 * 14  # 14일
-    )
-    return response
+    if state == "app":
+        response = redirect(app_scheme_success)
+        # Allow custom scheme for Django redirect safety check
+        try:
+            response.allowed_schemes.add('timetravelapp')
+        except Exception:
+            pass
+        return response
+    else:
+        response = redirect(web_success)
+        response.set_cookie(
+            key='refresh_token',
+            value=str(refresh_token),
+            httponly=True,  # HTTPS에서는 True
+            secure=True,  # HTTPS에서는 True
+            samesite='Lax',
+            domain='incheon-time-traveler.duckdns.org',  # 운영 도메인
+            path='/',  # 경로 설정
+            max_age=60 * 60 * 24 * 14  # 14일
+        )
+        return response
 
 
 # 카카오 로그인

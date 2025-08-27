@@ -1,5 +1,6 @@
 from django.shortcuts import redirect, get_object_or_404
 from django.contrib.auth import get_user_model
+from django.contrib.auth import authenticate, login
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView
 from rest_framework.decorators import api_view, permission_classes

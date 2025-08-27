@@ -8,7 +8,11 @@
 
 // 백엔드 API URL
 export const BACKEND_API = {
-  BASE_URL: __DEV__ ? 'http://10.0.2.2:8000' : 'https://your-production-url.com',
+  // TODO: 아래 하드코딩 값들은 .env로 이동하세요
+  // 개발: 안드로이드 에뮬레이터용 로컬 백엔드
+  // 운영: HTTPS 배포 도메인
+  BASE_URL: 'https://incheon-time-traveler.duckdns.org',
+  // BASE_URL: __DEV__ ? 'http://10.0.2.2:8000' : 'https://incheon-time-traveler.duckdns.org',
 };
 
 // 챗봇 API 설정
@@ -20,6 +24,7 @@ export const CHATBOT_API = {
 export const OAUTH_URLS = {
   GOOGLE_LOGIN: `${BACKEND_API.BASE_URL}/v1/users/google/login/`,
   KAKAO_LOGIN: `${BACKEND_API.BASE_URL}/v1/users/kakao/login/`,
-  GOOGLE_REDIRECT: 'http://localhost:8000/accounts/google/callback/',
-  KAKAO_REDIRECT: 'http://localhost:8000/accounts/google/callback/',
-}; 
+  // TODO: 리다이렉트 URI도 .env로 이동 필요
+  GOOGLE_REDIRECT: 'https://incheon-time-traveler.duckdns.org/v1/users/google/callback/',
+  KAKAO_REDIRECT: 'https://incheon-time-traveler.duckdns.org/v1/users/kakao/callback/',
+};

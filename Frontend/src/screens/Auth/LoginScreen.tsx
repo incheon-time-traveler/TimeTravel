@@ -17,6 +17,7 @@ const LoginScreen = ({ navigation }: any) => {
       } else {
         url = OAUTH_URLS.KAKAO_LOGIN;
       }
+      console.log('clicked', url)
       setCurrentProvider(provider);
       setLoginUrl(url);
       setShowWebView(true);

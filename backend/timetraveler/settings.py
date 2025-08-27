@@ -30,10 +30,11 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-6(4f+@(z&esdyujg^e39m1c$b$
 DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
 
 ALLOWED_HOSTS = [
-    "13.124.44.173",  # EC2 퍼블릭 IP
-    "localhost",
-    "127.0.0.1",
-    "http://incheon-time-traveler.duckdns.org/"
+    "*",
+    # "13.124.44.173",  # EC2 퍼블릭 IP
+    # "localhost",
+    # "127.0.0.1",
+    # "http://incheon-time-traveler.duckdns.org/"
     # 필요하면 도메인도 추가
 ]
 

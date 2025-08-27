@@ -1,4 +1,5 @@
 from django.shortcuts import redirect, get_object_or_404
+from django.http import HttpResponseRedirect, HttpResponse
 from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView
@@ -15,6 +16,12 @@ from .serializers import UserSerializer, UserProfileUpdateSerializer
 # Create your views here.
 # 환경변수 로드
 load_dotenv()
+
+# Allow custom app scheme globally for redirects (fixes unsafe redirect error)
+try:
+    HttpResponseRedirect.allowed_schemes.add('timetravelapp')
+except Exception:
+    pass
 
 # OAuth
 # 구글 로그인 요청 보내기
@@ -103,13 +110,8 @@ def google_callback(request):
     state = request.GET.get("state", "web")
     # Google은 WebView 금지 → 앱에서 Linking 사용 시(state=app) 커스텀 스킴으로 리다이렉트
     if state == "app":
-        response = redirect(app_scheme_success)
-        # Allow custom scheme for Django redirect safety check
-        try:
-            response.allowed_schemes.add('timetravelapp')
-        except Exception:
-            pass
-        return response
+        # Use raw 302 redirect to custom scheme to bypass Django safety checks
+        return HttpResponse(status=302, headers={"Location": app_scheme_success})
     else:
         response = redirect(web_success)
         response.set_cookie(

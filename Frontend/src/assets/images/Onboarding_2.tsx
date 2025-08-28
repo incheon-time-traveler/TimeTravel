@@ -4,11 +4,11 @@ import { Image, StyleSheet, View } from 'react-native';
 
 const CIRCLE_DIAMETER = 300;
 
-const OnboardingImage1 = () => {
+const OnboardingImage2 = () => {
   return (
     <View style={styles.container}>
       <Image
-        source={require('../images/Onboarding_1.png')} // 실제 이미지 파일 경로
+        source={require('../images/Onboarding_2.png')} // 실제 이미지 파일 경로
         style={styles.image}
         resizeMode="contain"
       />
@@ -33,4 +33,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default OnboardingImage1; // export 이름 변경 (선택 사항)
+export default OnboardingImage2; // export 이름 변경 (선택 사항)

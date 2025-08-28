@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Dimensions, TouchableOpacity, FlatList, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, Dimensions, TouchableOpacity, FlatList, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import OnboardingImage1 from '../assets/images/Onboarding_1';
-import { Onboarding2 } from '../assets/images/onboarding2';
+import OnboardingImage2 from '../assets/images/Onboarding_2';
+import { INCHEON_BLUE, INCHEON_BLUE_LIGHT, INCHEON_GRAY } from '../styles/fonts';
+
 
 const { width, height } = Dimensions.get('window');
 
@@ -23,14 +25,16 @@ const OnboardingScreen = () => {
 
   const pages = [
     {
+      key: 'page1',
       title: '인천 타임머신에 오신 것을 환영합니다!',
-      description: '사진으로 과거와 현재를 연결하는\n 특별한 여행을 시작해보세요.',
+      description: '과거와 현재를 사진으로 연결하는\n 특별한 여행을 시작해보세요.',
       component: <OnboardingImage1 />,
     },
     {
+      key: 'page2',
       title: '미션을 통해 여행에 몰입해 보세요!',
-      description: '특정 장소의 스탬프를 획득하고\n 모든 미션을 클리어 해보세요.',
-      component: <Onboarding2 />
+      description: '특정 장소의 스탬프를 획득해서\n 모든 미션을 클리어 해보세요.',
+      component: <OnboardingImage2 />
     },
   ];
 
@@ -73,54 +77,60 @@ const OnboardingScreen = () => {
   };
 
   return (
-    <View style={styles.container}>
-      <TouchableOpacity style={styles.skipButton} onPress={handleSkip}>
-        <Text style={styles.skipText}>건너뛰기</Text>
-      </TouchableOpacity>
+    <SafeAreaView style={styles.safeArea}>
+        <View style={styles.container}>
+          <TouchableOpacity style={styles.skipButton} onPress={handleSkip}>
+            <Text style={styles.skipText}>건너뛰기</Text>
+          </TouchableOpacity>
 
-      <FlatList
-        ref={flatListRef} // 참조 연결
-        data={pages}
-        renderItem={renderItem}
-        horizontal // 가로 스크롤 활성화
-        pagingEnabled // 페이지 단위로 스크롤
-        showsHorizontalScrollIndicator={false} // 스크롤바 숨기기
-        keyExtractor={(item) => item.key!}
-        onViewableItemsChanged={onViewableItemsChanged} // 화면에 보이는 아이템 변경 시 호출
-        viewabilityConfig={{
-          itemVisiblePercentThreshold: 50 // 아이템이 50% 이상 보일 때 viewable로 간주
-        }}
-        onMomentumScrollEnd={onMomentumScrollEnd} // 스크롤 애니메이션이 끝났을 때 호출 (iOS에서 더 정확한 페이지 감지)
-        // contentContainerStyle={{ alignItems: 'center' }} // 각 페이지 콘텐츠를 중앙 정렬하고 싶다면
-      />
+          <FlatList
+            ref={flatListRef} // 참조 연결
+            data={pages}
+            renderItem={renderItem}
+            horizontal // 가로 스크롤 활성화
+            pagingEnabled // 페이지 단위로 스크롤
+            showsHorizontalScrollIndicator={false} // 스크롤바 숨기기
+            keyExtractor={(item) => item.key!}
+            onViewableItemsChanged={onViewableItemsChanged} // 화면에 보이는 아이템 변경 시 호출
+            viewabilityConfig={{
+              itemVisiblePercentThreshold: 50 // 아이템이 50% 이상 보일 때 viewable로 간주
+            }}
+            onMomentumScrollEnd={onMomentumScrollEnd} // 스크롤 애니메이션이 끝났을 때 호출 (iOS에서 더 정확한 페이지 감지)
+            // contentContainerStyle={{ alignItems: 'center' }} // 각 페이지 콘텐츠를 중앙 정렬하고 싶다면
+          />
 
-      <View style={styles.bottomControlsContainer}>
-        <View style={styles.paginationContainer}>
-          {pages.map((_, index) => (
-            <View
-              key={index}
-              style={[
-                styles.paginationDot,
-                index === currentPage && styles.paginationDotActive
-              ]}
-            />
-          ))}
+          <View style={styles.bottomControlsContainer}>
+            <View style={styles.paginationContainer}>
+              {pages.map((_, index) => (
+                <View
+                  key={index}
+                  style={[
+                    styles.paginationDot,
+                    index === currentPage && styles.paginationDotActive
+                  ]}
+                />
+              ))}
+            </View>
+
+            <TouchableOpacity
+              style={styles.nextButton}
+              onPress={handleNext}
+            >
+              <Text style={styles.nextButtonText}>
+                {currentPage === pages.length - 1 ? '시작하기' : '다음'}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
-
-        <TouchableOpacity
-          style={styles.nextButton}
-          onPress={handleNext}
-        >
-          <Text style={styles.nextButtonText}>
-            {currentPage === pages.length - 1 ? '시작하기' : '다음'}
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1, // SafeAreaView가 화면 전체를 차지하도록 설정
+    backgroundColor: '#f0f0f0', // SafeAreaView 자체의 배경색 (선택 사항)
+  },
   container: {
     flex: 1,
     backgroundColor: '#fff',
@@ -155,8 +165,8 @@ const styles = StyleSheet.create({
     marginBottom: 110,
   },
   title: {
+    fontFamily: 'NeoDunggeunmoPro-Regular',
     fontSize: 24,
-    fontWeight: 'bold',
     marginBottom: 16,
     textAlign: 'center',
     color: '#333',
@@ -185,15 +195,15 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#ddd',
+    backgroundColor: '#dddddd',
     marginHorizontal: 4,
   },
   paginationDotActive: {
     width: 24,
-    backgroundColor: '#000',
+    backgroundColor: INCHEON_BLUE_LIGHT,
   },
   nextButton: {
-    backgroundColor: '#000',
+    backgroundColor: INCHEON_BLUE,
     paddingVertical: 16,
     paddingHorizontal: 48,
     borderRadius: 30,
@@ -204,11 +214,7 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
-  },
-  // 기존 contentContainer는 FlatList의 각 페이지로 대체되므로 제거하거나 수정
-  // contentContainer: { ... },
-  // image 스타일은 imageContainer 내부에서 관리되므로 제거하거나 수정
-  // image: { ... },
+  }
 });
 
 

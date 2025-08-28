@@ -14,8 +14,8 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # AI 기능 필요할 때만 다음 두 줄 사용
-COPY requirements-ai.txt .
-RUN pip install --no-cache-dir -r requirements-ai.txt
+# COPY requirements-ai.txt .
+# RUN pip install --no-cache-dir -r requirements-ai.txt
 
 COPY . .
 

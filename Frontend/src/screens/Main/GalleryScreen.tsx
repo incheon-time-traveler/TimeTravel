@@ -11,14 +11,17 @@ import {
   Alert 
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import { INCHEON_BLUE, INCHEON_BLUE_LIGHT, INCHEON_GRAY } from '../../styles/fonts';
+import CheckIcon from '../../components/ui/CheckIcon';
+import PixelLockIcon from '../../components/ui/PixelLockIcon';
+import { INCHEON_BLUE, INCHEON_BLUE_LIGHT, INCHEON_GRAY, TEXT_STYLES } from '../../styles/fonts';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const { width, height } = Dimensions.get('window');
 
 const MISSION_DATA = [
   { 
     id: 1, 
-    title: '대불호텔 미션', 
+    title: '대불호텔',
     image: require('../../assets/icons/대불호텔.jpg'), 
     completed: true,
     hasStamp: true,
@@ -83,8 +86,8 @@ export default function GalleryScreen() {
 
   const handleStampPress = () => {
     Alert.alert(
-      '스템프 사용',
-      '스템프를 사장님께 보여주세요!\n(본인이 사용 버튼을 누르지 않도록 조심)',
+      '스탬프 사용',
+      '스탬프를 사장님께 보여주세요!\n(사용 버튼을 직접 누르지 않도록 조심해주세요)',
       [
         {
           text: '돌아가기',
@@ -128,116 +131,120 @@ export default function GalleryScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <ScrollView contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
-        <Text style={styles.title}>현재까지 진행하신 미션 사진</Text>
-        <View style={styles.underline} />
-        <Text style={styles.subtitle}>전체 코스 {TOTAL_COURSE}개 중 {FOUND_COUNT}개의 과거를 찾았어요</Text>
-        <View style={styles.gridWrap}>
-          {missionData.map((item) => (
-            <TouchableOpacity 
-              key={item.id} 
-              style={styles.card}
-              onPress={() => handleImagePress(item)}
-              activeOpacity={0.8}
-            >
-              {item.completed && item.image ? (
-                <View style={styles.imageContainer}>
-                  <Image 
-                    source={typeof item.image === 'string' ? { uri: item.image } : item.image} 
-                    style={styles.photo} 
-                    resizeMode="cover" 
-                  />
-                  {item.hasStamp && !item.stampUsed && (
-                    <View style={styles.stampOverlay}>
-                      <View style={styles.stamp}>
-                        <Text style={styles.stampText}>대불호텔</Text>
-                      </View>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+        <View style={styles.container}>
+          <ScrollView contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
+            <Text style={styles.title}>완료한 미션</Text>
+            <View style={styles.underline} />
+            <Text style={styles.subtitle}>전체 코스 {TOTAL_COURSE}개 중 {FOUND_COUNT}개의 과거를 찾았어요</Text>
+            <View style={styles.gridWrap}>
+              {missionData.map((item) => (
+                <TouchableOpacity
+                  key={item.id}
+                  style={styles.card}
+                  onPress={() => handleImagePress(item)}
+                  activeOpacity={0.8}
+                >
+                  {item.completed && item.image ? (
+                    <View style={styles.imageContainer}>
+                      <Image
+                        source={typeof item.image === 'string' ? { uri: item.image } : item.image}
+                        style={styles.photo}
+                        resizeMode="cover"
+                      />
+                      {item.hasStamp && !item.stampUsed && (
+                        <View style={styles.stampOverlay}>
+                          <View style={styles.stamp}>
+                            <Text style={styles.stampText}>대불호텔</Text>
+                          </View>
+                        </View>
+                      )}
+                    </View>
+                  ) : (
+                    <View style={styles.lockedBox}>
+                      <Ionicons name="image-outline" size={32} color="#bbb" />
                     </View>
                   )}
+                  <View style={styles.cardFooter}>
+                    <Text style={styles.missionTitle} numberOfLines={1}>{item.title}</Text>
+                      {item.completed ? (
+                        <CheckIcon />
+                      ) : (
+                        <PixelLockIcon />
+                      )}
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
+
+          {/* 사진 확대 모달 */}
+          <Modal
+            visible={imageModalVisible}
+            transparent={true}
+            animationType="fade"
+            onRequestClose={() => setImageModalVisible(false)}
+          >
+            <View style={styles.modalOverlay}>
+              <View style={styles.modalContainer}>
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>{selectedImage?.title}</Text>
+                  <TouchableOpacity
+                    onPress={() => setImageModalVisible(false)}
+                    style={styles.modalCloseButton}
+                  >
+                    <Text style={styles.modalCloseButtonText}>✕</Text>
+                  </TouchableOpacity>
                 </View>
-              ) : (
-                <View style={styles.lockedBox}>
-                  <Ionicons name="image-outline" size={32} color="#bbb" />
-                </View>
-              )}
-              <View style={styles.cardFooter}>
-                <Text style={styles.missionTitle} numberOfLines={1}>{item.title}</Text>
-                <View style={[styles.statusBadge, item.completed ? styles.badgeCompleted : styles.badgeLocked]}>
-                  <Text style={[styles.badgeText, item.completed ? styles.badgeTextCompleted : styles.badgeTextLocked]}>
-                    {item.completed ? '완료' : '잠금'}
-                  </Text>
+
+                <View style={styles.imageModalContainer}>
+                  <Image
+                    source={typeof selectedImage?.image === 'string' ? { uri: selectedImage.image } : selectedImage?.image}
+                    style={styles.modalImage}
+                    resizeMode="contain"
+                  />
+                  {renderStamp()}
                 </View>
               </View>
-            </TouchableOpacity>
-          ))}
+            </View>
+          </Modal>
         </View>
-      </ScrollView>
+    </SafeAreaView>
 
-      {/* 사진 확대 모달 */}
-      <Modal
-        visible={imageModalVisible}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setImageModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{selectedImage?.title}</Text>
-              <TouchableOpacity 
-                onPress={() => setImageModalVisible(false)}
-                style={styles.closeButton}
-              >
-                <Text style={styles.closeButtonText}>✕</Text>
-              </TouchableOpacity>
-            </View>
-            
-            <View style={styles.imageModalContainer}>
-              <Image 
-                source={typeof selectedImage?.image === 'string' ? { uri: selectedImage.image } : selectedImage?.image} 
-                style={styles.modalImage} 
-                resizeMode="contain" 
-              />
-              {renderStamp()}
-            </View>
-          </View>
-        </View>
-      </Modal>
-    </View>
   );
 }
 
 const CARD_SIZE = (width - 32 - 16) / 2; // 좌우 패딩+gap 고려
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1, // SafeAreaView가 화면 전체를 차지하도록 설정
+    backgroundColor: '#f0f0f0', // SafeAreaView 자체의 배경색 (선택 사항)
+  },
   container: {
     flex: 1,
     backgroundColor: '#fff',
     padding: 16,
   },
   title: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 18,
-    color: INCHEON_GRAY,
+    ...TEXT_STYLES.subtitle,
     textAlign: 'center',
     marginTop: 24,
     marginBottom: 4,
   },
   underline: {
-    height: 2,
+    height: 3,
     backgroundColor: INCHEON_BLUE,
-    width: 120,
+    width: 140,
     alignSelf: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
     borderRadius: 2,
   },
   subtitle: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 14,
+    ...TEXT_STYLES.heading,
     color: INCHEON_GRAY,
     textAlign: 'center',
-    marginBottom: 18,
+    marginBottom: 32,
   },
   gridWrap: {
     flexDirection: 'row',
@@ -250,8 +257,8 @@ const styles = StyleSheet.create({
     height: CARD_SIZE + 38,
     backgroundColor: '#fafafa',
     borderRadius: 14,
-    borderWidth: 2,
-    borderColor: INCHEON_GRAY,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
     marginBottom: 12,
     overflow: 'hidden',
     alignItems: 'center',
@@ -281,16 +288,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderTopWidth: 1,
-    borderTopColor: INCHEON_GRAY,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     backgroundColor: '#fff',
   },
   missionTitle: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 13,
-    color: INCHEON_GRAY,
+    ...TEXT_STYLES.body,
     flex: 1,
     marginRight: 6,
   },
@@ -367,7 +370,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 20,
     borderWidth: 2,
-    borderColor: '#222',
+    borderColor: '#e0e0e0',
     overflow: 'hidden',
   },
   modalHeader: {
@@ -376,28 +379,19 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 15,
-    borderBottomWidth: 2,
-    borderBottomColor: '#222',
     backgroundColor: INCHEON_BLUE_LIGHT,
   },
   modalTitle: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 18,
-    color: INCHEON_BLUE,
-    fontWeight: 'bold',
+    ...TEXT_STYLES.subtitle,
+    color: INCHEON_BLUE
   },
-  closeButton: {
-    width: 30,
-    height: 30,
+  modalCloseButton: {
+    paddingVertical: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 15,
-    backgroundColor: INCHEON_BLUE,
   },
-  closeButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
+  modalCloseButtonText: {
+    ...TEXT_STYLES.body,
   },
   imageModalContainer: {
     flex: 1,

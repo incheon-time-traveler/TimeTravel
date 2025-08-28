@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Dimensions, Alert } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import { INCHEON_BLUE, INCHEON_BLUE_LIGHT, INCHEON_GRAY } from '../../styles/fonts';
+import { INCHEON_BLUE, INCHEON_BLUE_LIGHT, INCHEON_GRAY, TEXT_STYLES } from '../../styles/fonts';
 import authService from '../../services/authService';
 import { BACKEND_API } from '../../config/apiKeys';
 
@@ -344,12 +344,7 @@ export default function HomeScreen({ navigation }: any) {
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
-        <View style={styles.topSection}>
-          <Text style={styles.topTitle}>어디로 떠나볼까요?</Text>
-          <TouchableOpacity style={styles.loginBtn} onPress={handleLoginPress}>
-            <Text style={styles.loginBtnText}>로그인으로 여행을 시작해보세요</Text>
-          </TouchableOpacity>
-        </View>
+        {isLoggedIn ? renderLoggedInHeader() : renderLoggedOutHeader()}
 
         {isLoggedIn && hasOngoingCourse ? (
           <>
@@ -446,10 +441,20 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
     backgroundColor: '#fff',
-    paddingTop: 40,
+    padding: 8,
+  },
+  topSection: {
+    alignItems: 'center',
+    marginTop: 32,
+    marginBottom: 24,
+  },
+  topTitle: {
+    fontFamily: 'NeoDunggeunmoPro-Regular',
+    fontSize: 20,
+    color: INCHEON_GRAY,
+    marginBottom: 16,
+    textAlign: 'center',
   },
   loginSection: {
     flex:1,
@@ -458,9 +463,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   sectionTitle: {
-    ...TEXT_STYLES.subtitle,
-    marginBottom: 16,
-    textAlign: 'center',
+    fontFamily: 'NeoDunggeunmoPro-Regular',
+    fontSize: 16,
+    color: INCHEON_GRAY,
+    marginBottom: 12,
+    marginLeft: 8,
+    fontWeight: '600',
   },
   loginTitle: {
     ...TEXT_STYLES.subtitle,
@@ -485,13 +493,6 @@ const styles = StyleSheet.create({
     ...TEXT_STYLES.button,
     color: '#fff',
     fontWeight: '600',
-  },
-  sectionTitle: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 16,
-    color: INCHEON_GRAY,
-    marginBottom: 12,
-    marginLeft: 8,
   },
   cardScroll: {
     marginTop: 8,

@@ -5,6 +5,7 @@ import { INCHEON_BLUE, INCHEON_BLUE_LIGHT, INCHEON_GRAY } from '../../styles/fon
 import authService from '../../services/authService';
 import { BACKEND_API } from '../../config/apiKeys';
 
+
 const { width } = Dimensions.get('window');
 
 const sampleCourses = [
@@ -343,7 +344,12 @@ export default function HomeScreen({ navigation }: any) {
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
-        {isLoggedIn ? renderLoggedInHeader() : renderLoggedOutHeader()}
+        <View style={styles.topSection}>
+          <Text style={styles.topTitle}>어디로 떠나볼까요?</Text>
+          <TouchableOpacity style={styles.loginBtn} onPress={handleLoginPress}>
+            <Text style={styles.loginBtnText}>로그인으로 여행을 시작해보세요</Text>
+          </TouchableOpacity>
+        </View>
 
         {isLoggedIn && hasOngoingCourse ? (
           <>
@@ -434,28 +440,37 @@ export default function HomeScreen({ navigation }: any) {
 const CARD_WIDTH = width * 0.7;
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1, // SafeAreaView가 화면 전체를 차지하도록 설정
+    backgroundColor: '#f0f0f0', // SafeAreaView 자체의 배경색 (선택 사항)
+  },
   container: {
     flex: 1,
-    backgroundColor: '#fff',
-    padding: 8,
-  },
-  topSection: {
+    justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 32,
-    marginBottom: 24,
+    backgroundColor: '#fff',
+    paddingTop: 40,
   },
-  topTitle: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 20,
-    color: INCHEON_GRAY,
+  loginSection: {
+    flex:1,
+    justifyContent: 'center',
+    minHeight: 400,
+    alignItems: 'center',
+  },
+  sectionTitle: {
+    ...TEXT_STYLES.subtitle,
     marginBottom: 16,
     textAlign: 'center',
+  },
+  loginTitle: {
+    ...TEXT_STYLES.subtitle,
   },
   loginBtn: {
     backgroundColor: INCHEON_BLUE,
     borderRadius: 24,
     paddingVertical: 12,
     paddingHorizontal: 28,
+    marginTop: 16,
     marginBottom: 8,
     shadowColor: INCHEON_BLUE,
     shadowOffset: {
@@ -467,8 +482,7 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   loginBtnText: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 16,
+    ...TEXT_STYLES.button,
     color: '#fff',
     fontWeight: '600',
   },
@@ -478,17 +492,18 @@ const styles = StyleSheet.create({
     color: INCHEON_GRAY,
     marginBottom: 12,
     marginLeft: 8,
-    fontWeight: '600',
   },
   cardScroll: {
-    paddingLeft: 8,
+    marginTop: 8,
+    paddingLeft: 16,
+    paddingRight: 16,
   },
   courseCard: {
     width: CARD_WIDTH,
-    backgroundColor: '#fafafa',
+    backgroundColor: '#fefefe',
     borderRadius: 16,
-    borderWidth: 2,
-    borderColor: INCHEON_GRAY,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
     marginRight: 16,
     padding: 16,
     alignItems: 'center',
@@ -496,7 +511,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
-    elevation: 3,
   },
   imageBox: {
     width: '100%',
@@ -508,15 +522,15 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   courseTitle: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 15,
-    color: INCHEON_GRAY,
+    ...TEXT_STYLES.heading,
     marginBottom: 10,
     textAlign: 'center',
     fontWeight: '600',
   },
   startBtn: {
-    backgroundColor: INCHEON_BLUE,
+    backgroundColor: INCHEON_BLUE_LIGHT,
+    borderColor: '#e0e0e0',
+    borderWidth: 0.3,
     borderRadius: 8,
     paddingVertical: 8,
     paddingHorizontal: 24,

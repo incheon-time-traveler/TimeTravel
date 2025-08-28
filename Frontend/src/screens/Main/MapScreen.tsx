@@ -124,6 +124,10 @@ const MapScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1, // SafeAreaView가 화면 전체를 차지하도록 설정
+    backgroundColor: '#f0f0f0', // SafeAreaView 자체의 배경색 (선택 사항)
+  },
   container: {
     flex: 1,
     backgroundColor: '#fff',
@@ -158,6 +162,7 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   map: {
+      paddingTop: 16,
     flex: 1,
     width: width,
     height: height,

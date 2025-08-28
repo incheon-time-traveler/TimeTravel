@@ -11,7 +11,9 @@ import {
   Alert 
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import { INCHEON_BLUE, INCHEON_BLUE_LIGHT, INCHEON_GRAY } from '../../styles/fonts';
+import CheckIcon from '../../components/ui/CheckIcon';
+import PixelLockIcon from '../../components/ui/PixelLockIcon';
+import { INCHEON_BLUE, INCHEON_BLUE_LIGHT, INCHEON_GRAY, TEXT_STYLES } from '../../styles/fonts';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const { width, height } = Dimensions.get('window');
@@ -19,7 +21,7 @@ const { width, height } = Dimensions.get('window');
 const MISSION_DATA = [
   { 
     id: 1, 
-    title: '대불호텔 미션', 
+    title: '대불호텔',
     image: require('../../assets/icons/대불호텔.jpg'), 
     completed: true,
     hasStamp: true,
@@ -85,7 +87,7 @@ export default function GalleryScreen() {
   const handleStampPress = () => {
     Alert.alert(
       '스탬프 사용',
-      '스탬프를 사장님께 보여주세요!\n(본인이 사용 버튼을 누르지 않도록 조심)',
+      '스탬프를 사장님께 보여주세요!\n(사용 버튼을 직접 누르지 않도록 조심해주세요)',
       [
         {
           text: '돌아가기',
@@ -165,11 +167,11 @@ export default function GalleryScreen() {
                   )}
                   <View style={styles.cardFooter}>
                     <Text style={styles.missionTitle} numberOfLines={1}>{item.title}</Text>
-                    <View style={[styles.statusBadge, item.completed ? styles.badgeCompleted : styles.badgeLocked]}>
-                      <Text style={[styles.badgeText, item.completed ? styles.badgeTextCompleted : styles.badgeTextLocked]}>
-                        {item.completed ? '완료' : '잠금'}
-                      </Text>
-                    </View>
+                      {item.completed ? (
+                        <CheckIcon />
+                      ) : (
+                        <PixelLockIcon />
+                      )}
                   </View>
                 </TouchableOpacity>
               ))}
@@ -189,9 +191,9 @@ export default function GalleryScreen() {
                   <Text style={styles.modalTitle}>{selectedImage?.title}</Text>
                   <TouchableOpacity
                     onPress={() => setImageModalVisible(false)}
-                    style={styles.closeButton}
+                    style={styles.modalCloseButton}
                   >
-                    <Text style={styles.closeButtonText}>✕</Text>
+                    <Text style={styles.modalCloseButtonText}>✕</Text>
                   </TouchableOpacity>
                 </View>
 
@@ -225,27 +227,24 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   title: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 24,
-    color: INCHEON_GRAY,
+    ...TEXT_STYLES.subtitle,
     textAlign: 'center',
     marginTop: 24,
     marginBottom: 4,
   },
   underline: {
-    height: 2,
+    height: 3,
     backgroundColor: INCHEON_BLUE,
-    width: 150,
+    width: 140,
     alignSelf: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
     borderRadius: 2,
   },
   subtitle: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 16,
+    ...TEXT_STYLES.heading,
     color: INCHEON_GRAY,
     textAlign: 'center',
-    marginBottom: 18,
+    marginBottom: 32,
   },
   gridWrap: {
     flexDirection: 'row',
@@ -258,8 +257,8 @@ const styles = StyleSheet.create({
     height: CARD_SIZE + 38,
     backgroundColor: '#fafafa',
     borderRadius: 14,
-    borderWidth: 2,
-    borderColor: INCHEON_GRAY,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
     marginBottom: 12,
     overflow: 'hidden',
     alignItems: 'center',
@@ -289,16 +288,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderTopWidth: 1,
-    borderTopColor: INCHEON_GRAY,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     backgroundColor: '#fff',
   },
   missionTitle: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 13,
-    color: INCHEON_GRAY,
+    ...TEXT_STYLES.body,
     flex: 1,
     marginRight: 6,
   },
@@ -375,7 +370,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 20,
     borderWidth: 2,
-    borderColor: '#222',
+    borderColor: '#e0e0e0',
     overflow: 'hidden',
   },
   modalHeader: {
@@ -384,28 +379,19 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 15,
-    borderBottomWidth: 2,
-    borderBottomColor: '#222',
     backgroundColor: INCHEON_BLUE_LIGHT,
   },
   modalTitle: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 18,
-    color: INCHEON_BLUE,
-    fontWeight: 'bold',
+    ...TEXT_STYLES.subtitle,
+    color: INCHEON_BLUE
   },
-  closeButton: {
-    width: 30,
-    height: 30,
+  modalCloseButton: {
+    paddingVertical: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 15,
-    backgroundColor: INCHEON_BLUE,
   },
-  closeButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
+  modalCloseButtonText: {
+    ...TEXT_STYLES.body,
   },
   imageModalContainer: {
     flex: 1,

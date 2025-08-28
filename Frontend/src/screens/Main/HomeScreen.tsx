@@ -69,7 +69,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#fff',
-    paddingTop: 32,
+    paddingTop: 40,
   },
   loginSection: {
     flex:1,

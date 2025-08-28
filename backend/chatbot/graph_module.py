@@ -130,6 +130,9 @@ def chatbot(state: State):
     길찾기(route=True)는 최대 2번만 tool을 호출(먼저 resolve_place, 다음 build_kakaomap_route)하고 결과를 안내한 뒤 끝내.
     화장실(restroom=True)은 1번만 tool 호출하고 결과 안내 후 끝내. 추가 tool_call 금지.
 
+    맛집/카페 질문이면 반드시 적절한 도구를 호출해서 구체적인 정보를 제공해줘!
+    "잠깐만 기다려줘" 같은 모호한 답변은 하지 말고, 바로 도구를 사용해서 답변해줘!
+
     항상 친근하고 반말로 대화해줘!"""
 
     if _has_unresolved_tool_calls(state["messages"]):
@@ -139,6 +142,11 @@ def chatbot(state: State):
     messages_with_system = [{"role": "system", "content": system_message}] + state["messages"]
     
     response = llm_with_tools.invoke(messages_with_system)
+
+    # 디버깅
+    print(f"[DEBUG] LLM 응답: {response}")
+    if hasattr(response, 'tool_calls') and response.tool_calls:
+        print(f"[DEBUG] 도구 호출 감지: {response.tool_calls}")
 
     # 메시지 호출 및 반환
     return {"messages": [response]}
@@ -172,6 +180,9 @@ def select_next_node(state: State):
         return "analyze"
 
     qa_types = state["question_analysis"].get("question_types", {})
+
+    # 디버깅
+    print(f"[DEBUG] select_next_node - qa_types: {qa_types}")
 
     # 길찾기 인텐트(route=True)면 바로 tools 실행
     if qa_types.get("route"):

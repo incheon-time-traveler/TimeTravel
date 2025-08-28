@@ -9,11 +9,57 @@ const LoginScreen = ({ navigation }: any) => {
   const [showWebView, setShowWebView] = useState(false);
   const [loginProvider, setLoginProvider] = useState<'google' | 'kakao'>('google');
   const [loginUrl, setLoginUrl] = useState('');
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userProfile, setUserProfile] = useState<any>(null);
+  const [currentProvider, setCurrentProvider] = useState<'google' | 'kakao'>('google');
+  const [isLoading, setIsLoading] = useState(true);
 
   // TODO: 앱 딥링크 스킴은 .env로 이동하세요. 네이티브 설정(Android intent-filter, iOS URL Types) 필요.
   const APP_LOGIN_SUCCESS_SCHEME = 'timetravelapp://login-success';
 
+  // 로그인 상태 확인 함수
+  const checkLoginStatus = async () => {
+    try {
+      setIsLoading(true);
+      console.log('[LoginScreen] checkLoginStatus 시작...');
+      
+      // authService의 isLoggedIn() 함수 사용
+      const isUserLoggedIn = await authService.isLoggedIn();
+      console.log('[LoginScreen] authService.isLoggedIn() 결과:', isUserLoggedIn);
+      
+      if (isUserLoggedIn) {
+        // 로그인된 상태라면 사용자 정보 가져오기
+        const user = await authService.getUser();
+        const tokens = await authService.getTokens();
+        
+        if (user && tokens) {
+          console.log('[LoginScreen] User is logged in:', user.nickname);
+          console.log('[LoginScreen] Access token prefix:', tokens.access?.slice(0, 20) + '...');
+          setIsLoggedIn(true);
+          setUserProfile(user);
+        } else {
+          console.log('[LoginScreen] User data incomplete - user:', !!user, 'tokens:', !!tokens);
+          setIsLoggedIn(false);
+          setUserProfile(null);
+        }
+      } else {
+        console.log('[LoginScreen] User is not logged in');
+        setIsLoggedIn(false);
+        setUserProfile(null);
+      }
+    } catch (error) {
+      console.error('[LoginScreen] checkLoginStatus error:', error);
+      setIsLoggedIn(false);
+      setUserProfile(null);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
+    // 컴포넌트 마운트 시 로그인 상태 확인
+    checkLoginStatus();
+    
     const handleDeepLink = (event: { url: string }) => {
       const { url } = event;
       console.log('[LoginScreen] Deep link received:', url);
@@ -49,23 +95,47 @@ const LoginScreen = ({ navigation }: any) => {
     return () => subscription.remove();
   }, []);
 
+  // 화면이 포커스될 때마다 로그인 상태 확인
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      console.log('[LoginScreen] Screen focused, checking login status...');
+      // 약간의 지연을 두어 AsyncStorage 작업이 완료된 후 확인
+      setTimeout(() => {
+        checkLoginStatus();
+      }, 100);
+    });
+
+    return unsubscribe;
+  }, [navigation]);
+
+  // 로그인 상태가 변경될 때마다 로그 출력
+  useEffect(() => {
+    console.log('[LoginScreen] Login state changed - isLoggedIn:', isLoggedIn, 'userProfile:', !!userProfile);
+  }, [isLoggedIn, userProfile]);
+
   const handleSocialLogin = (provider: 'google' | 'kakao') => {
     try {
+      console.log('[LoginScreen] handleSocialLogin 시작 - provider:', provider);
+      
+      // provider 상태를 먼저 설정
+      setCurrentProvider(provider);
+      setLoginProvider(provider);
+      
       let url: string;
       if (provider === 'google') {
         // Google은 WebView 금지 → 외부 브라우저로 열기
         // TODO: client=app 같은 플래그는 .env/상수로 이동하세요.
         url = `${OAUTH_URLS.GOOGLE_LOGIN}?client=app`;
-        setCurrentProvider('google');
         console.log('[LoginScreen] Opening Google OAuth URL externally:', url);
         Linking.openURL(url);
         // 외부 브라우저 → 콜백 → 백엔드에서 timetravelapp://login-success?access=... 로 리다이렉트
         // 위 딥링크 리스너에서 토큰 처리
       } else {
+        // 카카오 로그인
         url = OAUTH_URLS.KAKAO_LOGIN;
-        setCurrentProvider(provider);
         setLoginUrl(url);
         setShowWebView(true);
+        console.log('[LoginScreen] Opening Kakao OAuth in WebView:', url);
       }
     } catch (error) {
       console.error('[LoginScreen] handleSocialLogin error:', error);
@@ -73,33 +143,23 @@ const LoginScreen = ({ navigation }: any) => {
     }
   };
 
-  const handleGoogleLogin = async () => {
-    handleSocialLogin('google');
-  };
-
-  const handleSocialLogin = (provider: 'google' | 'kakao') => {
-    console.log('Social login clicked:', provider);
-    setLoginProvider(provider);
-    // Use backend login endpoints in in-app WebView
-    const url = provider === 'google' ? OAUTH_URLS.GOOGLE_LOGIN : OAUTH_URLS.KAKAO_LOGIN;
-    setLoginUrl(url);
-    if (!SocialLoginWebView) {
-      try {
-        SocialLoginWebView = require('./SocialLoginWebView').default;
-      } catch (e) {
-        console.warn('Failed to load SocialLoginWebView:', e);
-      }
-    }
-    setShowWebView(true);
-  };
-
   const handleLoginSuccess = async (userData: any) => {
     try {
       console.log('[LoginScreen] Login success payload:', userData);
+      console.log('[LoginScreen] Current provider state:', currentProvider);
+      console.log('[LoginScreen] Login provider from userData:', userData?.provider);
     } catch {}
-    // provider 우선순위: 전달된 userData.provider -> state.currentProvider
-    const provider = userData?.provider ?? currentProvider ?? 'unknown';
-    if (provider && provider !== currentProvider) setCurrentProvider(provider);
+    
+    // provider 우선순위: 전달된 userData.provider -> state.currentProvider -> 'unknown'
+    let finalProvider = userData?.provider || currentProvider || 'unknown';
+    console.log('[LoginScreen] Final provider 결정:', finalProvider);
+    
+    // provider 상태 업데이트
+    if (finalProvider !== currentProvider) {
+      setCurrentProvider(finalProvider);
+      console.log('[LoginScreen] Provider state updated to:', finalProvider);
+    }
+    
     // 토큰 저장 (구글 딥링크 플로우 포함)
     const access = userData?.accessToken;
     if (access) {
@@ -107,8 +167,37 @@ const LoginScreen = ({ navigation }: any) => {
         console.log('[LoginScreen] Saving access token (prefix):', access.slice(0, 12) + '...');
         await authService.saveTokens({ access, refresh: '' });
         console.log('[LoginScreen] saveTokens() success');
+        
+        // 저장된 토큰 검증
         const storedAccess = await authService.getAccessToken();
         console.log('[LoginScreen][Verify] retrieved access prefix:', storedAccess?.slice(0, 12) + '...');
+        
+        // 사용자 정보 생성 및 저장
+        console.log('[LoginScreen] Creating user profile for provider:', finalProvider);
+        const mockUser = {
+          id: 8, // JWT 토큰에서 추출된 user_id
+          username: finalProvider === 'google' ? 'Google User' : finalProvider === 'kakao' ? 'Kakao User' : 'Social User',
+          nickname: finalProvider === 'google' ? 'Google User' : finalProvider === 'kakao' ? 'Kakao User' : 'Social User',
+          useremail: 'user@example.com', // 실제로는 백엔드에서 받아야 함
+          age: '',
+          gender: '',
+          phone: '',
+        };
+        
+        // 사용자 정보 저장
+        await authService.saveUser(mockUser);
+        console.log('[LoginScreen] Mock user data saved:', mockUser.nickname);
+        
+        // 상태 즉시 업데이트
+        setUserProfile(mockUser);
+        setIsLoggedIn(true);
+        
+        console.log('[LoginScreen] Login state updated - isLoggedIn:', true, 'userProfile:', mockUser.nickname);
+        
+        // 로그인 상태 재확인
+        const isLoggedIn = await authService.isLoggedIn();
+        console.log('[LoginScreen] Final authService.isLoggedIn() 확인:', isLoggedIn);
+        
       } catch (e) {
         console.error('[LoginScreen] saveTokens() failed:', e);
       }
@@ -118,14 +207,15 @@ const LoginScreen = ({ navigation }: any) => {
     setShowWebView(false);
     Alert.alert(
       '로그인 성공',
-      `${provider === 'google' ? '구글' : provider === 'kakao' ? '카카오' : '소셜'} 로그인이 완료되었습니다!`,
+      `${finalProvider === 'google' ? '구글' : finalProvider === 'kakao' ? '카카오' : '소셜'} 로그인이 완료되었습니다!`,
       [
         {
           text: '확인',
           onPress: () => {
-            // 메인 화면으로 이동
-            console.log('[LoginScreen] Navigating to Home after login');
-            navigation.navigate('Home');
+            // 프로필 화면으로 이동하지 않고 현재 화면에서 프로필 표시
+            console.log('[LoginScreen] Showing profile after login');
+            // 로그인 상태를 다시 한 번 확인하여 UI 업데이트
+            checkLoginStatus();
           }
         }
       ]
@@ -138,50 +228,167 @@ const LoginScreen = ({ navigation }: any) => {
     Alert.alert('로그인 실패', error);
   };
 
+  const handleLogout = async () => {
+    try {
+      await authService.logout();
+      setIsLoggedIn(false);
+      setUserProfile(null);
+      Alert.alert('로그아웃', '로그아웃되었습니다.');
+    } catch (error) {
+      console.error('로그아웃 실패:', error);
+      Alert.alert('오류', '로그아웃 중 오류가 발생했습니다.');
+    }
+  };
+
+  // 로딩 중일 때
+  if (isLoading) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.title}>TimeTravel</Text>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>로그인 상태 확인 중...</Text>
+        </View>
+      </View>
+    );
+  }
+
+  // 로그인된 상태일 때 프로필 화면 표시
+  if (isLoggedIn && userProfile) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.headerContainer}>
+          <Text style={styles.title}>TimeTravel</Text>
+          <Text style={styles.subtitle}>내 프로필</Text>
+        </View>
+        
+        <View style={styles.profileContainer}>
+          <View style={styles.profileHeader}>
+            <View style={styles.profileAvatar}>
+              <Text style={styles.profileAvatarText}>
+                {userProfile.nickname?.charAt(0) || userProfile.username?.charAt(0) || 'U'}
+              </Text>
+            </View>
+            <Text style={styles.profileTitle}>{userProfile.nickname || userProfile.username || '사용자'}</Text>
+            <Text style={styles.profileSubtitle}>{userProfile.useremail || '이메일 미설정'}</Text>
+          </View>
+          
+          <View style={styles.profileInfo}>
+            <View style={styles.profileRow}>
+              <View style={styles.profileLabelContainer}>
+                <Text style={styles.profileLabel}>이름</Text>
+              </View>
+              <Text style={styles.profileValue}>{userProfile.username || '미설정'}</Text>
+            </View>
+            
+            <View style={styles.profileRow}>
+              <View style={styles.profileLabelContainer}>
+                <Text style={styles.profileLabel}>닉네임</Text>
+              </View>
+              <Text style={styles.profileValue}>{userProfile.nickname || '미설정'}</Text>
+            </View>
+            
+            <View style={styles.profileRow}>
+              <View style={styles.profileLabelContainer}>
+                <Text style={styles.profileLabel}>전화번호</Text>
+              </View>
+              <Text style={styles.profileValue}>{userProfile.phone || '미설정'}</Text>
+            </View>
+            
+            <View style={styles.profileRow}>
+              <View style={styles.profileLabelContainer}>
+                <Text style={styles.profileLabel}>나이</Text>
+              </View>
+              <Text style={styles.profileValue}>{userProfile.age || '미설정'}</Text>
+            </View>
+            
+            <View style={styles.profileRow}>
+              <View style={styles.profileLabelContainer}>
+                <Text style={styles.profileLabel}>성별</Text>
+              </View>
+              <Text style={styles.profileValue}>{userProfile.gender || '미설정'}</Text>
+            </View>
+          </View>
+          
+          <View style={styles.profileActions}>
+            <TouchableOpacity
+              style={[styles.profileButton, styles.editButton]}
+              onPress={() => navigation.navigate('ProfileSetup')}
+            >
+              <View style={styles.buttonContent}>
+                <Text style={styles.profileButtonText}>프로필 수정</Text>
+              </View>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={[styles.profileButton, styles.homeButton]}
+              onPress={() => navigation.navigate('Home')}
+            >
+              <View style={styles.buttonContent}>
+                <Text style={styles.profileButtonText}>홈으로 이동</Text>
+              </View>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={[styles.profileButton, styles.logoutButton]}
+              onPress={handleLogout}
+            >
+              <View style={styles.buttonContent}>
+                <Text style={styles.profileButtonText}>로그아웃</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    );
+  }
+
+  // 로그인되지 않은 상태일 때 로그인 화면 표시
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>TimeTravel</Text>
+      <View style={styles.headerContainer}>
+        <Text style={styles.title}>TimeTravel</Text>
+        <Text style={styles.subtitle}>소셜 로그인으로 시작하세요</Text>
+      </View>
       
-      {/* 백엔드 연결 테스트 버튼 */}
-      <TouchableOpacity 
-        style={styles.testButton} 
-        onPress={testBackendConnection}
-      >
-        <Text style={styles.testButtonText}>백엔드 연결 테스트</Text>
-      </TouchableOpacity>
+      <View style={styles.loginContainer}>
+        <TouchableOpacity
+          style={[styles.socialButton, styles.googleButton]}
+          onPress={() => handleSocialLogin('google')}
+        >
+          <View style={styles.buttonContent}>
+            <View style={styles.buttonIcon}>
+              <Text style={styles.iconText}>G</Text>
+            </View>
+            <Text style={styles.buttonText}>Google로 로그인</Text>
+          </View>
+        </TouchableOpacity>
 
-      <TouchableOpacity
-        style={[styles.socialButton, styles.googleButton]}
-        onPress={() => handleSocialLogin('google')}
-      >
-        <Text style={styles.buttonText}>Google로 로그인</Text>
-      </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.socialButton, styles.kakaoButton]}
+          onPress={() => handleSocialLogin('kakao')}
+        >
+          <View style={styles.buttonContent}>
+            <View style={styles.buttonIcon}>
+              <Text style={styles.iconText}>K</Text>
+            </View>
+            <Text style={styles.buttonText}>Kakao로 로그인</Text>
+          </View>
+        </TouchableOpacity>
+      </View>
 
-      <TouchableOpacity
-        style={[styles.socialButton, styles.kakaoButton]}
-        onPress={() => handleSocialLogin('kakao')}
-      >
-        <Text style={styles.buttonText}>Kakao로 로그인</Text>
-      </TouchableOpacity>
 
       <Modal
         visible={showWebView}
         animationType="slide"
         presentationStyle="pageSheet"
       >
-        {SocialLoginWebView ? (
-          <SocialLoginWebView
-            provider={loginProvider}
-            loginUrl={loginUrl}
-            onLoginSuccess={handleLoginSuccess}
-            onLoginError={handleLoginError}
-            onClose={() => setShowWebView(false)}
-          />
-        ) : (
-          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-            <Text>로그인 화면을 불러오는 중...</Text>
-          </View>
-        )}
+        <SocialLoginWebView
+          provider={loginProvider}
+          loginUrl={loginUrl}
+          onLoginSuccess={handleLoginSuccess}
+          onLoginError={handleLoginError}
+          onClose={() => setShowWebView(false)}
+        />
       </Modal>
     </View>
   );
@@ -195,23 +402,34 @@ const styles = StyleSheet.create({
     padding: 20,
     backgroundColor: '#fff',
   },
+  headerContainer: {
+    alignItems: 'center',
+    marginBottom: 30,
+  },
   title: {
     fontSize: 32,
     fontWeight: 'bold',
-    marginBottom: 50,
     color: '#333',
+    fontFamily: 'NeoDunggeunmoPro-Regular',
   },
-  testButton: {
-    backgroundColor: '#FF6B6B',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 8,
+  subtitle: {
+    fontSize: 18,
+    color: '#666',
+    marginTop: 5,
+    fontFamily: 'NeoDunggeunmoPro-Regular',
+  },
+  loginContainer: {
+    width: '100%',
     marginBottom: 30,
   },
-  testButtonText: {
-    color: '#fff',
+  footerContainer: {
+    marginTop: 30,
+    alignItems: 'center',
+  },
+  footerText: {
     fontSize: 16,
-    fontWeight: '600',
+    color: '#666',
+    fontFamily: 'NeoDunggeunmoPro-Regular',
   },
   socialButton: {
     width: '100%',
@@ -219,6 +437,14 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginBottom: 15,
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
   googleButton: {
     backgroundColor: '#4285F4',
@@ -226,10 +452,164 @@ const styles = StyleSheet.create({
   kakaoButton: {
     backgroundColor: '#FEE500',
   },
+  buttonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  buttonIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+  iconText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+    fontFamily: 'NeoDunggeunmoPro-Regular',
+  },
   buttonText: {
     color: '#333',
     fontSize: 16,
     fontWeight: '600',
+    fontFamily: 'NeoDunggeunmoPro-Regular',
+  },
+  // 로딩 관련 스타일
+  loadingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  loadingText: {
+    fontSize: 18,
+    color: '#666',
+    textAlign: 'center',
+  },
+  // 프로필 관련 스타일
+  profileContainer: {
+    width: '100%',
+    backgroundColor: '#f8f9fa',
+    borderRadius: 20,
+    padding: 25,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  profileHeader: {
+    alignItems: 'center',
+    marginBottom: 30,
+  },
+  profileAvatar: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#007AFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 15,
+    shadowColor: '#007AFF',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  profileAvatarText: {
+    fontSize: 36,
+    fontWeight: 'bold',
+    color: '#fff',
+    fontFamily: 'NeoDunggeunmoPro-Regular',
+  },
+  profileTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 5,
+    fontFamily: 'NeoDunggeunmoPro-Regular',
+  },
+  profileSubtitle: {
+    fontSize: 16,
+    color: '#666',
+    marginTop: 5,
+    fontFamily: 'NeoDunggeunmoPro-Regular',
+  },
+  profileInfo: {
+    marginBottom: 30,
+  },
+  profileRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e9ecef',
+  },
+  profileLabelContainer: {
+    width: 80,
+    alignItems: 'flex-start',
+  },
+  profileLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#495057',
+    fontFamily: 'NeoDunggeunmoPro-Regular',
+  },
+  profileValue: {
+    fontSize: 16,
+    color: '#333',
+    flex: 1,
+    textAlign: 'right',
+    fontFamily: 'NeoDunggeunmoPro-Regular',
+  },
+  profileActions: {
+    gap: 15,
+  },
+  profileButton: {
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  editButton: {
+    backgroundColor: '#007AFF',
+  },
+  logoutButton: {
+    backgroundColor: '#FF3B30',
+  },
+  homeButton: {
+    backgroundColor: '#34C759',
+  },
+  profileButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    fontFamily: 'NeoDunggeunmoPro-Regular',
   },
 });
 

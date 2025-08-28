@@ -28,10 +28,12 @@ export default function HomeScreen({ navigation }: any) {
   const [userProfile, setUserProfile] = useState<any>(null);
   const [hasOngoingCourse, setHasOngoingCourse] = useState(false);
   const [ongoingCourses, setOngoingCourses] = useState<any[]>([]);
+  const [recommendedCourses, setRecommendedCourses] = useState<any[]>([]);
 
   useEffect(() => {
     checkLoginStatus();
     checkOngoingCourses();
+    fetchRecommendedCourses();
   }, []);
 
   // 화면이 포커스될 때마다 로그인 상태 확인
@@ -39,6 +41,7 @@ export default function HomeScreen({ navigation }: any) {
     const unsubscribe = navigation.addListener('focus', () => {
       checkLoginStatus();
       checkOngoingCourses();
+      fetchRecommendedCourses();
     });
 
     return unsubscribe;
@@ -121,6 +124,61 @@ export default function HomeScreen({ navigation }: any) {
     }
   };
 
+  const fetchRecommendedCourses = async () => {
+    try {
+      console.log('[HomeScreen] 추천 루트 데이터 가져오기 시작');
+      console.log('[HomeScreen] API URL:', `${BACKEND_API.BASE_URL}/v1/routes/`);
+      
+      // 로그인 상태와 관계없이 기존 DB에 있는 루트를 GET으로 가져오기
+      // 백엔드 urls.py의 path('', views.routes, name='routes') 사용
+      const response = await fetch(`${BACKEND_API.BASE_URL}/v1/routes/`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      console.log('[HomeScreen] API 응답 상태:', response.status, response.statusText);
+      console.log('[HomeScreen] API 응답 헤더:', response.headers);
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('[HomeScreen] 기존 루트 데이터:', data);
+        console.log('[HomeScreen] 데이터 타입:', typeof data);
+        console.log('[HomeScreen] 데이터 길이:', Array.isArray(data) ? data.length : '배열 아님');
+        
+        if (Array.isArray(data) && data.length > 0) {
+          // 최대 5개까지만 표시
+          const limitedRoutes = data.slice(0, 5);
+          
+          // 루트 데이터를 이미지 목업 스타일에 맞게 변환
+          const formattedCourses = limitedRoutes.map((route: any, index: number) => ({
+            id: route.id || index,
+            title: route.title || route.name || '알 수 없는 루트',
+            image: '', // 이미지 URL이 있으면 사용, 없으면 빈 문자열
+            location: route.user_region_name || '인천',
+            price: '$~~~', // 가격 정보 (현재는 고정값)
+            locked: false,
+          }));
+          
+          setRecommendedCourses(formattedCourses);
+          console.log('[HomeScreen] 포맷된 추천 루트:', formattedCourses);
+        } else {
+          console.log('[HomeScreen] 기존 루트가 없음, sampleCourses 사용');
+          setRecommendedCourses([]);
+        }
+      } else {
+        console.log('[HomeScreen] 기존 루트 API 호출 실패:', response.status, response.statusText);
+        // API 호출 실패 시 sampleCourses 사용
+        setRecommendedCourses([]);
+      }
+    } catch (error) {
+      console.error('[HomeScreen] 기존 루트 가져오기 에러:', error);
+      // 에러 발생 시 sampleCourses 사용
+      setRecommendedCourses([]);
+    }
+  };
+
   const handleLoginPress = () => {
     navigation.navigate('Profile'); // Profile 탭으로 이동(로그인 유도)
   };
@@ -132,6 +190,67 @@ export default function HomeScreen({ navigation }: any) {
   const handleContinueCourse = () => {
     // TODO: 진행중인 코스로 이동
     Alert.alert('코스 진행', '진행중인 코스로 이동합니다.');
+  };
+
+  const handleNextDestination = (spot: any) => {
+    // MapScreen으로 이동하여 길찾기
+    navigation.navigate('Map', {
+      destination: spot.title || spot.name || '알 수 없는 장소',
+      destinationLat: spot.lat,
+      destinationLng: spot.lng
+    });
+  };
+
+  const handleRouteCardPress = async (routeId: number) => {
+    try {
+      console.log('[HomeScreen] 루트 카드 클릭:', routeId);
+      
+      // route-detail API 호출
+      const response = await fetch(`${BACKEND_API.BASE_URL}/v1/routes/${routeId}/`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const routeData = await response.json();
+        console.log('[HomeScreen] 루트 상세 데이터:', routeData);
+        
+        // 루트 상세 정보를 더 자세하게 표시
+        const route = routeData.route;
+        const spots = routeData.spots;
+        
+        let message = `📍 ${route.title}\n`;
+        message += `🏙️ 지역: ${route.user_region_name || '인천'}\n`;
+        message += `🗺️ 총 장소 수: ${route.total_spots || spots.length}개\n`;
+        if (route.mission_available) {
+          message += `🎯 미션 가능: 예\n`;
+        }
+        message += `\n🗺️ 장소 목록:\n`;
+        
+        spots.forEach((spot: any, index: number) => {
+          message += `${index + 1}. ${spot.title}\n`;
+          if (spot.address) {
+            message += `   📍 ${spot.address}\n`;
+          }
+        });
+        
+        Alert.alert(
+          '루트 상세 정보',
+          message,
+          [
+            { text: '확인', style: 'default' }
+          ]
+        );
+      } else {
+        console.log('[HomeScreen] 루트 상세 조회 실패:', response.status, response.statusText);
+        Alert.alert('오류', '루트 정보를 가져올 수 없습니다.');
+      }
+    } catch (error) {
+      console.error('[HomeScreen] 루트 상세 조회 에러:', error);
+      Alert.alert('오류', '루트 정보 조회 중 오류가 발생했습니다.');
+    }
   };
 
   // 진행중인 코스 카드 렌더링
@@ -159,11 +278,14 @@ export default function HomeScreen({ navigation }: any) {
               </Text>
             </View>
             <View style={styles.spotStatus}>
-              {index === 0 ? (
-                <TouchableOpacity style={styles.nextDestinationBtn}>
-                  <Text style={styles.nextDestinationText}>다음 목적지</Text>
-                </TouchableOpacity>
-              ) : (
+                             {index === 0 ? (
+                 <TouchableOpacity 
+                   style={styles.nextDestinationBtn}
+                   onPress={() => handleNextDestination(spot)}
+                 >
+                   <Text style={styles.nextDestinationText}>다음 목적지</Text>
+                 </TouchableOpacity>
+               ) : (
                 <View style={styles.lockedIcon}>
                   <Ionicons name="lock-closed" size={16} color="#FFD700" />
                 </View>
@@ -238,19 +360,75 @@ export default function HomeScreen({ navigation }: any) {
           </>
         ) : (
           <>
-            <Text style={styles.sectionTitle}>다른 사람들이 선택한 코스</Text>
+            <Text style={styles.sectionTitle}>추천 코스</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.cardScroll}>
-              {sampleCourses.map((course) => (
-                <View key={course.id} style={styles.courseCard}>
-                  <View style={styles.imageBox}>
-                    <Ionicons name="image-outline" size={36} color="#bbb" />
-                  </View>
-                  <Text style={styles.courseTitle} numberOfLines={1}>{course.title}</Text>
-                  <TouchableOpacity style={styles.startBtn} disabled>
-                    <Text style={styles.startBtnText}>Start</Text>
-                  </TouchableOpacity>
-                </View>
-              ))}
+                             {recommendedCourses.length > 0 ? (
+                 recommendedCourses.map((course) => (
+                   <TouchableOpacity 
+                     key={course.id} 
+                     style={styles.courseCard}
+                     onPress={() => handleRouteCardPress(course.id)}
+                     activeOpacity={0.7}
+                   >
+                     <View style={styles.imageBox}>
+                       <TouchableOpacity 
+                         style={styles.bookmarkIcon}
+                         onPress={(e) => {
+                           e.stopPropagation();
+                           Alert.alert('북마크', '이 루트를 북마크에 추가했습니다!');
+                         }}
+                       >
+                         <Ionicons name="bookmark-outline" size={20} color="#fff" />
+                       </TouchableOpacity>
+                       <View style={styles.priceIndicator}>
+                         <Text style={styles.priceText}>$~~~</Text>
+                       </View>
+                       <Ionicons name="image-outline" size={36} color="#bbb" />
+                     </View>
+                     <Text style={styles.courseTitle} numberOfLines={1}>{course.title}</Text>
+                     <View style={styles.locationContainer}>
+                       <Ionicons name="location-outline" size={14} color={INCHEON_GRAY} />
+                       <Text style={styles.locationText} numberOfLines={1}>{course.location || '위치 정보 없음'}</Text>
+                     </View>
+                     <TouchableOpacity style={styles.startBtn} disabled>
+                       <Text style={styles.startBtnText}>Start</Text>
+                     </TouchableOpacity>
+                   </TouchableOpacity>
+                 ))
+               ) : (
+                                 sampleCourses.map((course) => (
+                   <TouchableOpacity 
+                     key={course.id} 
+                     style={styles.courseCard}
+                     onPress={() => handleRouteCardPress(course.id)}
+                     activeOpacity={0.7}
+                   >
+                     <View style={styles.imageBox}>
+                       <TouchableOpacity 
+                         style={styles.bookmarkIcon}
+                         onPress={(e) => {
+                           e.stopPropagation();
+                           Alert.alert('북마크', '이 루트를 북마크에 추가했습니다!');
+                         }}
+                       >
+                         <Ionicons name="bookmark-outline" size={20} color="#fff" />
+                       </TouchableOpacity>
+                       <View style={styles.priceIndicator}>
+                         <Text style={styles.priceText}>$~~~</Text>
+                       </View>
+                       <Ionicons name="image-outline" size={36} color="#bbb" />
+                     </View>
+                     <Text style={styles.courseTitle} numberOfLines={1}>{course.title}</Text>
+                     <View style={styles.locationContainer}>
+                       <Ionicons name="location-outline" size={14} color={INCHEON_GRAY} />
+                       <Text style={styles.locationText} numberOfLines={1}>인천</Text>
+                     </View>
+                     <TouchableOpacity style={styles.startBtn} disabled>
+                       <Text style={styles.startBtnText}>Start</Text>
+                     </TouchableOpacity>
+                   </TouchableOpacity>
+                 ))
+              )}
             </ScrollView>
           </>
         )}
@@ -413,7 +591,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginRight: 8,
   },
-  spotTitle: {
+  spotTitleGray: {
     fontFamily: 'NeoDunggeunmoPro-Regular',
     fontSize: 15,
     color: INCHEON_GRAY,
@@ -600,5 +778,34 @@ const styles = StyleSheet.create({
   },
   lockedIcon: {
     marginTop: 8,
+  },
+  bookmarkIcon: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 10,
+    padding: 5,
+  },
+  priceIndicator: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 10,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+  },
+  priceText: {
+    fontFamily: 'NeoDunggeunmoPro-Regular',
+    fontSize: 12,
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  locationText: {
+    fontFamily: 'NeoDunggeunmoPro-Regular',
+    fontSize: 12,
+    color: INCHEON_GRAY,
+    marginLeft: 4,
   },
 }); 

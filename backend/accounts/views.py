@@ -26,6 +26,7 @@ except Exception:
 # OAuth
 # 구글 로그인 요청 보내기
 @api_view(['GET', 'POST'])
+@permission_classes([AllowAny])
 def google_login(request):
     # TODO: 아래 하드코딩 값들은 환경변수(.env)로 이동해야 합니다.
     client_id = os.getenv("GOOGLE_CLIENT_ID")
@@ -61,6 +62,7 @@ def generate_tokens_for_user(user):
 
 # 구글 응답 처리하기
 @api_view(['GET', 'POST'])
+@permission_classes([AllowAny])
 def google_callback(request):
     User = get_user_model()
     # Debug diagnostics for incoming callback
@@ -129,6 +131,7 @@ def google_callback(request):
 
 # 카카오 로그인
 @api_view(['GET'])
+@permission_classes([AllowAny])
 def kakao_login(request):
     # TODO: 아래 하드코딩 값들은 환경변수(.env)로 이동해야 합니다.
     client_id = os.getenv("KAKAO_REST_API_KEY", "REPLACE_WITH_KAKAO_REST_API_KEY")
@@ -147,8 +150,9 @@ def kakao_login(request):
 
     return redirect(kakao_auth_url)
 
-@api_view(['GET', 'POST'])
 # 카카오 응답 처리하기
+@api_view(['GET', 'POST'])
+@permission_classes([AllowAny])
 def kakao_callback(request):
     code = request.GET.get("code")
     if not code:

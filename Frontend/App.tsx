@@ -11,7 +11,7 @@ import MapScreen from './src/screens/Main/MapScreen';
 import TripsScreen from './src/screens/Main/TripsScreen';
 import GalleryScreen from './src/screens/Main/GalleryScreen';
 import ProfileScreen from './src/screens/Profile/ProfileScreen';
-import CameraScreen from './src/screens/Main/CameraScreen';
+import CourseRecommendationScreen from './src/screens/Main/CourseRecommendationScreen';
 import FloatingChatBotButton from './src/components/ui/FloatingChatBotButton';
 import ChatScreen from './src/screens/Chat/ChatScreen';
 import { INCHEON_BLUE } from './src/styles/fonts';
@@ -24,13 +24,22 @@ function MapStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="MapMain" component={MapScreen} />
-      <Stack.Screen name="Camera" component={CameraScreen} />
     </Stack.Navigator>
   );
 }
 
 // 메인 탭 네비게이터
 function MainTabNavigator() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="MainTabs" component={MainTabs} />
+      <Stack.Screen name="CourseRecommendation" component={CourseRecommendationScreen} />
+    </Stack.Navigator>
+  );
+}
+
+// 탭 네비게이터
+function MainTabs() {
   return (
     <Tab.Navigator
       initialRouteName="Trips"

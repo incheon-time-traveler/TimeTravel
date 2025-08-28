@@ -1,8 +1,7 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Dimensions } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Dimensions, Alert } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import { INCHEON_BLUE, INCHEON_BLUE_LIGHT, INCHEON_GRAY, TEXT_STYLES } from '../../styles/fonts';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { INCHEON_BLUE, INCHEON_BLUE_LIGHT, INCHEON_GRAY } from '../../styles/fonts';
 
 const { width } = Dimensions.get('window');
 
@@ -21,39 +20,79 @@ const sampleCourses = [
   },
 ];
 
+// 진행중인 코스 데이터 (임시)
+const ongoingCourses: any[] = []; // 빈 배열로 설정하여 진행중인 코스 없음 상태
+
 export default function HomeScreen({ navigation }: any) {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userProfile, setUserProfile] = useState<any>(null);
+  const [hasOngoingCourse, setHasOngoingCourse] = useState(false);
+
+  useEffect(() => {
+    checkLoginStatus();
+    checkOngoingCourses();
+  }, []);
+
+  // 화면이 포커스될 때마다 로그인 상태 확인
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      checkLoginStatus();
+      checkOngoingCourses();
+    });
+
+    return unsubscribe;
+  }, [navigation]);
+
+  const checkLoginStatus = async () => {
+    try {
+      const isUserLoggedIn = await authService.isLoggedIn();
+      setIsLoggedIn(isUserLoggedIn);
+      
+      if (isUserLoggedIn) {
+        const user = await authService.getUser();
+        setUserProfile(user);
+      }
+    } catch (error) {
+      console.error('로그인 상태 확인 실패:', error);
+    }
+  };
+
+  const checkOngoingCourses = async () => {
+    // TODO: 백엔드에서 진행중인 코스 데이터 가져오기
+    // 현재는 임시 데이터 사용
+    setHasOngoingCourse(ongoingCourses.length > 0);
+  };
+
   const handleLoginPress = () => {
     navigation.navigate('Profile'); // Profile 탭으로 이동(로그인 유도)
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-      <View style={styles.container}>
-          <ScrollView contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
-            <Text style={styles.sectionTitle}>다른 사람들이 선택한 코스</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.cardScroll}>
-              {sampleCourses.map((course) => (
-                <View key={course.id} style={styles.courseCard}>
-                  <View style={styles.imageBox}>
-                    <Ionicons name="image-outline" size={36} color="#bbb" />
-                  </View>
-                  <Text style={styles.courseTitle} numberOfLines={1}>{course.title}</Text>
-                  <TouchableOpacity style={styles.startBtn} disabled>
-                    <Text style={styles.startBtnText}>시작하기</Text>
-                  </TouchableOpacity>
-                </View>
-              ))}
-            </ScrollView>
-            <View style={styles.loginSection}>
-              <Text style={styles.loginTitle}>나만의 코스를 만들어 볼까요?</Text>
-              <TouchableOpacity style={styles.loginBtn} onPress={handleLoginPress}>
-                <Text style={styles.loginBtnText}>로그인</Text>
+    <View style={styles.container}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
+        <View style={styles.topSection}>
+          <Text style={styles.topTitle}>어디로 떠나볼까요?</Text>
+          <TouchableOpacity style={styles.loginBtn} onPress={handleLoginPress}>
+            <Text style={styles.loginBtnText}>로그인으로 여행을 시작해보세요</Text>
+          </TouchableOpacity>
+        </View>
+
+        <Text style={styles.sectionTitle}>다른 사람들이 선택한 코스</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.cardScroll}>
+          {sampleCourses.map((course) => (
+            <View key={course.id} style={styles.courseCard}>
+              <View style={styles.imageBox}>
+                <Ionicons name="image-outline" size={36} color="#bbb" />
+              </View>
+              <Text style={styles.courseTitle} numberOfLines={1}>{course.title}</Text>
+              <TouchableOpacity style={styles.startBtn} disabled>
+                <Text style={styles.startBtnText}>Start</Text>
               </TouchableOpacity>
             </View>
-          </ScrollView>
-      </View>
-    </SafeAreaView>
-
+          ))}
+        </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -92,10 +131,26 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28,
     marginTop: 16,
     marginBottom: 8,
+    shadowColor: INCHEON_BLUE,
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
   loginBtnText: {
     ...TEXT_STYLES.button,
     color: '#fff',
+    fontWeight: '600',
+  },
+  sectionTitle: {
+    fontFamily: 'NeoDunggeunmoPro-Regular',
+    fontSize: 16,
+    color: INCHEON_GRAY,
+    marginBottom: 12,
+    marginLeft: 8,
   },
   cardScroll: {
     marginTop: 8,
@@ -111,6 +166,10 @@ const styles = StyleSheet.create({
     marginRight: 16,
     padding: 16,
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
   },
   imageBox: {
     width: '100%',
@@ -125,6 +184,7 @@ const styles = StyleSheet.create({
     ...TEXT_STYLES.heading,
     marginBottom: 10,
     textAlign: 'center',
+    fontWeight: '600',
   },
   startBtn: {
     backgroundColor: INCHEON_BLUE_LIGHT,
@@ -136,6 +196,8 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   startBtnText: {
-    ...TEXT_STYLES.button,
+    fontFamily: 'NeoDunggeunmoPro-Regular',
+    fontSize: 14,
+    color: '#fff',
   },
 }); 

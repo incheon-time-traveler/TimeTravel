@@ -17,11 +17,10 @@ import { KAKAO_REST_API_KEY, KAKAO_REDIRECT_URI } from '@env';
 
 // 백엔드 API URL
 export const BACKEND_API = {
-  // TODO: 아래 하드코딩 값들은 .env로 이동하세요
   // 개발: 안드로이드 에뮬레이터용 로컬 백엔드
   // 운영: HTTPS 배포 도메인
-  BASE_URL: 'https://incheon-time-traveler.duckdns.org', // 그냥 운영으로 연결, 수정 필요하면 바로바로 배포포
   // BASE_URL: __DEV__ ? 'http://10.0.2.2:8000' : 'https://incheon-time-traveler.duckdns.org',
+  BASE_URL: 'https://incheon-time-traveler.duckdns.org', // 그냥 운영으로 연결, 수정 필요하면 바로바로 배포포
 };
 
 // 챗봇 API 설정
@@ -29,11 +28,10 @@ export const CHATBOT_API = {
   CHAT_URL: `${BACKEND_API.BASE_URL}/v1/chatbot/`,
 };
 
-// OAuth URL 설정
+// OAuth URL (소셜 로그인은 항상 운영 서버 사용)
 export const OAUTH_URLS = {
-  GOOGLE_LOGIN: `${BACKEND_API.BASE_URL}/v1/users/google/login/`,
-  KAKAO_LOGIN: `${BACKEND_API.BASE_URL}/v1/users/kakao/login/`,
-  // TODO: 리다이렉트 URI도 .env로 이동 필요
-  GOOGLE_REDIRECT: `${BACKEND_API.BASE_URL}/v1/users/google/callback/`,
-  KAKAO_REDIRECT: `${BACKEND_API.BASE_URL}/v1/users/kakao/callback/`,
+  GOOGLE_LOGIN: 'https://incheon-time-traveler.duckdns.org/v1/users/google/login/',
+  KAKAO_LOGIN: 'https://incheon-time-traveler.duckdns.org/v1/users/kakao/login/',
+  GOOGLE_REDIRECT: 'https://incheon-time-traveler.duckdns.org/v1/users/google/callback/',
+  KAKAO_REDIRECT: 'https://incheon-time-traveler.duckdns.org/v1/users/kakao/callback/',
 };

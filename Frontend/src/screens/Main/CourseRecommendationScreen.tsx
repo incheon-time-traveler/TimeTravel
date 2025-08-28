@@ -1,17 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  TouchableOpacity, 
-  ScrollView, 
-  Dimensions, 
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  Dimensions,
   Alert,
   Switch,
   ActivityIndicator
 } from 'react-native';
+import { Picker } from '@react-native-picker/picker';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { INCHEON_BLUE, INCHEON_BLUE_LIGHT, INCHEON_GRAY } from '../../styles/fonts';
+import { BACKEND_API } from '../../config/apiKeys';
 
 const { width } = Dimensions.get('window');
 
@@ -48,7 +50,7 @@ export default function CourseRecommendationScreen({ navigation }: any) {
   }, []);
 
   const togglePreference = (preferenceId: string) => {
-    setSelectedPreferences(prev => 
+    setSelectedPreferences(prev =>
       prev.includes(preferenceId)
         ? prev.filter(id => id !== preferenceId)
         : [...prev, preferenceId]
@@ -57,11 +59,11 @@ export default function CourseRecommendationScreen({ navigation }: any) {
 
   const getMissionProposal = async () => {
     if (!userLocation) return;
-    
+
     try {
       // 백엔드 서버가 실행 중인지 확인
       const response = await fetch(
-        `http://10.0.2.2:8000/v1/courses/mission_proposal/?user_lat=${userLocation.lat}&user_lon=${userLocation.lng}&move_to_other_region=${moveToOtherRegion}`,
+        `${BACKEND_API.BASE_URL}/v1/courses/mission_proposal/?user_lat=${userLocation.lat}&user_lon=${userLocation.lng}&move_to_other_region=${moveToOtherRegion}`,
         {
           method: 'GET',
           headers: {
@@ -69,7 +71,7 @@ export default function CourseRecommendationScreen({ navigation }: any) {
           },
         }
       );
-      
+
       if (response.ok) {
         // 응답 타입 확인
         const contentType = response.headers.get('content-type');
@@ -116,7 +118,7 @@ export default function CourseRecommendationScreen({ navigation }: any) {
     setIsLoading(true);
 
     try {
-      const response = await fetch('http://10.0.2.2:8000/v1/courses/generate_course/', {
+      const response = await fetch(`${BACKEND_API.BASE_URL}/v1/courses/generate_course/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -250,7 +252,7 @@ export default function CourseRecommendationScreen({ navigation }: any) {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>🎯 여행 선호도 선택</Text>
           <Text style={styles.sectionSubtitle}>원하는 항목들을 선택해주세요 (복수 선택 가능)</Text>
-          
+
           <View style={styles.preferencesGrid}>
             {preferenceOptions.map((option) => (
               <TouchableOpacity
@@ -309,7 +311,7 @@ export default function CourseRecommendationScreen({ navigation }: any) {
                 thumbColor={missionAccepted ? INCHEON_BLUE : '#f4f3f4'}
               />
             </View>
-            
+
             {missionAccepted && missionProposal && (
               <View style={styles.missionProposal}>
                 <Text style={styles.missionProposalText}>{missionProposal}</Text>
@@ -331,7 +333,7 @@ export default function CourseRecommendationScreen({ navigation }: any) {
             />
           </View>
           <Text style={styles.regionSubtext}>
-            {moveToOtherRegion 
+            {moveToOtherRegion
               ? '강화군, 영종도, 내륙 등 모든 지역의 장소를 포함할 수 있어요'
               : '현재 위치 주변 지역의 장소만으로 코스를 구성해요'
             }
@@ -357,11 +359,11 @@ export default function CourseRecommendationScreen({ navigation }: any) {
               </>
             )}
           </TouchableOpacity>
-          
+
           {selectedPreferences.length === 0 && (
             <Text style={styles.warningText}>선호도를 선택해주세요</Text>
           )}
-          
+
           {!userLocation && (
             <Text style={styles.warningText}>위치 정보가 필요합니다</Text>
           )}

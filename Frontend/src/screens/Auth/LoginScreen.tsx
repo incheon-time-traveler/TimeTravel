@@ -4,6 +4,7 @@ import { OAUTH_URLS } from '../../config/apiKeys';
 import authService from '../../services/authService';
 import SocialLoginWebView from './SocialLoginWebView';
 import { INCHEON_BLUE_LIGHT, INCHEON_GRAY } from '../../styles/fonts';
+import { BACKEND_API } from '../../config/apiKeys';
 
 const LoginScreen = ({ navigation }: any) => {
   const [showWebView, setShowWebView] = useState(false);
@@ -11,8 +12,7 @@ const LoginScreen = ({ navigation }: any) => {
   const [loginUrl, setLoginUrl] = useState('');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userProfile, setUserProfile] = useState<any>(null);
-  const [currentProvider, setCurrentProvider] = useState<'google' | 'kakao'>('google');
-  const [isLoading, setIsLoading] = useState(true);
+  const [currentProvider, setCurrentProvider] = useState<'google' | 'kakao' | 'unknown'>('unknown');
 
   // TODO: 앱 딥링크 스킴은 .env로 이동하세요. 네이티브 설정(Android intent-filter, iOS URL Types) 필요.
   const APP_LOGIN_SUCCESS_SCHEME = 'timetravelapp://login-success';
@@ -20,27 +20,21 @@ const LoginScreen = ({ navigation }: any) => {
   // 로그인 상태 확인 함수
   const checkLoginStatus = async () => {
     try {
-      setIsLoading(true);
-      console.log('[LoginScreen] checkLoginStatus 시작...');
+      const tokens = await authService.getTokens();
+      const user = await authService.getUser();
       
-      // authService의 isLoggedIn() 함수 사용
-      const isUserLoggedIn = await authService.isLoggedIn();
-      console.log('[LoginScreen] authService.isLoggedIn() 결과:', isUserLoggedIn);
+      console.log('[LoginScreen] checkLoginStatus - tokens:', !!tokens, 'user:', !!user);
       
-      if (isUserLoggedIn) {
-        // 로그인된 상태라면 사용자 정보 가져오기
-        const user = await authService.getUser();
-        const tokens = await authService.getTokens();
+      if (tokens?.access && user?.id) {
+        // 로그인된 상태에서 프로필 완성 여부 확인
+        const isProfileComplete = await checkProfileCompletion(user.id);
         
-        if (user && tokens) {
-          console.log('[LoginScreen] User is logged in:', user.nickname);
-          console.log('[LoginScreen] Access token prefix:', tokens.access?.slice(0, 20) + '...');
-          setIsLoggedIn(true);
-          setUserProfile(user);
+        if (isProfileComplete) {
+          console.log('[LoginScreen] 프로필이 이미 완성됨 - MainTabs로 이동');
+          navigation.navigate('MainTabs');
         } else {
-          console.log('[LoginScreen] User data incomplete - user:', !!user, 'tokens:', !!tokens);
-          setIsLoggedIn(false);
-          setUserProfile(null);
+          console.log('[LoginScreen] 프로필 미완성 - ProfileSetup으로 이동');
+          navigation.navigate('ProfileSetup');
         }
       } else {
         console.log('[LoginScreen] User is not logged in');
@@ -48,11 +42,65 @@ const LoginScreen = ({ navigation }: any) => {
         setUserProfile(null);
       }
     } catch (error) {
-      console.error('[LoginScreen] checkLoginStatus error:', error);
+      console.error('[LoginScreen] checkLoginStatus failed:', error);
       setIsLoggedIn(false);
       setUserProfile(null);
-    } finally {
-      setIsLoading(false);
+    }
+  };
+
+  // 백엔드에서 실제 사용자 정보 가져오기
+  const fetchUserFromBackend = async (userId: number, accessToken: string) => {
+    try {
+      console.log('[LoginScreen] 백엔드에서 사용자 정보 가져오기 시작 - userId:', userId);
+      
+      const response = await fetch(`${BACKEND_API.BASE_URL}/v1/users/profile/${userId}/`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
+
+      if (response.ok) {
+        const userData = await response.json();
+        console.log('[LoginScreen] 백엔드 응답 성공:', userData);
+        return userData;
+      } else {
+        console.log('[LoginScreen] 백엔드 응답 실패:', response.status, response.statusText);
+        return null;
+      }
+    } catch (error) {
+      console.error('[LoginScreen] 백엔드에서 사용자 정보 가져오기 실패:', error);
+      return null;
+    }
+  };
+
+  // 프로필 완성 여부 확인 함수
+  const checkProfileCompletion = async (userId: number): Promise<boolean> => {
+    try {
+      const tokens = await authService.getTokens();
+      if (!tokens?.access) {
+        return false;
+      }
+
+      const response = await fetch(`${BACKEND_API.BASE_URL}/v1/users/profile/${userId}/`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${tokens.access}`,
+        },
+      });
+
+      if (response.ok) {
+        const userData = await response.json();
+        // nickname, age, gender가 모두 있는지 확인
+        const isComplete = userData.nickname && userData.age && userData.gender;
+        console.log('[LoginScreen] 프로필 완성 여부:', isComplete, userData);
+        return isComplete;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('[LoginScreen] 프로필 완성 여부 확인 실패:', error);
+      return false;
     }
   };
 
@@ -174,30 +222,51 @@ const LoginScreen = ({ navigation }: any) => {
         
         // 사용자 정보 생성 및 저장
         console.log('[LoginScreen] Creating user profile for provider:', finalProvider);
-        const mockUser = {
-          id: 8, // JWT 토큰에서 추출된 user_id
-          username: finalProvider === 'google' ? 'Google User' : finalProvider === 'kakao' ? 'Kakao User' : 'Social User',
-          nickname: finalProvider === 'google' ? 'Google User' : finalProvider === 'kakao' ? 'Kakao User' : 'Social User',
-          useremail: 'user@example.com', // 실제로는 백엔드에서 받아야 함
-          age: '',
-          gender: '',
-          phone: '',
-        };
         
-        // 사용자 정보 저장
-        await authService.saveUser(mockUser);
-        console.log('[LoginScreen] Mock user data saved:', mockUser.nickname);
+        // JWT 토큰에서 사용자 ID 추출
+        let userId = 0;
+        try {
+          const tokenParts = access.split('.');
+          if (tokenParts.length === 3) {
+            const payload = JSON.parse(atob(tokenParts[1]));
+            userId = payload.user_id || 0;
+            console.log('[LoginScreen] JWT에서 추출된 user_id:', userId);
+          }
+        } catch (error) {
+          console.error('[LoginScreen] JWT 파싱 실패:', error);
+        }
         
-        // 상태 즉시 업데이트
-        setUserProfile(mockUser);
-        setIsLoggedIn(true);
-        
-        console.log('[LoginScreen] Login state updated - isLoggedIn:', true, 'userProfile:', mockUser.nickname);
-        
-        // 로그인 상태 재확인
-        const isLoggedIn = await authService.isLoggedIn();
-        console.log('[LoginScreen] Final authService.isLoggedIn() 확인:', isLoggedIn);
-        
+        // 백엔드에서 실제 사용자 정보 가져오기
+        const user = await fetchUserFromBackend(userId, access);
+        if (user) {
+          // 사용자 정보 저장
+          await authService.saveUser(user);
+          console.log('[LoginScreen] 실제 사용자 데이터 저장:', user.nickname);
+          // 상태 즉시 업데이트
+          setUserProfile(user);
+          setIsLoggedIn(true);
+          console.log('[LoginScreen] Login state updated - isLoggedIn:', true, 'userProfile:', user.nickname);
+          
+          // 로그인 상태 재확인
+          const isLoggedIn = await authService.isLoggedIn();
+          console.log('[LoginScreen] Final authService.isLoggedIn() 확인:', isLoggedIn);
+        } else {
+          console.warn('[LoginScreen] 실제 사용자 정보를 가져오지 못했습니다.');
+          // 모의 사용자 정보 사용
+          const mockUser = {
+            id: userId, // JWT 토큰에서 추출된 실제 user_id
+            username: finalProvider === 'google' ? 'Google User' : finalProvider === 'kakao' ? 'Kakao User' : 'Social User',
+            nickname: finalProvider === 'google' ? 'Google User' : finalProvider === 'kakao' ? 'Kakao User' : 'Social User',
+            useremail: 'user@example.com', // 실제로는 백엔드에서 받아야 함
+            age: '',
+            gender: '',
+          };
+          await authService.saveUser(mockUser);
+          console.log('[LoginScreen] 모의 사용자 데이터 저장:', mockUser.nickname);
+          setUserProfile(mockUser);
+          setIsLoggedIn(true);
+          console.log('[LoginScreen] Login state updated - isLoggedIn:', true, 'userProfile:', mockUser.nickname);
+        }
       } catch (e) {
         console.error('[LoginScreen] saveTokens() failed:', e);
       }
@@ -240,18 +309,6 @@ const LoginScreen = ({ navigation }: any) => {
     }
   };
 
-  // 로딩 중일 때
-  if (isLoading) {
-    return (
-      <View style={styles.container}>
-        <Text style={styles.title}>TimeTravel</Text>
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>로그인 상태 확인 중...</Text>
-        </View>
-      </View>
-    );
-  }
-
   // 로그인된 상태일 때 프로필 화면 표시
   if (isLoggedIn && userProfile) {
     return (
@@ -287,12 +344,6 @@ const LoginScreen = ({ navigation }: any) => {
               <Text style={styles.profileValue}>{userProfile.nickname || '미설정'}</Text>
             </View>
             
-            <View style={styles.profileRow}>
-              <View style={styles.profileLabelContainer}>
-                <Text style={styles.profileLabel}>전화번호</Text>
-              </View>
-              <Text style={styles.profileValue}>{userProfile.phone || '미설정'}</Text>
-            </View>
             
             <View style={styles.profileRow}>
               <View style={styles.profileLabelContainer}>
@@ -321,7 +372,7 @@ const LoginScreen = ({ navigation }: any) => {
             
             <TouchableOpacity
               style={[styles.profileButton, styles.homeButton]}
-              onPress={() => navigation.navigate('Home')}
+              onPress={() => navigation.navigate('MainTabs')}
             >
               <View style={styles.buttonContent}>
                 <Text style={styles.profileButtonText}>홈으로 이동</Text>
@@ -422,6 +473,7 @@ const styles = StyleSheet.create({
     width: '100%',
     marginBottom: 30,
   },
+  // 기존 스타일 제거
   footerContainer: {
     marginTop: 30,
     alignItems: 'center',

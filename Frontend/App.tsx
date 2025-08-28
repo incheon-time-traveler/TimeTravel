@@ -12,9 +12,11 @@ import TripsScreen from './src/screens/Main/TripsScreen';
 import GalleryScreen from './src/screens/Main/GalleryScreen';
 import ProfileScreen from './src/screens/Profile/ProfileScreen';
 import CourseRecommendationScreen from './src/screens/Main/CourseRecommendationScreen';
+import ProfileSetupScreen from './src/screens/Auth/ProfileSetupScreen';
 import FloatingChatBotButton from './src/components/ui/FloatingChatBotButton';
 import ChatScreen from './src/screens/Chat/ChatScreen';
 import { INCHEON_BLUE } from './src/styles/fonts';
+import LoginScreen from './src/screens/Auth/LoginScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -34,6 +36,8 @@ function MainTabNavigator() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="MainTabs" component={MainTabs} />
       <Stack.Screen name="CourseRecommendation" component={CourseRecommendationScreen} />
+      <Stack.Screen name="ProfileSetup" component={ProfileSetupScreen} />
+      <Stack.Screen name="Login" component={LoginScreen} />
     </Stack.Navigator>
   );
 }

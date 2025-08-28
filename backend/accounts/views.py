@@ -224,6 +224,13 @@ def logout(request):
 @permission_classes([IsAuthenticated])
 def profile(request, user_id):
     try:
+        # JWT 토큰 디버깅 정보 추가
+        print(f"[DEBUG] Profile view called - user_id: {user_id}")
+        print(f"[DEBUG] request.user.id: {request.user.id}")
+        print(f"[DEBUG] request.user.username: {request.user.username}")
+        print(f"[DEBUG] request.user.email: {request.user.email}")
+        print(f"[DEBUG] request.auth: {request.auth}")
+        
         user = get_object_or_404(get_user_model(), pk=user_id)
         
         if request.method == 'GET':
@@ -232,7 +239,9 @@ def profile(request, user_id):
             
         elif request.method == 'PUT':
             # 자신의 프로필만 수정할 수 있도록 체크
+            print(f"[DEBUG] PUT request - request.user.id: {request.user.id}, user_id: {user_id}")
             if request.user.id != user_id:
+                print(f"[DEBUG] 403 Error - User ID mismatch: {request.user.id} != {user_id}")
                 return Response({'error': '자신의 프로필만 수정할 수 있습니다.'}, status=403)
             serializer = UserProfileUpdateSerializer(user, data=request.data, partial=True)
             if serializer.is_valid():
@@ -241,6 +250,7 @@ def profile(request, user_id):
             return Response(serializer.errors, status=400)
             
     except Exception as e:
+        print(f"[DEBUG] Profile view error: {str(e)}")
         return Response({'error': str(e)}, status=500)
 
 @api_view(['DELETE'])

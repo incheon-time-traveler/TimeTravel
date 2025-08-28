@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Dimensions
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { INCHEON_BLUE, INCHEON_BLUE_LIGHT, INCHEON_GRAY } from '../../styles/fonts';
 import authService from '../../services/authService';
+import { BACKEND_API } from '../../config/apiKeys';
 
 const { width } = Dimensions.get('window');
 
@@ -46,15 +47,25 @@ export default function HomeScreen({ navigation }: any) {
 
   const checkLoginStatus = async () => {
     try {
-      const isUserLoggedIn = await authService.isLoggedIn();
-      setIsLoggedIn(isUserLoggedIn);
+      // 토큰과 사용자 정보 모두 확인
+      const tokens = await authService.getTokens();
+      const user = await authService.getUser();
       
-      if (isUserLoggedIn) {
-        const user = await authService.getUser();
+      if (tokens?.access && user) {
+        // 토큰이 있고 사용자 정보가 있으면 로그인된 상태
+        setIsLoggedIn(true);
         setUserProfile(user);
+        console.log('[HomeScreen] 로그인된 상태:', user.nickname);
+      } else {
+        // 토큰이나 사용자 정보가 없으면 로그아웃된 상태
+        setIsLoggedIn(false);
+        setUserProfile(null);
+        console.log('[HomeScreen] 로그아웃된 상태');
       }
     } catch (error) {
       console.error('로그인 상태 확인 실패:', error);
+      setIsLoggedIn(false);
+      setUserProfile(null);
     }
   };
 
@@ -249,6 +260,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 20,
     paddingHorizontal: 20,
+  },
+  userInfo: {
+    flex: 1,
+    marginLeft: 16,
   },
   userAvatar: {
     width: 60,

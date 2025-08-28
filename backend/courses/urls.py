@@ -10,4 +10,5 @@ urlpatterns = [
     path('mission_proposal/', views.get_mission_proposal, name='mission-proposal'),
     path('generate_user_course/', views.generate_user_course, name='generate-user-course'),
     path('unlock_route_spot/<int:route_spot_id>/', views.unlock_route_spot, name='unlock-route-spot'),
+    path('user_routes/', views.user_routes, name='user-routes-list'),  # 사용자 코스 목록 조회
 ]

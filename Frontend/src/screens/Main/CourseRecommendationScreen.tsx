@@ -1,34 +1,48 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  TouchableOpacity, 
-  ScrollView, 
-  Dimensions, 
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  Dimensions,
   Alert,
   Switch,
   ActivityIndicator
 } from 'react-native';
+import { Picker } from '@react-native-picker/picker';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { INCHEON_BLUE, INCHEON_BLUE_LIGHT, INCHEON_GRAY } from '../../styles/fonts';
+import { BACKEND_API } from '../../config/apiKeys';
+import authService from '../../services/authService';
 
 const { width } = Dimensions.get('window');
 
-// 사용자 선호도 옵션들 (백엔드 README 기반)
-const preferenceOptions = [
-  { id: 'walking_activity', text: '👟 걷기 좋은 길을 따라 즐기는 산책' },
-  { id: 'night_view', text: '🌉 바다와 도시의 멋진 풍경/야경' },
-  { id: 'quiet_rest', text: '🤫 복잡한 곳을 피해 즐기는 휴식' },
-  { id: 'experience_info', text: '🎓 역사와 문화가 담긴 특별한 체험' },
-  { id: 'fun_sightseeing', text: '🎉 지루할 틈 없는 다이나믹한 재미' },
-  { id: 'with_children', text: '👶 아이와 함께' },
-  { id: 'with_pets', text: '🐕 우리 집 댕댕이와 함께' },
-  { id: 'public_transport', text: '🚌 대중교통으로 충분해요' },
-  { id: 'car_transport', text: '🚗 자차나 택시로 편하게 다닐래요' },
-  { id: 'famous', text: '⭐ 사람들이 많이 찾는 유명한 곳 위주로!' },
-  { id: 'clean_facility', text: '✨ 시설이 깔끔하고 편리했으면 좋겠어요' },
-];
+// 사용자 선호도 옵션들 (새로운 4단계 구조)
+const preferenceOptions = {
+  travelType: [
+    { id: 'walking_activity', text: '걷기 좋은 길을 따라 즐기는 산책' },
+    { id: 'night_view', text: '바다와 도시의 멋진 풍경/야경' },
+    { id: 'quiet_rest', text: '복잡한 곳을 피해 즐기는 휴식' },
+    { id: 'experience_info', text: '역사와 문화가 담긴 특별한 체험' },
+    { id: 'fun_sightseeing', text: '지루할 틈 없는 다이나믹한 재미' },
+  ],
+  companion: [
+    { id: 'with_children', text: '아이와 함께' },
+    { id: 'with_lover', text: '연인과 함께' },
+    { id: 'with_friends', text: '친구와 함께' },
+    { id: 'with_family', text: '가족과 함께' },
+    { id: 'with_pets', text: '반려동물과 함께' },
+  ],
+  transportation: [
+    { id: 'public_transport', text: '대중교통으로' },
+    { id: 'car_transport', text: '자차나 택시로' },
+  ],
+  additional: [
+    { id: 'famous', text: '사람들이 많이 찾는 유명한 곳 위주로' },
+    { id: 'clean_facility', text: '시설이 깔끔하고 편리했으면 좋겠어요' },
+  ]
+};
 
 // 장소 수 옵션
 const placeCountOptions = [3, 4, 5, 6, 7, 8];
@@ -48,7 +62,7 @@ export default function CourseRecommendationScreen({ navigation }: any) {
   }, []);
 
   const togglePreference = (preferenceId: string) => {
-    setSelectedPreferences(prev => 
+    setSelectedPreferences(prev =>
       prev.includes(preferenceId)
         ? prev.filter(id => id !== preferenceId)
         : [...prev, preferenceId]
@@ -57,48 +71,68 @@ export default function CourseRecommendationScreen({ navigation }: any) {
 
   const getMissionProposal = async () => {
     if (!userLocation) return;
-    
+
     try {
-      // 백엔드 서버가 실행 중인지 확인
+      console.log('[CourseRecommendationScreen] 미션 제안 요청 시작');
+      
+      // 로그인 상태 확인 및 토큰 가져오기
+      const tokens = await authService.getTokens();
+      const headers: any = {
+        'Content-Type': 'application/json',
+      };
+      
+      // 토큰이 있으면 Authorization 헤더 추가
+      if (tokens?.access) {
+        headers['Authorization'] = `Bearer ${tokens.access}`;
+      }
+      
       const response = await fetch(
-        `http://10.0.2.2:8000/v1/courses/mission_proposal/?user_lat=${userLocation.lat}&user_lon=${userLocation.lng}&move_to_other_region=${moveToOtherRegion}`,
+        `${BACKEND_API.BASE_URL}/v1/courses/mission_proposal/?user_lat=${userLocation.lat}&user_lon=${userLocation.lng}&move_to_other_region=${moveToOtherRegion}`,
         {
           method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers,
         }
       );
-      
+
+      console.log('[CourseRecommendationScreen] 미션 제안 응답:', response.status, response.statusText);
+
       if (response.ok) {
-        // 응답 타입 확인
         const contentType = response.headers.get('content-type');
         if (contentType && contentType.includes('application/json')) {
           try {
             const data = await response.json();
-            setMissionProposal(data.proposal);
+            console.log('[CourseRecommendationScreen] 미션 제안 데이터:', data);
+            
+            if (data.proposal) {
+              setMissionProposal(data.proposal);
+            } else {
+              setMissionProposal('📸 과거 사진 촬영 미션을 확인할 수 없습니다.');
+            }
           } catch (jsonError) {
-            console.error('미션 제안 JSON 파싱 실패:', jsonError);
-            // 임시 미션 제안 메시지
-            setMissionProposal('📸 과거 사진 촬영 미션에 도전해보시겠어요?\n가장 가까운 미션 장소는 약 2.3km 거리에 있습니다.');
+            console.error('[CourseRecommendationScreen] 미션 제안 JSON 파싱 실패:', jsonError);
+            setMissionProposal('📸 미션 제안을 처리할 수 없습니다.');
           }
         } else {
-          // HTML 응답인 경우 (에러 페이지 등)
-          console.error('미션 제안: 예상치 못한 응답 타입:', contentType);
+          console.error('[CourseRecommendationScreen] 미션 제안: 예상치 못한 응답 타입:', contentType);
           const responseText = await response.text();
-          console.error('미션 제안 응답 내용:', responseText.substring(0, 200));
-          // 임시 미션 제안 메시지
-          setMissionProposal('📸 과거 사진 촬영 미션에 도전해보시겠어요?\n가장 가까운 미션 장소는 약 2.3km 거리에 있습니다.');
+          console.error('[CourseRecommendationScreen] 미션 제안 응답 내용:', responseText.substring(0, 200));
+          setMissionProposal('📸 미션 제안을 가져올 수 없습니다.');
         }
       } else {
-        console.log('미션 제안 응답 실패:', response.status);
-        // 임시 미션 제안 메시지
-        setMissionProposal('📸 과거 사진 촬영 미션에 도전해보시겠어요?\n가장 가까운 미션 장소는 약 2.3km 거리에 있습니다.');
+        console.log('[CourseRecommendationScreen] 미션 제안 응답 실패:', response.status, response.statusText);
+        
+        // 에러 응답 상세 정보 확인
+        try {
+          const errorData = await response.json();
+          console.error('[CourseRecommendationScreen] 미션 제안 에러:', errorData);
+          setMissionProposal(`📸 미션 제안 실패: ${errorData.detail || errorData.error || '알 수 없는 오류'}`);
+        } catch (parseError) {
+          setMissionProposal(`📸 미션 제안 실패 (HTTP ${response.status})`);
+        }
       }
     } catch (error) {
-      console.error('미션 제안 가져오기 실패:', error);
-      // 네트워크 에러 시 임시 미션 제안 메시지
-      setMissionProposal('📸 과거 사진 촬영 미션에 도전해보시겠어요?\n가장 가까운 미션 장소는 약 2.3km 거리에 있습니다.');
+      console.error('[CourseRecommendationScreen] 미션 제안 가져오기 실패:', error);
+      setMissionProposal('📸 네트워크 오류로 미션 제안을 가져올 수 없습니다.');
     }
   };
 
@@ -116,85 +150,193 @@ export default function CourseRecommendationScreen({ navigation }: any) {
     setIsLoading(true);
 
     try {
-      const response = await fetch('http://10.0.2.2:8000/v1/courses/generate_course/', {
+      console.log('[CourseRecommendationScreen] 코스 생성 요청 시작');
+      console.log('[CourseRecommendationScreen] 선택된 선호도:', selectedPreferences);
+
+      // 백엔드가 지원하는 선호도만 전송 (모델 필드 기준)
+      const SUPPORTED_PREFERENCES = [
+        'walking_activity',
+        'night_view',
+        'quiet_rest',
+        'experience_info',
+        'fun_sightseeing',
+        'with_children',
+        'with_pets',
+        'public_transport',
+        'car_transport',
+        'famous',
+        'clean_facility',
+      ];
+      const filteredPreferences = selectedPreferences.filter((p) => SUPPORTED_PREFERENCES.includes(p));
+      if (filteredPreferences.length === 0) {
+        Alert.alert('선호도 재선택 필요', '현재 선택한 항목은 아직 지원되지 않습니다. 다른 항목을 선택해주세요.');
+        setIsLoading(false);
+        return;
+      }
+
+      console.log('[CourseRecommendationScreen] 전송할 선호도(필터링):', filteredPreferences);
+      console.log('[CourseRecommendationScreen] 장소 수:', selectedPlaceCount);
+      console.log('[CourseRecommendationScreen] 사용자 위치:', userLocation);
+      console.log('[CourseRecommendationScreen] 미션 포함:', missionAccepted);
+      console.log('[CourseRecommendationScreen] 지역 이동 허용:', moveToOtherRegion);
+
+      const requestBody = {
+        user_answers: filteredPreferences,
+        num_places: selectedPlaceCount,
+        user_lat: userLocation.lat,
+        user_lon: userLocation.lng,
+        mission_accepted: missionAccepted,
+        move_to_other_region: moveToOtherRegion
+      };
+
+      console.log('[CourseRecommendationScreen] 요청 본문:', requestBody);
+
+      const response = await fetch(`${BACKEND_API.BASE_URL}/v1/courses/generate_course/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          user_answers: selectedPreferences,
-          num_places: selectedPlaceCount,
-          user_lat: userLocation.lat,
-          user_lon: userLocation.lng,
-          mission_accepted: missionAccepted,
-          move_to_other_region: moveToOtherRegion
-        }),
+        body: JSON.stringify(requestBody),
       });
 
+      console.log('[CourseRecommendationScreen] 코스 생성 응답:', response.status, response.statusText);
+
       if (response.ok) {
-        // 응답 타입 확인
         const contentType = response.headers.get('content-type');
         if (contentType && contentType.includes('application/json')) {
           try {
             const data = await response.json();
-            Alert.alert(
-              '코스 생성 완료! 🎉',
-              `${data.total_spots}개의 장소로 구성된 맞춤형 코스가 생성되었습니다!`,
-              [
-                {
-                  text: '코스 보기',
-                  onPress: () => {
-                    // TODO: 생성된 코스 화면으로 이동
-                    navigation.goBack();
+            console.log('[CourseRecommendationScreen] 코스 생성 성공 데이터:', data);
+            
+            // 성공적인 코스 생성
+            if (data.success && data.course_spots) {
+              const totalSpots = data.total_spots || data.course_spots.length;
+              const mode = data.mode || '일반 모드';
+              
+              Alert.alert(
+                '코스 생성 완료! 🎉',
+                `${totalSpots}개의 장소로 구성된 ${mode}가 생성되었습니다!\n\n${data.proposal || ''}`,
+                [
+                  {
+                    text: '코스 보기',
+                    onPress: () => {
+                      // 생성된 코스 상세 화면으로 이동
+                      console.log('[CourseRecommendationScreen] 생성된 코스:', data.course_spots);
+                      navigation.navigate('CourseDetail', { courseData: data });
+                    }
+                  },
+                  {
+                    text: '다시 만들기',
+                    style: 'cancel'
                   }
-                }
-              ]
-            );
+                ]
+              );
+            } else {
+              Alert.alert('코스 생성 실패', '코스 생성은 완료되었지만 데이터 형식이 올바르지 않습니다.');
+            }
           } catch (jsonError) {
-            console.error('JSON 파싱 실패:', jsonError);
+            console.error('[CourseRecommendationScreen] JSON 파싱 실패:', jsonError);
             Alert.alert('응답 처리 오류', '서버 응답을 처리할 수 없습니다.');
           }
         } else {
-          // HTML 응답인 경우 (에러 페이지 등)
-          console.error('예상치 못한 응답 타입:', contentType);
+          console.error('[CourseRecommendationScreen] 예상치 못한 응답 타입:', contentType);
           const responseText = await response.text();
-          console.error('응답 내용:', responseText.substring(0, 200)); // 처음 200자만 로깅
+          console.error('[CourseRecommendationScreen] 응답 내용:', responseText.substring(0, 200));
           Alert.alert('서버 오류', '서버에서 예상치 못한 응답을 받았습니다.');
         }
       } else {
+        console.log('[CourseRecommendationScreen] 코스 생성 HTTP 에러:', response.status, response.statusText);
+        
         // HTTP 에러 응답 처리
         try {
           const contentType = response.headers.get('content-type');
           if (contentType && contentType.includes('application/json')) {
             const errorData = await response.json();
-            Alert.alert('코스 생성 실패', errorData.error || '코스 생성 중 오류가 발생했습니다.');
+            console.error('[CourseRecommendationScreen] 코스 생성 에러 데이터:', errorData);
+            Alert.alert('코스 생성 실패', errorData.error || errorData.detail || '코스 생성 중 오류가 발생했습니다.');
           } else {
             const errorText = await response.text();
-            console.error('에러 응답:', errorText.substring(0, 200));
-            Alert.alert('코스 생성 실패', `서버 오류 (${response.status})`);
+            console.error('[CourseRecommendationScreen] 에러 응답 텍스트:', errorText.substring(0, 200));
+            Alert.alert('코스 생성 실패', `서버 오류 (HTTP ${response.status})`);
           }
         } catch (parseError) {
-          console.error('에러 응답 파싱 실패:', parseError);
-          Alert.alert('코스 생성 실패', `서버 오류 (${response.status})`);
+          console.error('[CourseRecommendationScreen] 에러 응답 파싱 실패:', parseError);
+          Alert.alert('코스 생성 실패', `서버 오류 (HTTP ${response.status})`);
         }
       }
     } catch (error) {
-      console.error('코스 생성 실패:', error);
-      // 네트워크 에러 시 임시 성공 메시지 (백엔드 연동 전)
-      Alert.alert(
-        '코스 생성 완료! 🎉',
-        `${selectedPlaceCount}개의 장소로 구성된 맞춤형 코스가 생성되었습니다!`,
-        [
-          {
-            text: '코스 보기',
-            onPress: () => {
-              navigation.goBack();
-            }
-          }
-        ]
-      );
+      console.error('[CourseRecommendationScreen] 코스 생성 네트워크 에러:', error);
+      Alert.alert('네트워크 오류', '서버와의 연결을 확인해주세요.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // 사용자 코스 저장 함수
+  const saveUserCourse = async (courseData: any) => {
+    try {
+      console.log('[CourseRecommendationScreen] 사용자 코스 저장 시작');
+      
+      // 로그인 상태 확인
+      const tokens = await authService.getTokens();
+      if (!tokens?.access) {
+        Alert.alert('로그인 필요', '코스를 저장하려면 로그인이 필요합니다.');
+        return;
+      }
+
+      // 사용자 코스 저장 API 호출
+      const response = await fetch(`${BACKEND_API.BASE_URL}/v1/courses/generate_user_course/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${tokens.access}`,
+        },
+        body: JSON.stringify({
+          route_id: courseData.route_id || courseData.id, // 백엔드 응답에 따라 조정
+          course_data: courseData, // 전체 코스 데이터도 함께 저장
+        }),
+      });
+
+      console.log('[CourseRecommendationScreen] 사용자 코스 저장 응답:', response.status, response.statusText);
+
+      if (response.ok) {
+        const saveResult = await response.json();
+        console.log('[CourseRecommendationScreen] 사용자 코스 저장 성공:', saveResult);
+        
+        Alert.alert(
+          '코스 저장 완료! 🎉',
+          '생성된 코스가 내 코스 목록에 저장되었습니다.',
+          [
+            {
+              text: '내 코스 보기',
+              onPress: () => {
+                // TODO: 내 코스 목록 화면으로 이동
+                navigation.goBack();
+              }
+            },
+            {
+              text: '홈으로',
+              style: 'cancel',
+              onPress: () => {
+                navigation.navigate('MainTabs');
+              }
+            }
+          ]
+        );
+      } else {
+        console.log('[CourseRecommendationScreen] 사용자 코스 저장 실패:', response.status, response.statusText);
+        
+        try {
+          const errorData = await response.json();
+          console.error('[CourseRecommendationScreen] 사용자 코스 저장 에러:', errorData);
+          Alert.alert('코스 저장 실패', errorData.error || errorData.detail || '코스 저장 중 오류가 발생했습니다.');
+        } catch (parseError) {
+          Alert.alert('코스 저장 실패', `서버 오류 (HTTP ${response.status})`);
+        }
+      }
+    } catch (error) {
+      console.error('[CourseRecommendationScreen] 사용자 코스 저장 네트워크 에러:', error);
+      Alert.alert('네트워크 오류', '코스 저장 중 연결 오류가 발생했습니다.');
     }
   };
 
@@ -250,25 +392,101 @@ export default function CourseRecommendationScreen({ navigation }: any) {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>🎯 여행 선호도 선택</Text>
           <Text style={styles.sectionSubtitle}>원하는 항목들을 선택해주세요 (복수 선택 가능)</Text>
-          
-          <View style={styles.preferencesGrid}>
-            {preferenceOptions.map((option) => (
-              <TouchableOpacity
-                key={option.id}
-                style={[
-                  styles.preferenceItem,
-                  selectedPreferences.includes(option.id) && styles.selectedPreferenceItem
-                ]}
-                onPress={() => togglePreference(option.id)}
-              >
-                <Text style={[
-                  styles.preferenceText,
-                  selectedPreferences.includes(option.id) && styles.selectedPreferenceText
-                ]}>
-                  {option.text}
-                </Text>
-              </TouchableOpacity>
-            ))}
+
+          {/* 1단계: 어떤 여행을 원하시나요? */}
+          <View style={styles.preferenceStep}>
+            <Text style={styles.preferenceStepTitle}>1. 어떤 여행을 원하시나요?</Text>
+            <View style={styles.preferencesGrid}>
+              {preferenceOptions.travelType.map((option) => (
+                <TouchableOpacity
+                  key={option.id}
+                  style={[
+                    styles.preferenceItem,
+                    selectedPreferences.includes(option.id) && styles.selectedPreferenceItem
+                  ]}
+                  onPress={() => togglePreference(option.id)}
+                >
+                  <Text style={[
+                    styles.preferenceText,
+                    selectedPreferences.includes(option.id) && styles.selectedPreferenceText
+                  ]}>
+                    {option.text}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* 2단계: 누구와 함께 하나요? */}
+          <View style={styles.preferenceStep}>
+            <Text style={styles.preferenceStepTitle}>2. 누구와 함께 하나요?</Text>
+            <View style={styles.preferencesGrid}>
+              {preferenceOptions.companion.map((option) => (
+                <TouchableOpacity
+                  key={option.id}
+                  style={[
+                    styles.preferenceItem,
+                    selectedPreferences.includes(option.id) && styles.selectedPreferenceItem
+                  ]}
+                  onPress={() => togglePreference(option.id)}
+                >
+                  <Text style={[
+                    styles.preferenceText,
+                    selectedPreferences.includes(option.id) && styles.selectedPreferenceText
+                  ]}>
+                    {option.text}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* 3단계: 어떻게 이동하나요? */}
+          <View style={styles.preferenceStep}>
+            <Text style={styles.preferenceStepTitle}>3. 어떻게 이동하나요?</Text>
+            <View style={styles.preferencesGrid}>
+              {preferenceOptions.transportation.map((option) => (
+                <TouchableOpacity
+                  key={option.id}
+                  style={[
+                    styles.preferenceItem,
+                    selectedPreferences.includes(option.id) && styles.selectedPreferenceItem
+                  ]}
+                  onPress={() => togglePreference(option.id)}
+                >
+                  <Text style={[
+                    styles.preferenceText,
+                    selectedPreferences.includes(option.id) && styles.selectedPreferenceText
+                  ]}>
+                    {option.text}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* 4단계: 그밖에 고려 사항이 있나요? */}
+          <View style={styles.preferenceStep}>
+            <Text style={styles.preferenceStepTitle}>4. 그밖에 고려 사항이 있나요?</Text>
+            <View style={styles.preferencesGrid}>
+              {preferenceOptions.additional.map((option) => (
+                <TouchableOpacity
+                  key={option.id}
+                  style={[
+                    styles.preferenceItem,
+                    selectedPreferences.includes(option.id) && styles.selectedPreferenceItem
+                  ]}
+                  onPress={() => togglePreference(option.id)}
+                >
+                  <Text style={[
+                    styles.preferenceText,
+                    selectedPreferences.includes(option.id) && styles.selectedPreferenceText
+                  ]}>
+                    {option.text}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
         </View>
 
@@ -309,7 +527,7 @@ export default function CourseRecommendationScreen({ navigation }: any) {
                 thumbColor={missionAccepted ? INCHEON_BLUE : '#f4f3f4'}
               />
             </View>
-            
+
             {missionAccepted && missionProposal && (
               <View style={styles.missionProposal}>
                 <Text style={styles.missionProposalText}>{missionProposal}</Text>
@@ -331,7 +549,7 @@ export default function CourseRecommendationScreen({ navigation }: any) {
             />
           </View>
           <Text style={styles.regionSubtext}>
-            {moveToOtherRegion 
+            {moveToOtherRegion
               ? '강화군, 영종도, 내륙 등 모든 지역의 장소를 포함할 수 있어요'
               : '현재 위치 주변 지역의 장소만으로 코스를 구성해요'
             }
@@ -357,11 +575,11 @@ export default function CourseRecommendationScreen({ navigation }: any) {
               </>
             )}
           </TouchableOpacity>
-          
+
           {selectedPreferences.length === 0 && (
             <Text style={styles.warningText}>선호도를 선택해주세요</Text>
           )}
-          
+
           {!userLocation && (
             <Text style={styles.warningText}>위치 정보가 필요합니다</Text>
           )}
@@ -597,5 +815,16 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: INCHEON_GRAY,
     marginLeft: 10,
+  },
+  preferenceStep: {
+    marginBottom: 20,
+  },
+  preferenceStepTitle: {
+    fontFamily: 'NeoDunggeunmoPro-Regular',
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: INCHEON_BLUE,
+    marginBottom: 10,
+    paddingLeft: 5,
   },
 });

@@ -23,6 +23,22 @@ def routes(request):
         serializer = RouteSerializer(routes, many=True)
         return Response(serializer.data, status=200)
 
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def best_routes(request):
+    if request.method == 'GET':
+        # route_id 언급 순으로 상위 5개 추출
+        top_route_ids = (UserRouteSpot.objects
+                        .values('route_id')
+                        .annotate(count=Count('route_id'))
+                        .order_by('-count')[:5])
+        # 실제 route 객체 반환환
+        route_ids = [item['route_id'] for item in top_route_ids]
+        routes = Route.objects.filter(id__in=route_ids)
+
+        serializer = RouteSerializer(routes, many=True)
+        return Response(serializer.data, status=200)
+
 # 코스 상세 조회
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])

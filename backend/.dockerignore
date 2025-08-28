@@ -1,0 +1,13 @@
+.git
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+venv/
+.env
+node_modules/
+*.ipynb_checkpoints/
+*.log
+data/
+media/
+staticfiles/

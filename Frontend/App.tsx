@@ -70,25 +70,25 @@ function MainTabs() {
           let iconName = '';
           let label = '';
           switch (route.name) {
-            case 'Home':
-              iconName = 'home-outline';
-              label = 'Home';
-              break;
             case 'Map':
               iconName = 'map-outline';
-              label = 'Map';
+              label = '지도';
               break;
             case 'Trips':
-              iconName = 'compass-outline'; // 여행 느낌
-              label = 'Trips';
+              iconName = 'compass-outline';
+              label = '여행';
+              break;
+            case 'Home':
+              iconName = 'home-outline';
+              label = '홈';
               break;
             case 'Gallery':
-              iconName = 'images-outline'; // 갤러리 느낌
-              label = 'Gallery';
+              iconName = 'images-outline';
+              label = '사진첩';
               break;
             case 'Profile':
               iconName = 'person-outline';
-              label = 'Profile';
+              label = '프로필';
               break;
             default:
               iconName = 'ellipse-outline';
@@ -100,17 +100,6 @@ function MainTabs() {
         tabBarInactiveTintColor: '#bbb',
       })}
     >
-      <Tab.Screen 
-        name="Home" 
-        component={HomeScreen} 
-        options={{
-          tabBarLabel: ({ color, focused }) => (
-            <Text style={{ color, fontSize: 14, marginBottom: 4 }}>
-              Home
-            </Text>
-          ),
-        }}
-      />
       <Tab.Screen 
         name="Map" 
         component={MapStack} 
@@ -133,6 +122,17 @@ function MainTabs() {
           ),
         }}
       />
+    <Tab.Screen
+      name="Home"
+      component={HomeScreen}
+      options={{
+        tabBarLabel: ({ color, focused }) => (
+          <Text style={{ color, fontSize: 14, marginBottom: 4 }}>
+            Home
+          </Text>
+        ),
+      }}
+    />
       <Tab.Screen 
         name="Gallery" 
         component={GalleryScreen} 
@@ -167,13 +167,13 @@ function TabBarIconWithLabel({ name, label, focused }: { name: string; label: st
       minWidth: 56,
       flexDirection: 'column',
     }}>
-      <Ionicons name={name} size={32} color={focused ? INCHEON_BLUE : '#888'} />
+      <Ionicons name={name} size={32} color={focused ? INCHEON_BLUE : '#bbb'} />
       <Text
         style={{
           fontFamily: 'NeoDunggeunmoPro-Regular',
-          fontSize: 14,
-          color: focused ? INCHEON_BLUE : '#888',
-          marginTop: 0,
+          fontSize: 12,
+          color: focused ? INCHEON_BLUE : '#bbb',
+          marginTop: 1.5,
           width: 56,
           textAlign: 'center',
         }}

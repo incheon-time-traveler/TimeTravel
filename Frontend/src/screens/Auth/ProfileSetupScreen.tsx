@@ -10,7 +10,7 @@ const ProfileSetupScreen = ({ navigation }: any) => {
   const [age, setAge] = useState('');
   const [gender, setGender] = useState('');
 
-  const handleComplete = () => {
+    const handleComplete = async () => {
     if (!nickname.trim()) {
       Alert.alert('입력 오류', '닉네임을 입력해 주세요.');
       return;
@@ -23,9 +23,35 @@ const ProfileSetupScreen = ({ navigation }: any) => {
       Alert.alert('입력 오류', '성별을 선택해 주세요.');
       return;
     }
-    // TODO: 서버로 정보 전송 및 다음 화면 이동
-    Alert.alert('가입 완료', '회원 정보가 저장되었습니다!');
-    // navigation.navigate('Home');
+
+    try {
+      const token = await AsyncStorage.getItem('accessToken');
+      if (!token) {
+        Alert.alert('오류', '로그인 정보가 없습니다. 다시 로그인해 주세요.');
+        navigation.navigate('Login');
+        return;
+      }
+
+      const decodedToken: { user_id: number } = jwtDecode(token);
+      const userId = decodedToken.user_id;
+
+      const profileData = {
+        nickname,
+        age,
+        gender,
+      };
+
+      await updateUserProfile(userId, profileData, token);
+
+      Alert.alert('가입 완료', '회원 정보가 성공적으로 저장되었습니다!');
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'MainTabs' }],
+      });
+    } catch (error) {
+      console.error('Failed to update profile:', error);
+      Alert.alert('오류', '프로필 정보 저장에 실패했습니다.');
+    }
   };
 
   const handleNicknameCheck = () => {

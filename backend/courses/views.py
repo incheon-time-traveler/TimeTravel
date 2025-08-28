@@ -6,7 +6,7 @@ from .models import Route, RouteSpot, UserRouteSpot
 from .serializers import RouteSerializer, RouteDetailSerializer, UserRouteSpotSerializer
 from .utils import generate_course, save_course
 from rest_framework.permissions import IsAuthenticated, AllowAny
-
+from django.db.models import Count
 
 # Create your views here.
 """

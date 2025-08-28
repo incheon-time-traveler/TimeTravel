@@ -25,10 +25,11 @@ class RouteSpot(models.Model):
 class UserRouteSpot(models.Model):
     id = models.AutoField(primary_key=True)
     user_id = models.ForeignKey('accounts.CustomUser', null=False, on_delete=models.CASCADE, related_name='userroutespots')
+    route_id = models.ForeignKey(Route, null=False, on_delete=models.CASCADE, related_name='userroutespots')
     route_spot_id = models.ForeignKey(RouteSpot, null=False, on_delete=models.CASCADE, related_name='userroutespots')
     order = models.IntegerField(null=False)
     unlock_at = models.DateTimeField(null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:
-        unique_together = ('user_id', 'route_spot_id')
+        unique_together = ('user_id', 'route_spot_id', 'route_id')

@@ -77,6 +77,7 @@ def generate_user_course(request):
                 try:
                     user_route_data = {
                         'user_id': user,  # CustomUser 인스턴스 전달
+                        'route_id': route,  # Route 인스턴스 전달
                         'route_spot_id': route_spot,  # RouteSpot 인스턴스 전달
                         'order': route_spot.order,  # order 필드 추가
                     }
@@ -84,7 +85,8 @@ def generate_user_course(request):
                     # 이미 존재하는지 확인
                     existing_user_route = UserRouteSpot.objects.filter(
                         user_id=user,
-                        route_spot_id=route_spot
+                        route_spot_id=route_spot,
+                        route_id=route
                     ).first()
                     
                     if not existing_user_route:

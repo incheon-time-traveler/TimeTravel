@@ -7,7 +7,7 @@ import { INCHEON_BLUE_LIGHT, INCHEON_GRAY } from '../../styles/fonts';
 
 const LoginScreen = ({ navigation }: any) => {
   const [showWebView, setShowWebView] = useState(false);
-  const [currentProvider, setCurrentProvider] = useState<'google' | 'kakao' | null>(null);
+  const [loginProvider, setLoginProvider] = useState<'google' | 'kakao'>('google');
   const [loginUrl, setLoginUrl] = useState('');
 
   // TODO: 앱 딥링크 스킴은 .env로 이동하세요. 네이티브 설정(Android intent-filter, iOS URL Types) 필요.
@@ -77,8 +77,20 @@ const LoginScreen = ({ navigation }: any) => {
     handleSocialLogin('google');
   };
 
-  const handleKakaoLogin = () => {
-    handleSocialLogin('kakao');
+  const handleSocialLogin = (provider: 'google' | 'kakao') => {
+    console.log('Social login clicked:', provider);
+    setLoginProvider(provider);
+    // Use backend login endpoints in in-app WebView
+    const url = provider === 'google' ? OAUTH_URLS.GOOGLE_LOGIN : OAUTH_URLS.KAKAO_LOGIN;
+    setLoginUrl(url);
+    if (!SocialLoginWebView) {
+      try {
+        SocialLoginWebView = require('./SocialLoginWebView').default;
+      } catch (e) {
+        console.warn('Failed to load SocialLoginWebView:', e);
+      }
+    }
+    setShowWebView(true);
   };
 
   const handleLoginSuccess = async (userData: any) => {
@@ -126,65 +138,49 @@ const LoginScreen = ({ navigation }: any) => {
     Alert.alert('로그인 실패', error);
   };
 
-  const handleCloseWebView = () => {
-    setShowWebView(false);
-    setCurrentProvider(null);
-    setLoginUrl('');
-  };
-
-  const handleSignupPress = () => {
-    // 회원가입 화면으로 이동
-    navigation.navigate('Signup');
-  };
-
   return (
-    <View style={[styles.container, { backgroundColor: INCHEON_BLUE_LIGHT }]}>
-      <View style={styles.header}>
-        <Text style={styles.title}>TimeTravel</Text>
-        <Text style={styles.subtitle}>소셜 로그인으로 시작하세요</Text>
-      </View>
+    <View style={styles.container}>
+      <Text style={styles.title}>TimeTravel</Text>
       
-      <View style={styles.buttonContainer}>
-        <TouchableOpacity style={styles.googleButton} onPress={handleGoogleLogin}>
-          <Text style={styles.googleButtonText}>구글로 로그인</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.kakaoButton} onPress={handleKakaoLogin}>
-          <Text style={styles.kakaoButtonText}>카카오로 로그인</Text>
-        </TouchableOpacity>
-      </View>
+      {/* 백엔드 연결 테스트 버튼 */}
+      <TouchableOpacity 
+        style={styles.testButton} 
+        onPress={testBackendConnection}
+      >
+        <Text style={styles.testButtonText}>백엔드 연결 테스트</Text>
+      </TouchableOpacity>
 
-      <View style={styles.dividerContainer}>
-        <View style={styles.divider} />
-        <Text style={styles.dividerText}>또는</Text>
-        <View style={styles.divider} />
-      </View>
+      <TouchableOpacity
+        style={[styles.socialButton, styles.googleButton]}
+        onPress={() => handleSocialLogin('google')}
+      >
+        <Text style={styles.buttonText}>Google로 로그인</Text>
+      </TouchableOpacity>
 
-      <View style={styles.signupPrompt}>
-        <Text style={styles.signupPromptText}>아직 회원이 아니신가요?</Text>
-        <TouchableOpacity onPress={handleSignupPress}>
-          <Text style={styles.signupLink}>회원가입하기</Text>
-        </TouchableOpacity>
-      </View>
+      <TouchableOpacity
+        style={[styles.socialButton, styles.kakaoButton]}
+        onPress={() => handleSocialLogin('kakao')}
+      >
+        <Text style={styles.buttonText}>Kakao로 로그인</Text>
+      </TouchableOpacity>
 
-      <Text style={styles.note}>
-        * 소셜 로그인으로 간편하게 시작하세요
-      </Text>
-
-      {/* 소셜 로그인 WebView 모달 */}
       <Modal
         visible={showWebView}
         animationType="slide"
-        presentationStyle="fullScreen"
+        presentationStyle="pageSheet"
       >
-        {currentProvider && loginUrl && (
+        {SocialLoginWebView ? (
           <SocialLoginWebView
-            provider={currentProvider}
+            provider={loginProvider}
             loginUrl={loginUrl}
             onLoginSuccess={handleLoginSuccess}
             onLoginError={handleLoginError}
-            onClose={handleCloseWebView}
+            onClose={() => setShowWebView(false)}
           />
+        ) : (
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+            <Text>로그인 화면을 불러오는 중...</Text>
+          </View>
         )}
       </Modal>
     </View>
@@ -197,113 +193,44 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
-    backgroundColor: INCHEON_BLUE_LIGHT,
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: 50,
+    backgroundColor: '#fff',
   },
   title: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
     fontSize: 32,
-    marginBottom: 10,
-    color: INCHEON_GRAY,
+    fontWeight: 'bold',
+    marginBottom: 50,
+    color: '#333',
   },
-  subtitle: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
+  testButton: {
+    backgroundColor: '#FF6B6B',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginBottom: 30,
+  },
+  testButtonText: {
+    color: '#fff',
     fontSize: 16,
-    color: INCHEON_GRAY,
-    textAlign: 'center',
+    fontWeight: '600',
   },
-  buttonContainer: {
+  socialButton: {
     width: '100%',
-    maxWidth: 300,
-    gap: 15,
+    paddingVertical: 15,
+    borderRadius: 8,
+    marginBottom: 15,
+    alignItems: 'center',
   },
   googleButton: {
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    paddingVertical: 15,
-    paddingHorizontal: 20,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  googleButtonText: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    color: '#333',
-    fontSize: 16,
+    backgroundColor: '#4285F4',
   },
   kakaoButton: {
     backgroundColor: '#FEE500',
-    borderRadius: 8,
-    paddingVertical: 15,
-    paddingHorizontal: 20,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
   },
-  kakaoButtonText: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    color: '#000000',
+  buttonText: {
+    color: '#333',
     fontSize: 16,
-  },
-  dividerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    width: '100%',
-    maxWidth: 300,
-    marginVertical: 30,
-  },
-  divider: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#ddd',
-  },
-  dividerText: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 14,
-    color: INCHEON_GRAY,
-    marginHorizontal: 8,
-  },
-  signupPrompt: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 20,
-  },
-  signupPromptText: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 14,
-    color: INCHEON_GRAY,
-  },
-  signupLink: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    color: '#007AFF',
-    fontSize: 14,
-    marginLeft: 5,
-  },
-  note: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 12,
-    color: INCHEON_GRAY,
-    marginTop: 16,
-    textAlign: 'center',
+    fontWeight: '600',
   },
 });
 
-export default LoginScreen; 
+export default LoginScreen;

@@ -261,3 +261,84 @@ class CookieTokenRefreshView(TokenRefreshView):
         request.data['refresh'] = request.COOKIES.get('refresh_token')
         return super().post(request, *args, **kwargs)
 
+
+# 인증 성공 페이지 (React Native 앱에서 토큰을 받기 위한 페이지)
+@api_view(['GET'])
+def auth_success(request):
+    """
+    React Native 앱에서 OAuth 로그인 성공 후 토큰을 받기 위한 페이지
+    """
+    access_token = request.GET.get('access')
+    
+    if not access_token:
+        return Response({"error": "No access token provided"}, status=400)
+    
+    # 간단한 HTML 페이지 반환 (토큰을 JavaScript로 추출할 수 있도록)
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>로그인 성공</title>
+        <meta charset="utf-8">
+        <style>
+            body {{
+                font-family: Arial, sans-serif;
+                text-align: center;
+                padding: 50px;
+                background-color: #f5f5f5;
+            }}
+            .success-box {{
+                background: white;
+                padding: 30px;
+                border-radius: 10px;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                max-width: 400px;
+                margin: 0 auto;
+            }}
+            .success-icon {{
+                color: #4CAF50;
+                font-size: 48px;
+                margin-bottom: 20px;
+            }}
+            h1 {{
+                color: #333;
+                margin-bottom: 20px;
+            }}
+            p {{
+                color: #666;
+                line-height: 1.6;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="success-box">
+            <div class="success-icon">✅</div>
+            <h1>로그인 성공!</h1>
+            <p>TimeTravel 앱으로 돌아가세요.</p>
+            <p>자동으로 메인 화면으로 이동됩니다.</p>
+        </div>
+        
+        <script>
+            // React Native 앱으로 토큰 전달
+            if (window.ReactNativeWebView) {{
+                window.ReactNativeWebView.postMessage(JSON.stringify({{
+                    type: 'LOGIN_SUCCESS',
+                    accessToken: '{access_token}'
+                }}));
+            }}
+            
+            // 3초 후 자동으로 앱으로 돌아가기
+            setTimeout(() => {{
+                if (window.ReactNativeWebView) {{
+                    window.ReactNativeWebView.postMessage(JSON.stringify({{
+                        type: 'AUTO_RETURN'
+                    }}));
+                }}
+            }}, 3000);
+        </script>
+    </body>
+    </html>
+    """
+    
+    return Response(html_content, content_type='text/html')
+

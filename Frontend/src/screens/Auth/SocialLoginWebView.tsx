@@ -40,7 +40,7 @@ const SocialLoginWebView: React.FC<SocialLoginWebViewProps> = ({
         console.log('[SocialLoginWebView] Parsed access token:', accessToken);
         
         if (accessToken) {
-          // 토큰 저장
+          // 토큰 저장 (refresh 토큰은 쿠키에서 관리되므로 빈 문자열)
           await authService.saveTokens({ access: accessToken, refresh: '' });
           console.log('[SocialLoginWebView] saveTokens() success');
           // 저장 검증
@@ -61,6 +61,11 @@ const SocialLoginWebView: React.FC<SocialLoginWebViewProps> = ({
         console.error('[SocialLoginWebView] Token extraction error:', error);
         onLoginError('토큰 추출 중 오류가 발생했습니다.');
       }
+    }
+    
+    // 카카오/구글 콜백 URL 감지 (디버깅용)
+    if (url.includes('/callback/') && url.includes('code=')) {
+      console.log('OAuth callback detected, waiting for backend processing...');
     }
     
     // 에러 처리
@@ -119,6 +124,7 @@ const SocialLoginWebView: React.FC<SocialLoginWebViewProps> = ({
         source={{ uri: loginUrl }}
         style={styles.webview}
         onNavigationStateChange={handleNavigationStateChange}
+        onMessage={handleMessage}
         onLoadStart={handleLoadStart}
         onLoadEnd={handleLoadEnd}
         onError={handleError}

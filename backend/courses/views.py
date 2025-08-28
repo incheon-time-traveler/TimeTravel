@@ -15,7 +15,7 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 """    
 # 코스 조회
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 def routes(request):
     # 전체 코스 조회
     if request.method == 'GET':
@@ -25,11 +25,46 @@ def routes(request):
 
 # 코스 상세 조회
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 def route_detail(request, route_id):
-    route_spots = get_object_or_404(RouteSpot, route_id=route_id)
-    serializer = RouteDetailSerializer(route_spots, many=True)
-    return Response(serializer.data, status=200)
+    try:
+        # Route 모델을 먼저 찾기
+        route = get_object_or_404(Route, id=route_id)
+        
+        # 해당 루트의 모든 RouteSpot들을 찾기
+        route_spots = RouteSpot.objects.filter(route_id=route_id).order_by('order')
+        
+        # Route와 RouteSpot 정보를 함께 반환
+        route_data = {
+            'route': {
+                'id': route.id,
+                'title': route.user_region_name,  # title 대신 user_region_name 사용
+                'user_region_name': route.user_region_name,
+                'total_spots': route.total_spots,
+                'mission_available': route.is_mission_available,
+            },
+            'spots': []
+        }
+        
+        for route_spot in route_spots:
+            spot_data = {
+                'id': route_spot.spot_id.id,
+                'title': route_spot.spot_id.name,  # title 대신 name 사용
+                'description': route_spot.spot_id.description,
+                'lat': route_spot.spot_id.lat,
+                'lng': route_spot.spot_id.lng,
+                'order': route_spot.order,
+                'address': route_spot.spot_id.address,
+            }
+            route_data['spots'].append(spot_data)
+        
+        return Response(route_data, status=200)
+        
+    except Route.DoesNotExist:
+        return Response({'error': '루트를 찾을 수 없습니다.'}, status=404)
+    except Exception as e:
+        print(f"route_detail 에러: {e}")
+        return Response({'error': '서버 오류가 발생했습니다.'}, status=500)
 
 # 유저 코스 생성
 @api_view(['POST'])

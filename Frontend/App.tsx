@@ -60,7 +60,7 @@ function MainTabNavigator() {
               label = '지도';
               break;
             case 'Trips':
-              iconName = 'compass-outline'; // 여행 느낌
+              iconName = 'compass-outline';
               label = '여행';
               break;
             case 'Home':
@@ -68,7 +68,7 @@ function MainTabNavigator() {
               label = '홈';
               break;
             case 'Gallery':
-              iconName = 'images-outline'; // 갤러리 느낌
+              iconName = 'images-outline';
               label = '사진첩';
               break;
             case 'Profile':
@@ -152,12 +152,12 @@ function TabBarIconWithLabel({ name, label, focused }: { name: string; label: st
       minWidth: 56,
       flexDirection: 'column',
     }}>
-      <Ionicons name={name} size={32} color={focused ? INCHEON_BLUE : '#888'} />
+      <Ionicons name={name} size={32} color={focused ? INCHEON_BLUE : '#bbb'} />
       <Text
         style={{
           fontFamily: 'NeoDunggeunmoPro-Regular',
           fontSize: 12,
-          color: focused ? INCHEON_BLUE : '#888',
+          color: focused ? INCHEON_BLUE : '#bbb',
           marginTop: 1.5,
           width: 56,
           textAlign: 'center',

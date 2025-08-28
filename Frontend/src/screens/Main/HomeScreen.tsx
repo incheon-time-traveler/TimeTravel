@@ -22,13 +22,11 @@ const sampleCourses = [
   },
 ];
 
-// 진행중인 코스 데이터 (임시)
-const ongoingCourses: any[] = []; // 빈 배열로 설정하여 진행중인 코스 없음 상태
-
 export default function HomeScreen({ navigation }: any) {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userProfile, setUserProfile] = useState<any>(null);
   const [hasOngoingCourse, setHasOngoingCourse] = useState(false);
+  const [ongoingCourses, setOngoingCourses] = useState<any[]>([]);
 
   useEffect(() => {
     checkLoginStatus();
@@ -44,6 +42,16 @@ export default function HomeScreen({ navigation }: any) {
 
     return unsubscribe;
   }, [navigation]);
+
+  // 상태 변화 추적
+  useEffect(() => {
+    console.log('[HomeScreen] 상태 변화:', {
+      isLoggedIn,
+      hasOngoingCourse,
+      ongoingCoursesLength: ongoingCourses.length,
+      userProfile: userProfile?.nickname || userProfile?.username
+    });
+  }, [isLoggedIn, hasOngoingCourse, ongoingCourses, userProfile]);
 
   const checkLoginStatus = async () => {
     try {
@@ -70,9 +78,46 @@ export default function HomeScreen({ navigation }: any) {
   };
 
   const checkOngoingCourses = async () => {
-    // TODO: 백엔드에서 진행중인 코스 데이터 가져오기
-    // 현재는 임시 데이터 사용
-    setHasOngoingCourse(ongoingCourses.length > 0);
+    try {
+      const tokens = await authService.getTokens();
+      if (!tokens?.access) {
+        setHasOngoingCourse(false);
+        setOngoingCourses([]);
+        return;
+      }
+
+      const response = await fetch(`${BACKEND_API.BASE_URL}/v1/courses/user_routes/`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${tokens.access}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('[HomeScreen] 진행중인 코스 데이터:', data);
+        
+        // 사용자에게 저장된 코스가 하나라도 있으면 진행중으로 간주
+        const hasCourses = Array.isArray(data) && data.length > 0;
+        setHasOngoingCourse(hasCourses);
+        setOngoingCourses(hasCourses ? data : []);
+        
+        console.log('[HomeScreen] 진행중 코스 개수:', hasCourses ? data.length : 0);
+        console.log('[HomeScreen] 진행중인 코스 상세:', data);
+      } else if (response.status === 401) {
+        // 토큰 만료 등
+        setHasOngoingCourse(false);
+        setOngoingCourses([]);
+      } else {
+        console.log('[HomeScreen] 진행 코스 조회 실패:', response.status, response.statusText);
+        setHasOngoingCourse(false);
+        setOngoingCourses([]);
+      }
+    } catch (error) {
+      console.error('[HomeScreen] 진행 코스 조회 에러:', error);
+      setHasOngoingCourse(false);
+      setOngoingCourses([]);
+    }
   };
 
   const handleLoginPress = () => {
@@ -87,6 +132,51 @@ export default function HomeScreen({ navigation }: any) {
     // TODO: 진행중인 코스로 이동
     Alert.alert('코스 진행', '진행중인 코스로 이동합니다.');
   };
+
+  // 진행중인 코스 카드 렌더링
+  const renderOngoingCourseCard = (course: any) => (
+    <View key={course.route_id} style={styles.ongoingCourseCard}>
+      <View style={styles.courseHeader}>
+        <Text style={styles.ongoingCourseTitle} numberOfLines={1}>
+          {course.user_region_name || '인천'} 여행 코스
+        </Text>
+        <Text style={styles.courseSubtitle}>
+          총 {course.total_spots || course.spots?.length || 0}개 장소 • {course.spots?.length || 0}개 진행중
+        </Text>
+      </View>
+      
+      <View style={styles.spotsList}>
+        {course.spots && course.spots.map((spot: any, index: number) => (
+          <View key={spot.id} style={styles.spotItem}>
+            <View style={styles.spotOrderContainer}>
+              <Text style={styles.spotOrder}>{spot.order || index + 1}</Text>
+            </View>
+            <View style={styles.spotInfo}>
+              <Text style={styles.spotTitle} numberOfLines={1}>{spot.title || spot.name || '알 수 없는 장소'}</Text>
+              <Text style={styles.spotLocation} numberOfLines={1}>
+                {spot.lat && spot.lng ? `${spot.lat.toFixed(4)}, ${spot.lng.toFixed(4)}` : '위치 정보 없음'}
+              </Text>
+            </View>
+            <View style={styles.spotStatus}>
+              {index === 0 ? (
+                <TouchableOpacity style={styles.nextDestinationBtn}>
+                  <Text style={styles.nextDestinationText}>다음 목적지</Text>
+                </TouchableOpacity>
+              ) : (
+                <View style={styles.lockedIcon}>
+                  <Ionicons name="lock-closed" size={16} color="#FFD700" />
+                </View>
+              )}
+            </View>
+          </View>
+        ))}
+      </View>
+      
+      <TouchableOpacity style={styles.continueBtn} onPress={handleContinueCourse}>
+        <Text style={styles.continueBtnText}>코스 계속하기</Text>
+      </TouchableOpacity>
+    </View>
+  );
 
   // 로그인된 상태일 때 상단 섹션
   const renderLoggedInHeader = () => (
@@ -133,20 +223,31 @@ export default function HomeScreen({ navigation }: any) {
       <ScrollView contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
         {isLoggedIn ? renderLoggedInHeader() : renderLoggedOutHeader()}
 
-        <Text style={styles.sectionTitle}>다른 사람들이 선택한 코스</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.cardScroll}>
-          {sampleCourses.map((course) => (
-            <View key={course.id} style={styles.courseCard}>
-              <View style={styles.imageBox}>
-                <Ionicons name="image-outline" size={36} color="#bbb" />
-              </View>
-              <Text style={styles.courseTitle} numberOfLines={1}>{course.title}</Text>
-              <TouchableOpacity style={styles.startBtn} disabled>
-                <Text style={styles.startBtnText}>Start</Text>
-              </TouchableOpacity>
-            </View>
-          ))}
-        </ScrollView>
+        {isLoggedIn && hasOngoingCourse ? (
+          <>
+            <Text style={styles.sectionTitle}>진행중인 코스</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.cardScroll}>
+              {ongoingCourses.map(renderOngoingCourseCard)}
+            </ScrollView>
+          </>
+        ) : (
+          <>
+            <Text style={styles.sectionTitle}>다른 사람들이 선택한 코스</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.cardScroll}>
+              {sampleCourses.map((course) => (
+                <View key={course.id} style={styles.courseCard}>
+                  <View style={styles.imageBox}>
+                    <Ionicons name="image-outline" size={36} color="#bbb" />
+                  </View>
+                  <Text style={styles.courseTitle} numberOfLines={1}>{course.title}</Text>
+                  <TouchableOpacity style={styles.startBtn} disabled>
+                    <Text style={styles.startBtnText}>Start</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </ScrollView>
+          </>
+        )}
       </ScrollView>
     </View>
   );
@@ -246,6 +347,88 @@ const styles = StyleSheet.create({
   startBtnText: {
     fontFamily: 'NeoDunggeunmoPro-Regular',
     fontSize: 14,
+    color: '#fff',
+    fontWeight: '600',
+  },
+  // 진행중인 코스 카드 스타일
+  ongoingCourseCard: {
+    width: CARD_WIDTH,
+    backgroundColor: '#fafafa',
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: INCHEON_GRAY,
+    marginRight: 16,
+    padding: 16,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  courseHeader: {
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  ongoingCourseTitle: {
+    fontFamily: 'NeoDunggeunmoPro-Regular',
+    fontSize: 18,
+    color: INCHEON_GRAY,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  courseSubtitle: {
+    fontFamily: 'NeoDunggeunmoPro-Regular',
+    fontSize: 14,
+    color: INCHEON_GRAY,
+    marginTop: 4,
+  },
+  spotsPreview: {
+    width: '100%',
+    marginBottom: 12,
+  },
+  spotItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  spotOrderGray: {
+    fontFamily: 'NeoDunggeunmoPro-Regular',
+    fontSize: 16,
+    color: INCHEON_GRAY,
+    fontWeight: '600',
+    marginRight: 8,
+  },
+  spotTitle: {
+    fontFamily: 'NeoDunggeunmoPro-Regular',
+    fontSize: 15,
+    color: INCHEON_GRAY,
+    flex: 1,
+  },
+  moreSpots: {
+    fontFamily: 'NeoDunggeunmoPro-Regular',
+    fontSize: 14,
+    color: INCHEON_GRAY,
+    marginTop: 4,
+  },
+  continueBtn: {
+    backgroundColor: INCHEON_BLUE,
+    borderRadius: 24,
+    paddingVertical: 12,
+    paddingHorizontal: 32,
+    marginTop: 10,
+    shadowColor: INCHEON_BLUE,
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  continueBtnText: {
+    fontFamily: 'NeoDunggeunmoPro-Regular',
+    fontSize: 16,
     color: '#fff',
     fontWeight: '600',
   },
@@ -349,5 +532,59 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#fff',
     fontWeight: '600',
+  },
+  spotsList: {
+    width: '100%',
+    marginBottom: 12,
+  },
+  spotOrderContainer: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: INCHEON_BLUE,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  spotOrder: {
+    fontFamily: 'NeoDunggeunmoPro-Regular',
+    fontSize: 16,
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  spotInfo: {
+    flex: 1,
+    marginRight: 12,
+  },
+  spotTitle: {
+    fontFamily: 'NeoDunggeunmoPro-Regular',
+    fontSize: 15,
+    color: INCHEON_GRAY,
+    fontWeight: '600',
+  },
+  spotLocation: {
+    fontFamily: 'NeoDunggeunmoPro-Regular',
+    fontSize: 13,
+    color: INCHEON_GRAY,
+    marginTop: 2,
+  },
+  spotStatus: {
+    width: 50,
+    alignItems: 'center',
+  },
+  nextDestinationBtn: {
+    backgroundColor: INCHEON_BLUE,
+    borderRadius: 16,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+  },
+  nextDestinationText: {
+    fontFamily: 'NeoDunggeunmoPro-Regular',
+    fontSize: 14,
+    color: '#fff',
+    fontWeight: '600',
+  },
+  lockedIcon: {
+    marginTop: 8,
   },
 }); 

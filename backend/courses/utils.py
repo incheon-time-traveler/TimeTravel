@@ -3,6 +3,7 @@ import numpy as np
 import math
 from django.db.models import Q
 from spots.models import Spot
+from .models import RouteSpot
 from .serializers import RouteSerializer
 
 
@@ -20,17 +21,27 @@ def haversine_distance(lat1, lon1, lat2, lon2):
 
 # 프론트엔드에서 받아올 데이터와 spots 모델의 필드를 매칭
 ANSWER_TO_TAG_MAP = {
-    "걷기 좋은 길을 따라 즐기는 산책": "walking_activity",
-    "바다와 도시의 멋진 풍경/야경": "night_view",
-    "복잡한 곳을 피해 즐기는 휴식": "quiet_rest",
-    "역사와 문화가 담긴 특별한 체험": "experience_info",
-    "지루할 틈 없는 다이나믹한 재미": "fun_sightseeing",
-    "아이와 함께": "with_children",
-    "반려동물과 함께": "with_pets",
-    "대중교통으로": "public_transport",
-    "자차나 택시로": "car_transport",
-    "사람들이 많이 찾는 유명한 곳 위주로": "famous",
-    "시설이 깔끔하고 편리했으면 좋겠어요": "clean_facility"
+    # 여행 타입
+    "walking_activity": "walking_activity",
+    "night_view": "night_view", 
+    "quiet_rest": "quiet_rest",
+    "experience_info": "experience_info",
+    "fun_sightseeing": "fun_sightseeing",
+    
+    # 동반자
+    "with_children": "with_children",
+    "with_lover": "with_lover",
+    "with_friends": "with_friends", 
+    "with_family": "with_family",
+    "with_pets": "with_pets",
+    
+    # 교통수단
+    "public_transport": "public_transport",
+    "car_transport": "car_transport",
+    
+    # 추가 고려사항
+    "famous": "famous",
+    "clean_facility": "clean_facility"
 }
 
 
@@ -395,7 +406,8 @@ def generate_course(user_answers, num_places, user_lat, user_lon, mission_accept
             'is_mission_available': is_mission_available,
             'mission_spot_count': mission_spot_count,
             'user_region_name': user_region_name,
-            'total_spots': len(course_spots)
+            'total_spots': len(course_spots),
+            'route_id': None  # save_course에서 설정됨
         }
         
     except Exception as e:
@@ -410,10 +422,50 @@ def generate_course(user_answers, num_places, user_lat, user_lon, mission_accept
 
 
 def save_course(result):
-    serializer = RouteSerializer(data=result)
-    if serializer.is_valid():
-        route = serializer.save()
+    """
+    생성된 코스를 데이터베이스에 저장합니다.
     
-    routeId = route.id
-    for spot in result['course_spots']:
-        RouteSpot.objects.create(route_id=routeId, spot_id=spot['spot_id'], order=spot['order'])
+    Args:
+        result (dict): generate_course 함수의 결과
+    
+    Returns:
+        int: 저장된 Route의 ID, 실패 시 None
+    """
+    try:
+        # 필수 키 확인
+        if not result or 'course_spots' not in result:
+            print("save_course: course_spots 키가 없습니다.")
+            return None
+        
+        if not result['course_spots']:
+            print("save_course: course_spots가 비어있습니다.")
+            return None
+        
+        # Route 저장
+        serializer = RouteSerializer(data=result)
+        if serializer.is_valid():
+            route = serializer.save()
+            print(f"Route 저장 완료: ID {route.id}")
+        else:
+            print(f"Route 저장 실패: {serializer.errors}")
+            return None
+        
+        # RouteSpot 저장
+        for spot in result['course_spots']:
+            try:
+                RouteSpot.objects.create(
+                    route_id=route,
+                    spot_id_id=spot['id'],
+                    order=spot['order']
+                )
+                print(f"RouteSpot 저장 완료: spot_id {spot['id']}, order {spot['order']}")
+            except Exception as spot_error:
+                print(f"RouteSpot 저장 실패 (spot_id {spot['id']}): {spot_error}")
+                continue
+        
+        print("코스 저장 완료")
+        return route.id
+        
+    except Exception as e:
+        print(f"save_course 전체 오류: {e}")
+        return None

@@ -19,8 +19,8 @@ import { KAKAO_REST_API_KEY, KAKAO_REDIRECT_URI } from '@env';
 export const BACKEND_API = {
   // 개발: 안드로이드 에뮬레이터용 로컬 백엔드
   // 운영: HTTPS 배포 도메인
-  BASE_URL: __DEV__ ? 'http://10.0.2.2:8000' : 'https://incheon-time-traveler.duckdns.org',
-  // BASE_URL: 'https://incheon-time-traveler.duckdns.org', // 그냥 운영으로 연결, 수정 필요하면 바로바로 배포포
+  // BASE_URL: __DEV__ ? 'http://10.0.2.2:8000' : 'https://incheon-time-traveler.duckdns.org',
+  BASE_URL: 'https://incheon-time-traveler.duckdns.org', // 그냥 운영으로 연결, 수정 필요하면 바로바로 배포포
 };
 
 // 챗봇 API 설정

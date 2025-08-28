@@ -10,16 +10,17 @@ import {
   Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { INCHEON_BLUE, INCHEON_BLUE_LIGHT, INCHEON_GRAY } from '../../styles/fonts';
+import { INCHEON_BLUE, INCHEON_BLUE_LIGHT, INCHEON_GRAY, WARNING, TEXT_STYLES } from '../../styles/fonts';
 import PixelLockIcon from '../../components/ui/PixelLockIcon';
+import CheckIcon from '../../components/ui/CheckIcon';
 import { useNavigation } from '@react-navigation/native';
 
 const { width } = Dimensions.get('window');
 
 const TABS = [
-  { key: 'progress', label: '진행중' },
-  { key: 'completed', label: '진행완료' },
-  { key: 'saved', label: '찜해놓은' },
+  { key: 'progress', label: '진행 중' },
+  { key: 'completed', label: '진행 완료' },
+  { key: 'saved', label: '찜해 놓은' },
 ];
 
 const coursePhotos = [
@@ -109,7 +110,7 @@ const TripsScreen: React.FC = () => {
   const renderProgressTab = () => (
     <ScrollView style={styles.content} contentContainerStyle={{paddingBottom: 32}} showsVerticalScrollIndicator={false}>
       {/* 제목 */}
-      <Text style={[styles.progressTitle, { fontFamily: 'NeoDunggeunmoPro-Regular' }]}>현재 진행중인 코스</Text>
+      {/* <Text style={[styles.progressTitle, { fontFamily: 'NeoDunggeunmoPro-Regular' }]}>진행 중인 코스</Text>*/}
 
       {/* 진행률 섹션 */}
       <View style={styles.progressSection}>
@@ -128,7 +129,7 @@ const TripsScreen: React.FC = () => {
           </View>
         </View>
         <Text style={styles.progressDetail}>
-          {completedLocations} / {totalLocations} 장소 완료
+          {completedLocations} / {totalLocations} 완료
         </Text>
       </View>
 
@@ -137,36 +138,35 @@ const TripsScreen: React.FC = () => {
         <Image source={require('../../assets/icons/Map_mockup.png')} style={styles.mapImg} resizeMode="cover" />
       </View>
 
+      <View style={styles.cardContainer}>
       {/* 대불 호텔 카드 */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-        <Text style={styles.pixelStepNum}>①</Text>
-        <TouchableOpacity style={styles.hotelCard} activeOpacity={0.8}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Text style={styles.hotelCardText}>대불 호텔</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+            <TouchableOpacity style={styles.hotelCard} activeOpacity={0.8}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={styles.hotelCardText}>대불 호텔</Text>
+              </View>
+              < CheckIcon />
+            </TouchableOpacity>
           </View>
-          <Text style={styles.hotelCardArrow}>{'>'}</Text>
-        </TouchableOpacity>
-      </View>
-      
-      {/* 인천대공원 코스 카드 */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-        <Text style={styles.pixelStepNumActive}>②</Text>
-        <View style={styles.hotelCard}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Text style={styles.hotelCardText}>인천대공원</Text>
+
+          {/* 인천대공원 코스 카드 */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+            <View style={styles.hotelCard}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={styles.hotelCardText}>인천대공원</Text>
+              </View>
+              <TouchableOpacity
+                style={[styles.prevNextBtn]}
+                onPress={() => (navigation as any).navigate('Map', { startLocation: '현위치', endLocation: '인천대공원' })}
+              >
+                <Text style={styles.hotelCardArrow}>{'>'}</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-          <TouchableOpacity
-            style={[styles.prevNextBtn, { marginLeft: 12, flex: undefined, paddingVertical: 8, paddingHorizontal: 16 }]}
-            onPress={() => (navigation as any).navigate('Map', { startLocation: '현위치', endLocation: '인천대공원' })}
-          >
-            <Text style={styles.prevNextBtnText}>다음 목적지</Text>
-          </TouchableOpacity>
-        </View>
       </View>
 
       {/* 잠금 카드들 */}
       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-        <Text style={styles.pixelStepNum}>③</Text>
         <View style={styles.lockedCard}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Text style={styles.lockedCardText}>인천의 중심</Text>
@@ -175,7 +175,6 @@ const TripsScreen: React.FC = () => {
         </View>
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-        <Text style={styles.pixelStepNum}>④</Text>
         <View style={styles.lockedCard}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Text style={styles.lockedCardText}>인천의 역사적인 공간</Text>
@@ -185,7 +184,7 @@ const TripsScreen: React.FC = () => {
       </View>
 
       {/* 사진 섹션 */}
-      <Text style={[styles.photoSectionTitle, { fontFamily: 'NeoDunggeunmoPro-Regular' }]}>지금까지 진행한 코스 사진</Text>
+      <Text style={[styles.photoSectionTitle, { fontFamily: 'NeoDunggeunmoPro-Regular' }]}>미션 완료</Text>
       <View style={styles.photoGrid}>
         {coursePhotos.map((photo, idx) => (
           <View key={idx} style={styles.photoSlot}>
@@ -208,9 +207,7 @@ const TripsScreen: React.FC = () => {
   );
 
   const renderCompletedTab = () => (
-    <ScrollView style={styles.content} contentContainerStyle={{paddingBottom: 32}} showsVerticalScrollIndicator={false}>
-      <Text style={[styles.progressTitle, { fontFamily: 'NeoDunggeunmoPro-Regular' }]}>완료된 코스들</Text>
-      
+    <ScrollView style={styles.content} contentContainerStyle={{paddingVertical: 16}} showsVerticalScrollIndicator={false}>
       {completedCourses.map((course) => (
         <TouchableOpacity
           key={course.id}
@@ -249,9 +246,7 @@ const TripsScreen: React.FC = () => {
   );
 
   const renderSavedTab = () => (
-    <ScrollView style={styles.content} contentContainerStyle={{paddingBottom: 32}} showsVerticalScrollIndicator={false}>
-      <Text style={[styles.progressTitle, { fontFamily: 'NeoDunggeunmoPro-Regular' }]}>찜한 코스들</Text>
-      
+    <ScrollView style={styles.content} contentContainerStyle={{paddingVertical: 16}} showsVerticalScrollIndicator={false}>
       {savedCourses.map((course) => (
         <TouchableOpacity
           key={course.id}
@@ -338,7 +333,7 @@ const TripsScreen: React.FC = () => {
 
   return (
     <>
-      <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }} edges={['top', 'left', 'right']}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#f0f0f0' }} edges={['top', 'left', 'right']}>
         <View style={styles.container}>
           {/* 상단 탭 네비게이션 (세그먼트 컨트롤 스타일) */}
           <View style={styles.tabBarWrap}>
@@ -385,6 +380,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
     padding: 8,
+
   },
   content: {
     flex: 1,
@@ -393,14 +389,13 @@ const styles = StyleSheet.create({
   tabBarWrap: {
     flexDirection: 'row',
     borderRadius: 16,
-    padding: 4,
-    margin: 3,
+    marginTop: 18,
   },
   tabBtn: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
+    padding: 12,
     backgroundColor: 'transparent',
     borderRadius: 12,
     marginHorizontal: 2,
@@ -435,21 +430,10 @@ const styles = StyleSheet.create({
     backgroundColor: INCHEON_BLUE,
     borderRadius: 2,
   },
-  progressTitle: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 30,
-    color: INCHEON_BLUE,
-    textAlign: 'center',
-    marginVertical: 16,
-  },
   // 진행률 섹션 스타일
   progressSection: {
-    borderWidth: 2,
-    borderColor: '#222',
-    backgroundColor: '#fff',
-    borderRadius: 15,
-    padding: 16,
-    marginBottom: 16,
+    marginTop: 32,
+    marginBottom: 24,
   },
   progressHeader: {
     flexDirection: 'row',
@@ -458,16 +442,12 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   progressText: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 18,
+    ...TEXT_STYLES.subtitle,
     color: INCHEON_BLUE,
-    fontWeight: 'bold',
   },
   progressPercentage: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 20,
+    ...TEXT_STYLES.body,
     color: INCHEON_BLUE,
-    fontWeight: 'bold',
   },
   progressBarContainer: {
     marginBottom: 8,
@@ -476,8 +456,8 @@ const styles = StyleSheet.create({
     height: 12,
     backgroundColor: INCHEON_BLUE_LIGHT,
     borderRadius: 6,
-    borderWidth: 2,
-    borderColor: '#222',
+    borderWidth: 0.5,
+    borderColor: '#e0e0e0',
     overflow: 'hidden',
   },
   progressBarFill: {
@@ -486,14 +466,13 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   progressDetail: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
     fontSize: 14,
     color: INCHEON_GRAY,
     textAlign: 'center',
   },
   mapBox: {
     borderWidth: 2,
-    borderColor: '#222',
+    borderColor: '#e0e0e0',
     backgroundColor: '#fff',
     marginBottom: 16,
     alignItems: 'center',
@@ -506,23 +485,24 @@ const styles = StyleSheet.create({
     height: 180,
     borderRadius: 0,
   },
+  cardContainer: {
+    marginTop: 16
+  },
   hotelCard: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderWidth: 2,
-    borderColor: '#222',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
     backgroundColor: '#fff',
-    paddingVertical: 14,
+    paddingVertical: 12,
     paddingHorizontal: 18,
     marginBottom: 10,
     borderRadius: 10,
   },
   hotelCardText: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 16,
-    color: INCHEON_GRAY,
+    ...TEXT_STYLES.body,
   },
   hotelCardArrow: {
     fontFamily: 'NeoDunggeunmoPro-Regular',
@@ -537,26 +517,23 @@ const styles = StyleSheet.create({
   },
   prevNextBtn: {
     flex: 1,
-    borderWidth: 2,
-    borderColor: INCHEON_BLUE,
-    backgroundColor: '#fff',
-    paddingVertical: 14,
+    paddingVertical: 0,
     alignItems: 'center',
-    marginLeft: 8,
-    borderRadius: 10,
+    flex: undefined,
+    paddingVertical: 8,
+    paddingHorizontal: 14
   },
   prevNextBtnText: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 15,
-    color: INCHEON_GRAY,
+    ...TEXT_STYLES.button,
+    color: '#000'
   },
   lockedCard: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderWidth: 2,
-    borderColor: '#222',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
     backgroundColor: '#fff',
     paddingVertical: 14,
     paddingHorizontal: 18,
@@ -564,9 +541,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   lockedCardText: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 16,
-    color: INCHEON_GRAY,
+    ...TEXT_STYLES.body,
   },
   lockIconPixel: {
     textShadowColor: '#fff',
@@ -574,10 +549,8 @@ const styles = StyleSheet.create({
     textShadowRadius: 0,
   },
   photoSectionTitle: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 28,
+    ...TEXT_STYLES.subtitle,
     color: INCHEON_BLUE,
-    textAlign: 'center',
     marginVertical: 16,
   },
   photoGrid: {
@@ -591,8 +564,8 @@ const styles = StyleSheet.create({
     width: (width - 48) / 2,
     height: 90,
     backgroundColor: '#fff',
-    borderWidth: 2,
-    borderColor: INCHEON_GRAY,
+    borderWidth: 1.5,
+    borderColor: '#e0e0e0',
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
@@ -612,18 +585,16 @@ const styles = StyleSheet.create({
   },
   quitBtn: {
     flex: 1,
-    backgroundColor: INCHEON_BLUE_LIGHT,
-    borderWidth: 2,
-    borderColor: '#222',
+    borderColor: WARNING,
+    borderWidth: 1,
     paddingVertical: 16,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 10,
   },
   quitBtnText: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 16,
-    color: INCHEON_GRAY,
+    ...TEXT_STYLES.button,
+    color: WARNING,
   },
   pixelLockIcon: {
     width: 28,
@@ -631,34 +602,26 @@ const styles = StyleSheet.create({
     marginLeft: 4,
     marginRight: 4,
   },
+  // 확인 필요
   pixelStepNum: {
     fontFamily: 'NeoDunggeunmoPro-Regular',
     fontSize: 38,
-    color: INCHEON_BLUE,
+    color: INCHEON_GRAY,
     marginRight: 5,
     minWidth: 36,
     textAlign: 'center',
   },
   pixelStepNumActive: {
     fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 37,
-    color: '#fff',
-    backgroundColor: INCHEON_BLUE,
-    borderRadius: 999,
-    width: 40,
-    height: 40,
-    textAlign: 'center',
-    lineHeight: 40,
-    borderWidth: 3,
-    borderColor: '#fff',
-    overflow: 'hidden',
+    fontSize: 38,
     marginRight: 5,
-    minWidth: 40,
+    color: INCHEON_BLUE,
+    textAlign: 'center',
   },
   // 새로운 코스 카드 스타일
   courseCard: {
     borderWidth: 2,
-    borderColor: '#222',
+    borderColor: '#e0e0e0',
     backgroundColor: '#fff',
     borderRadius: 15,
     padding: 16,
@@ -671,25 +634,17 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   courseCardTitle: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 20,
+    ...TEXT_STYLES.subtitle,
     color: INCHEON_BLUE,
-    fontWeight: 'bold',
   },
   courseCardDate: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 14,
-    color: INCHEON_GRAY,
+    ...TEXT_STYLES.small
   },
   courseCardAuthor: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 14,
-    color: INCHEON_GRAY,
+    ...TEXT_STYLES.small
   },
   courseCardDescription: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 16,
-    color: '#000',
+    ...TEXT_STYLES.body,
     marginBottom: 12,
     lineHeight: 22,
   },
@@ -697,9 +652,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   courseCardLocation: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 14,
-    color: INCHEON_GRAY,
+    ...TEXT_STYLES.small,
     marginBottom: 4,
   },
   courseCardPhotos: {
@@ -711,81 +664,68 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 8,
-    borderWidth: 2,
-    borderColor: '#222',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
   },
   courseCardPhotoMore: {
     width: 60,
     height: 60,
     borderRadius: 8,
     borderWidth: 2,
-    borderColor: '#222',
+    borderColor: '#e0e0e0',
     backgroundColor: INCHEON_BLUE_LIGHT,
     alignItems: 'center',
     justifyContent: 'center',
   },
   courseCardPhotoMoreText: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 14,
+    ...TEXT_STYLES.small,
     color: INCHEON_BLUE,
-    fontWeight: 'bold',
   },
   courseCardSavedDate: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 12,
-    color: INCHEON_GRAY,
-    textAlign: 'right',
+    ...TEXT_STYLES.small,
+    textAlign: 'right'
   },
   // 모달 스타일
   modalContainer: {
     flex: 1,
     backgroundColor: '#fff',
+
   },
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    borderBottomWidth: 2,
-    borderBottomColor: '#222',
+    paddingLeft: 20,
+    paddingRight: 10,
+    paddingTop: 32,
+    paddingBottom: 16,
     backgroundColor: INCHEON_BLUE_LIGHT,
   },
   modalTitle: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 20,
-    color: INCHEON_BLUE,
-    fontWeight: 'bold',
+    ...TEXT_STYLES.subtitle,
+    color: INCHEON_BLUE
   },
   modalCloseButton: {
-    width: 30,
-    height: 30,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 15,
-    backgroundColor: INCHEON_BLUE,
   },
   modalCloseButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
+    ...TEXT_STYLES.body,
   },
   modalContent: {
     flex: 1,
     padding: 20,
   },
   modalDescription: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 16,
-    color: '#000',
+    ...TEXT_STYLES.body,
     lineHeight: 24,
     marginBottom: 20,
   },
   modalSectionTitle: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 18,
+    ...TEXT_STYLES.heading,
     color: INCHEON_BLUE,
-    fontWeight: 'bold',
     marginBottom: 12,
     marginTop: 20,
   },
@@ -803,9 +743,7 @@ const styles = StyleSheet.create({
     width: 20,
   },
   modalLocationText: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 16,
-    color: '#000',
+    ...TEXT_STYLES.body,
   },
   modalPhotoGrid: {
     flexDirection: 'row',
@@ -817,19 +755,15 @@ const styles = StyleSheet.create({
     width: (width - 80) / 3,
     height: 100,
     borderRadius: 10,
-    borderWidth: 2,
-    borderColor: '#222',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
   },
   modalAuthor: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 14,
-    color: INCHEON_GRAY,
+    ...TEXT_STYLES.small,
     marginBottom: 8,
   },
   modalDate: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 14,
-    color: INCHEON_GRAY,
+    ...TEXT_STYLES.small,
     marginBottom: 8,
   },
 });

@@ -31,6 +31,7 @@ const SocialLoginWebView: React.FC<SocialLoginWebViewProps> = ({
   const handleNavigationStateChange = async (navState: any) => {
     const { url } = navState;
     console.log('[SocialLoginWebView] Navigated URL:', url);
+    console.log('[SocialLoginWebView] Current provider:', provider);
     
     // 로그인 성공 시 URL에서 토큰 추출
     if (url.includes('login-success')) {
@@ -40,17 +41,18 @@ const SocialLoginWebView: React.FC<SocialLoginWebViewProps> = ({
         console.log('[SocialLoginWebView] Parsed access token:', accessToken);
         
         if (accessToken) {
-          // 토큰 저장
+          // 토큰 저장 (refresh 토큰은 쿠키에서 관리되므로 빈 문자열)
           await authService.saveTokens({ access: accessToken, refresh: '' });
           console.log('[SocialLoginWebView] saveTokens() success');
           // 저장 검증
           const stored = await authService.getTokens();
           console.log('[SocialLoginWebView][Verify] retrieved access prefix:', stored?.access?.slice(0, 12) + '...');
           
-          // 성공 콜백 호출
+          // 성공 콜백 호출 - provider 정보를 명확하게 전달
+          console.log('[SocialLoginWebView] Calling onLoginSuccess with provider:', provider);
           onLoginSuccess({
             accessToken,
-            provider,
+            provider: provider, // 명시적으로 provider 전달
           });
           
           return;
@@ -63,9 +65,14 @@ const SocialLoginWebView: React.FC<SocialLoginWebViewProps> = ({
       }
     }
     
+    // 카카오/구글 콜백 URL 감지 (디버깅용)
+    if (url.includes('/callback/') && url.includes('code=')) {
+      console.log('[SocialLoginWebView] OAuth callback detected for provider:', provider, 'waiting for backend processing...');
+    }
+    
     // 에러 처리
     if (url.includes('error') || url.includes('denied')) {
-      console.warn('[SocialLoginWebView] Login cancelled or error URL detected:', url);
+      console.warn('[SocialLoginWebView] Login cancelled or error URL detected for provider:', provider, 'URL:', url);
       onLoginError('로그인이 취소되었습니다.');
     }
   };

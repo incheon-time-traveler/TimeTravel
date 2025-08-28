@@ -1,4 +1,7 @@
 {
   "name": "TimeTravelApp",
-  "displayName": "TimeTravel"
+  "displayName": "TimeTravel",
+  "plugins": [
+    "expo-web-browser"
+  ]
 }

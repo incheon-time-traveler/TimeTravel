@@ -73,7 +73,7 @@ const CameraScreen: React.FC<CameraScreenProps> = ({ route, navigation }) => {
         {
           text: '확인',
           onPress: () => {
-            navigation.navigate('Home');
+            navigation.navigate('MainTabs');
           }
         }
       ]

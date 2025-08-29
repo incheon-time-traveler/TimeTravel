@@ -325,7 +325,7 @@ export default function HomeScreen({ navigation }: any) {
         </TouchableOpacity>
       ) : (
         <TouchableOpacity style={styles.recommendCourseBtn} onPress={handleCourseRecommendation}>
-          <Text style={styles.recommendCourseBtnText}>지금 코스를 추천받아 보세요!</Text>
+          <Text style={styles.recommendCourseBtnText}>지금 코스를 추천 받아 보세요!</Text>
         </TouchableOpacity>
       )}
     </View>
@@ -333,7 +333,7 @@ export default function HomeScreen({ navigation }: any) {
 
   // 로그인되지 않은 상태일 때 상단 섹션
   const renderLoggedOutHeader = () => (
-    <View style={styles.topSection}>
+    <View style={styles.loginSection}>
       <Text style={styles.topTitle}>어디로 떠나볼까요?</Text>
       <TouchableOpacity style={styles.loginBtn} onPress={handleLoginPress}>
         <Text style={styles.loginBtnText}>로그인으로 여행을 시작해보세요</Text>
@@ -344,11 +344,11 @@ export default function HomeScreen({ navigation }: any) {
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
-        {isLoggedIn ? renderLoggedInHeader() : renderLoggedOutHeader()}
 
         {isLoggedIn && hasOngoingCourse ? (
           <>
-            <Text style={styles.sectionTitle}>진행중인 코스</Text>
+            <Text style={styles.sectionTitle}>진행 중인 코스</Text>
+            <View style={styles.underline} />
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.cardScroll}>
               {ongoingCourses.map(renderOngoingCourseCard)}
             </ScrollView>
@@ -356,6 +356,7 @@ export default function HomeScreen({ navigation }: any) {
         ) : (
           <>
             <Text style={styles.sectionTitle}>추천 코스</Text>
+            <View style={styles.underline} />
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.cardScroll}>
                              {recommendedCourses.length > 0 ? (
                  recommendedCourses.map((course) => (
@@ -370,7 +371,7 @@ export default function HomeScreen({ navigation }: any) {
                          style={styles.bookmarkIcon}
                          onPress={(e) => {
                            e.stopPropagation();
-                           Alert.alert('북마크', '이 루트를 북마크에 추가했습니다!');
+                           Alert.alert('북마크', '북마크에 루트가 추가되었습니다.');
                          }}
                        >
                          <Ionicons name="bookmark-outline" size={20} color="#fff" />
@@ -386,12 +387,11 @@ export default function HomeScreen({ navigation }: any) {
                        <Text style={styles.locationText} numberOfLines={1}>{course.location || '위치 정보 없음'}</Text>
                      </View>
                      <TouchableOpacity style={styles.startBtn} disabled>
-                       <Text style={styles.startBtnText}>Start</Text>
+                       <Text style={styles.startBtnText}>시작하기</Text>
                      </TouchableOpacity>
                    </TouchableOpacity>
                  ))
-               ) : (
-                                 sampleCourses.map((course) => (
+               ) : (sampleCourses.map((course) => (
                    <TouchableOpacity 
                      key={course.id} 
                      style={styles.courseCard}
@@ -403,7 +403,7 @@ export default function HomeScreen({ navigation }: any) {
                          style={styles.bookmarkIcon}
                          onPress={(e) => {
                            e.stopPropagation();
-                           Alert.alert('북마크', '이 루트를 북마크에 추가했습니다!');
+                           Alert.alert('북마크', '북마크에 루트가 추가되었습니다.');
                          }}
                        >
                          <Ionicons name="bookmark-outline" size={20} color="#fff" />
@@ -419,12 +419,13 @@ export default function HomeScreen({ navigation }: any) {
                        <Text style={styles.locationText} numberOfLines={1}>인천</Text>
                      </View>
                      <TouchableOpacity style={styles.startBtn} disabled>
-                       <Text style={styles.startBtnText}>Start</Text>
+                       <Text style={styles.startBtnText}>시작하기</Text>
                      </TouchableOpacity>
                    </TouchableOpacity>
                  ))
               )}
             </ScrollView>
+            {isLoggedIn ? renderLoggedInHeader() : renderLoggedOutHeader()}
           </>
         )}
       </ScrollView>
@@ -444,9 +445,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     padding: 8,
   },
-  topSection: {
+  loginSection: {
     alignItems: 'center',
-    marginTop: 32,
+    marginTop: 70,
     marginBottom: 24,
   },
   topTitle: {
@@ -456,20 +457,22 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     textAlign: 'center',
   },
-  loginSection: {
-    flex:1,
-    justifyContent: 'center',
-    minHeight: 400,
-    alignItems: 'center',
-  },
+
   sectionTitle: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 16,
-    color: INCHEON_GRAY,
-    marginBottom: 12,
+    ...TEXT_STYLES.subtitle,
+    textAlign: 'center',
+    marginTop: 50,
+    marginBottom: 4,
     marginLeft: 8,
-    fontWeight: '600',
   },
+underline: {
+  height: 3,
+  backgroundColor: INCHEON_BLUE,
+  width: 120,
+  alignSelf: 'center',
+  marginBottom: 16,
+  borderRadius: 2,
+},
   loginTitle: {
     ...TEXT_STYLES.subtitle,
   },
@@ -533,15 +536,12 @@ const styles = StyleSheet.create({
     borderColor: '#e0e0e0',
     borderWidth: 0.3,
     borderRadius: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 24,
-    marginTop: 4,
+    paddingVertical: 12,
+    paddingHorizontal: 32,
+    marginTop: 8,
   },
   startBtnText: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 14,
-    color: '#fff',
-    fontWeight: '600',
+      ...TEXT_STYLES.button,
   },
   // 진행중인 코스 카드 스타일
   ongoingCourseCard: {

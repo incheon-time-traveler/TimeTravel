@@ -1,5 +1,8 @@
 from django.shortcuts import render
 from .models import Photo
+from accounts.models import CustomUser
+from courses.models import Route
+from spots.models import Spot
 from .serializers import PhotoSerializer, PhotoDetailSerializer
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes

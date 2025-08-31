@@ -1,9 +1,19 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Dimensions, Alert } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Dimensions, Alert, AppState } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { INCHEON_BLUE, INCHEON_BLUE_LIGHT, INCHEON_GRAY, TEXT_STYLES } from '../../styles/fonts';
 import authService from '../../services/authService';
 import { BACKEND_API } from '../../config/apiKeys';
+import { 
+  setCurrentLocation, 
+  startLocationBasedMissionDetection, 
+  findMissionByLocation,
+  getActiveMissions,
+  getCompletedMissions,
+  createMissionsFromUserCourse,
+  refreshMissionData 
+} from '../../data/missions';
+import MissionNotification from '../../components/MissionNotification';
 
 
 const { width } = Dimensions.get('window');
@@ -29,11 +39,41 @@ export default function HomeScreen({ navigation }: any) {
   const [hasOngoingCourse, setHasOngoingCourse] = useState(false);
   const [ongoingCourses, setOngoingCourses] = useState<any[]>([]);
   const [recommendedCourses, setRecommendedCourses] = useState<any[]>([]);
+  
+  // 미션 관련 상태
+  const [currentMission, setCurrentMission] = useState<any>(null);
+  const [showMissionNotification, setShowMissionNotification] = useState(false);
+  const [currentLocation, setCurrentLocationState] = useState<{ lat: number; lng: number } | null>(null);
+  
+  // 위치 감지 인터벌 참조
+  const locationIntervalRef = useRef<any>(null);
+  const appState = useRef(AppState.currentState);
 
   useEffect(() => {
     checkLoginStatus();
     checkOngoingCourses();
     fetchRecommendedCourses();
+    
+    // 앱 상태 변화 감지
+    const subscription = AppState.addEventListener('change', nextAppState => {
+      if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
+        // 앱이 포그라운드로 돌아올 때
+        console.log('[HomeScreen] 앱이 포그라운드로 돌아왔습니다.');
+        if (isLoggedIn && currentLocation) {
+          startLocationDetection();
+        }
+      } else if (nextAppState.match(/inactive|background/)) {
+        // 앱이 백그라운드로 갈 때
+        console.log('[HomeScreen] 앱이 백그라운드로 갔습니다.');
+        stopLocationDetection();
+      }
+      appState.current = nextAppState;
+    });
+
+    return () => {
+      subscription?.remove();
+      stopLocationDetection();
+    };
   }, []);
 
   // 화면이 포커스될 때마다 로그인 상태 확인
@@ -57,6 +97,263 @@ export default function HomeScreen({ navigation }: any) {
     });
   }, [isLoggedIn, hasOngoingCourse, ongoingCourses, userProfile]);
 
+  // 위치 기반 미션 감지 시작
+  const startLocationDetection = () => {
+    if (locationIntervalRef.current) {
+      clearInterval(locationIntervalRef.current);
+    }
+    
+    // 10초마다 위치 기반 미션 감지
+    locationIntervalRef.current = setInterval(async () => {
+      if (currentLocation && isLoggedIn) {
+        try {
+          const nearbyMission = await startLocationBasedMissionDetection();
+          if (nearbyMission && nearbyMission.id !== currentMission?.id) {
+            console.log('[HomeScreen] 새로운 미션 발견:', nearbyMission.location.name);
+            setCurrentMission(nearbyMission);
+            setShowMissionNotification(true);
+          }
+        } catch (error) {
+          console.error('[HomeScreen] 위치 기반 미션 감지 실패:', error);
+        }
+      }
+    }, 10000); // 10초마다
+    
+    console.log('[HomeScreen] 위치 기반 미션 감지 시작');
+  };
+
+  // 위치 기반 미션 감지 중지
+  const stopLocationDetection = () => {
+    if (locationIntervalRef.current) {
+      clearInterval(locationIntervalRef.current);
+      locationIntervalRef.current = null;
+      console.log('[HomeScreen] 위치 기반 미션 감지 중지');
+    }
+  };
+
+  // 현재 위치 설정 (GPS나 네트워크 기반 위치 서비스에서 가져오기)
+  const setUserLocation = async () => {
+    try {
+      // 실제 위치 서비스 사용 (React Native Geolocation)
+      const { Geolocation } = require('react-native');
+      
+      Geolocation.getCurrentPosition(
+        (position: any) => {
+          const { latitude, longitude } = position.coords;
+          console.log(`[HomeScreen] GPS 위치 획득: ${latitude}, ${longitude}`);
+          
+          setCurrentLocationState({ lat: latitude, lng: longitude });
+          setCurrentLocation(latitude, longitude); // missions.ts에 위치 설정
+          
+          // 로그인된 상태이고 위치가 설정되면 미션 감지 시작
+          if (isLoggedIn) {
+            startLocationDetection();
+          }
+        },
+        (error: any) => {
+          console.error('[HomeScreen] GPS 위치 획득 실패:', error);
+          
+          // GPS 실패시 기본 위치 설정 (인천 근처)
+          const defaultLat = 37.4563;
+          const defaultLng = 126.7052;
+          console.log(`[HomeScreen] 기본 위치 설정: ${defaultLat}, ${defaultLng}`);
+          
+          setCurrentLocationState({ lat: defaultLat, lng: defaultLng });
+          setCurrentLocation(defaultLat, defaultLng);
+          
+          if (isLoggedIn) {
+            startLocationDetection();
+          }
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 15000,
+          maximumAge: 10000,
+        }
+      );
+    } catch (error) {
+      console.error('[HomeScreen] 위치 서비스 초기화 실패:', error);
+      
+      // 위치 서비스 실패시 기본 위치 설정
+      const defaultLat = 37.4563;
+      const defaultLng = 126.7052;
+      setCurrentLocationState({ lat: defaultLat, lng: defaultLng });
+      setCurrentLocation(defaultLat, defaultLng);
+      
+      if (isLoggedIn) {
+        startLocationDetection();
+      }
+    }
+  };
+
+  // 미션 시작 처리
+  const handleStartMission = (mission: any) => {
+    setShowMissionNotification(false);
+    console.log('[HomeScreen] 미션 시작:', mission.location.name);
+    
+    // MissionScreen으로 이동
+    navigation.navigate('Mission', { mission });
+  };
+
+  // 미션 알림 닫기
+  const handleCloseMissionNotification = () => {
+    setShowMissionNotification(false);
+  };
+
+  // 미션 테스트 시뮬레이션 (에뮬레이터용)
+  const simulateMission = async () => {
+    try {
+      console.log('[HomeScreen] 미션 시뮬레이션 시작');
+      
+      // 현재 토큰 가져오기
+      const tokens = await authService.getTokens();
+      if (!tokens?.access) {
+        Alert.alert('오류', '로그인이 필요합니다.');
+        return;
+      }
+      
+      // 먼저 사용자의 진행중인 코스에서 미션 생성 (토큰 전달)
+      const missions = await createMissionsFromUserCourse(tokens.access);
+      
+      if (missions.length === 0) {
+        Alert.alert(
+          '미션 없음', 
+          '진행중인 코스가 없거나 미션 가능한 스팟이 없습니다.\n새로운 코스를 생성해보세요!'
+        );
+        return;
+      }
+
+      // 첫 번째 미션을 현재 미션으로 설정
+      const testMission = missions[0];
+      console.log('[HomeScreen] 테스트 미션 설정:', testMission.location.name);
+      
+      setCurrentMission(testMission);
+      setShowMissionNotification(true);
+      
+      // 성공 메시지
+      Alert.alert(
+        '미션 시뮬레이션 성공!', 
+        `${testMission.location.name} 미션이 발견되었습니다!\n미션 알림을 확인해보세요.`
+      );
+      
+    } catch (error) {
+      console.error('[HomeScreen] 미션 시뮬레이션 실패:', error);
+      Alert.alert('오류', '미션 시뮬레이션 중 오류가 발생했습니다.');
+    }
+  };
+
+  // 미션 상태 확인 (디버깅용)
+  const checkMissionStatus = async () => {
+    try {
+      const activeMissions = getActiveMissions();
+      const completedMissions = getCompletedMissions();
+      
+      let message = '🎯 미션 상태 확인\n\n';
+      message += `📍 현재 위치: ${currentLocation ? `${currentLocation.lat.toFixed(4)}, ${currentLocation.lng.toFixed(4)}` : '설정되지 않음'}\n\n`;
+      message += `🔄 활성 미션: ${activeMissions.length}개\n`;
+      message += `✅ 완료된 미션: ${completedMissions.length}개\n\n`;
+      
+      if (activeMissions.length > 0) {
+        message += '📋 활성 미션 목록:\n';
+        activeMissions.forEach((mission, index) => {
+          // 디버깅: 미션 객체 전체 구조 확인
+          console.log(`[HomeScreen] 미션 ${index + 1} 전체 데이터:`, mission);
+          console.log(`[HomeScreen] 미션 ${index + 1} location:`, mission.location);
+          
+          const missionName = mission.location?.name || '이름 없음';
+          const missionLat = mission.location?.lat || 0;
+          const missionLng = mission.location?.lng || 0;
+          
+          message += `${index + 1}. ${missionName} (${missionLat.toFixed(4)}, ${missionLng.toFixed(4)})\n`;
+        });
+      }
+      
+      Alert.alert('미션 상태', message);
+      
+    } catch (error) {
+      console.error('[HomeScreen] 미션 상태 확인 실패:', error);
+      Alert.alert('오류', '미션 상태 확인 중 오류가 발생했습니다.');
+    }
+  };
+
+  // 스팟 정보 확인 (디버깅용)
+  const checkSpotInfo = async () => {
+    try {
+      console.log('[HomeScreen] 스팟 정보 확인 시작');
+      
+      // 로그인 상태 확인 및 토큰 가져오기
+      const tokens = await authService.getTokens();
+      if (!tokens?.access) {
+        Alert.alert('오류', '로그인이 필요합니다.');
+        return;
+      }
+      
+      // /v1/spots/ API 호출하여 전체 스팟 정보 가져오기 (인증 토큰 포함)
+      const response = await fetch(`${BACKEND_API.BASE_URL}/v1/spots/`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${tokens.access}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('[HomeScreen] 전체 스팟 데이터:', data);
+        
+        // past_image_url이 있는 스팟들 필터링
+        const spotsWithPastImage = data.filter((spot: any) => 
+          spot.past_image_url && spot.past_image_url.trim() !== ''
+        );
+        
+        // past_image_url이 없는 스팟들
+        const spotsWithoutPastImage = data.filter((spot: any) => 
+          !spot.past_image_url || spot.past_image_url.trim() === ''
+        );
+        
+        let message = '🗺️ 스팟 정보 확인\n\n';
+        message += `📊 전체 스팟: ${data.length}개\n`;
+        message += `🖼️ 과거사진 있는 스팟: ${spotsWithPastImage.length}개\n`;
+        message += `❌ 과거사진 없는 스팟: ${spotsWithoutPastImage.length}개\n\n`;
+        
+        if (spotsWithPastImage.length > 0) {
+          message += '🖼️ 과거사진 있는 스팟들:\n';
+          spotsWithPastImage.slice(0, 10).forEach((spot: any, index: number) => {
+            message += `${index + 1}. ${spot.name || spot.title || `스팟 ${spot.id}`}\n`;
+            message += `   📍 ${spot.address || '주소 없음'}\n`;
+            message += `   🖼️ ${spot.past_image_url?.substring(0, 50)}...\n\n`;
+          });
+          
+          if (spotsWithPastImage.length > 10) {
+            message += `... 외 ${spotsWithPastImage.length - 10}개 더\n\n`;
+          }
+        }
+        
+        if (spotsWithoutPastImage.length > 0) {
+          message += '❌ 과거사진 없는 스팟들 (샘플):\n';
+          spotsWithoutPastImage.slice(0, 5).forEach((spot: any, index: number) => {
+            message += `${index + 1}. ${spot.name || spot.title || `스팟 ${spot.id}`}\n`;
+            message += `   📍 ${spot.address || '주소 없음'}\n\n`;
+          });
+          
+          if (spotsWithoutPastImage.length > 5) {
+            message += `... 외 ${spotsWithoutPastImage.length - 5}개 더\n\n`;
+          }
+        }
+        
+        Alert.alert('스팟 정보', message);
+        
+      } else {
+        console.error('[HomeScreen] 스팟 정보 가져오기 실패:', response.status);
+        Alert.alert('오류', '스팟 정보를 가져올 수 없습니다.');
+      }
+      
+    } catch (error) {
+      console.error('[HomeScreen] 스팟 정보 확인 실패:', error);
+      Alert.alert('오류', '스팟 정보 확인 중 오류가 발생했습니다.');
+    }
+  };
+
   const checkLoginStatus = async () => {
     try {
       // 토큰과 사용자 정보 모두 확인
@@ -68,16 +365,21 @@ export default function HomeScreen({ navigation }: any) {
         setIsLoggedIn(true);
         setUserProfile(user);
         console.log('[HomeScreen] 로그인된 상태:', user.nickname);
+        
+        // 로그인 후 GPS 위치 설정
+        setUserLocation();
       } else {
         // 토큰이나 사용자 정보가 없으면 로그아웃된 상태
         setIsLoggedIn(false);
         setUserProfile(null);
         console.log('[HomeScreen] 로그아웃된 상태');
+        stopLocationDetection();
       }
     } catch (error) {
       console.error('로그인 상태 확인 실패:', error);
       setIsLoggedIn(false);
       setUserProfile(null);
+      stopLocationDetection();
     }
   };
 
@@ -319,15 +621,31 @@ export default function HomeScreen({ navigation }: any) {
         </View>
       </View>
 
-      {hasOngoingCourse ? (
-        <TouchableOpacity style={styles.continueCourseBtn} onPress={handleContinueCourse}>
-          <Text style={styles.continueCourseBtnText}>아래 코스를 계속해서 진행해보세요</Text>
-        </TouchableOpacity>
-      ) : (
-        <TouchableOpacity style={styles.recommendCourseBtn} onPress={handleCourseRecommendation}>
-          <Text style={styles.recommendCourseBtnText}>지금 코스를 추천받아 보세요!</Text>
-        </TouchableOpacity>
-      )}
+             {hasOngoingCourse ? (
+         <TouchableOpacity style={styles.continueCourseBtn} onPress={handleContinueCourse}>
+           <Text style={styles.continueCourseBtnText}>아래 코스를 계속해서 진행해보세요</Text>
+         </TouchableOpacity>
+       ) : (
+         <TouchableOpacity style={styles.recommendCourseBtn} onPress={handleCourseRecommendation}>
+           <Text style={styles.recommendCourseBtnText}>지금 코스를 추천받아 보세요!</Text>
+         </TouchableOpacity>
+       )}
+       
+       {/* 미션 테스트 버튼들 */}
+       <View style={styles.missionTestSection}>
+         <Text style={styles.missionTestTitle}>🧪 미션 테스트 (에뮬레이터용)</Text>
+         <View style={styles.missionTestButtons}>
+           <TouchableOpacity style={styles.missionTestBtn} onPress={simulateMission}>
+             <Text style={styles.missionTestBtnText}>미션 시뮬레이션</Text>
+           </TouchableOpacity>
+           <TouchableOpacity style={styles.missionStatusBtn} onPress={checkMissionStatus}>
+             <Text style={styles.missionStatusBtnText}>미션 상태 확인</Text>
+           </TouchableOpacity>
+           <TouchableOpacity style={styles.spotInfoBtn} onPress={checkSpotInfo}>
+             <Text style={styles.spotInfoBtnText}>스팟 정보 확인</Text>
+           </TouchableOpacity>
+         </View>
+       </View>
     </View>
   );
 
@@ -428,6 +746,14 @@ export default function HomeScreen({ navigation }: any) {
           </>
         )}
       </ScrollView>
+      
+      {/* 미션 알림 컴포넌트 */}
+      <MissionNotification
+        visible={showMissionNotification}
+        mission={currentMission}
+        onClose={handleCloseMissionNotification}
+        onStartMission={handleStartMission}
+      />
     </View>
   );
 }
@@ -808,5 +1134,90 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: INCHEON_GRAY,
     marginLeft: 4,
+  },
+  
+  // 미션 테스트 버튼 스타일
+  missionTestSection: {
+    marginTop: 20,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+  },
+  missionTestTitle: {
+    fontFamily: 'NeoDunggeunmoPro-Regular',
+    fontSize: 14,
+    color: INCHEON_GRAY,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  missionTestButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    width: '100%',
+  },
+  missionTestBtn: {
+    backgroundColor: '#FF6B6B',
+    borderRadius: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    marginHorizontal: 8,
+    shadowColor: '#FF6B6B',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  missionTestBtnText: {
+    fontFamily: 'NeoDunggeunmoPro-Regular',
+    fontSize: 12,
+    color: '#fff',
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  missionStatusBtn: {
+    backgroundColor: '#4ECDC4',
+    borderRadius: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    marginHorizontal: 8,
+    shadowColor: '#4ECDC4',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  missionStatusBtnText: {
+    fontFamily: 'NeoDunggeunmoPro-Regular',
+    fontSize: 12,
+    color: '#fff',
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  spotInfoBtn: {
+    backgroundColor: '#9B59B6',
+    borderRadius: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    marginHorizontal: 8,
+    shadowColor: '#9B59B6',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  spotInfoBtnText: {
+    fontFamily: 'NeoDunggeunmoPro-Regular',
+    fontSize: 12,
+    color: '#fff',
+    fontWeight: '600',
+    textAlign: 'center',
   },
 }); 

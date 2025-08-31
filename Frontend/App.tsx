@@ -18,6 +18,8 @@ import FloatingChatBotButton from './src/components/ui/FloatingChatBotButton';
 import ChatScreen from './src/screens/Chat/ChatScreen';
 import { INCHEON_BLUE } from './src/styles/fonts';
 import LoginScreen from './src/screens/Auth/LoginScreen';
+import MissionScreen from './src/screens/Main/MissionScreen';
+import CameraScreen from './src/screens/Main/CameraScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -41,6 +43,8 @@ function MainTabNavigator() {
       <Stack.Screen name="ProfileSetup" component={ProfileSetupScreen} />
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="Map" component={MapScreen} />
+      <Stack.Screen name="Mission" component={MissionScreen} />
+      <Stack.Screen name="Camera" component={CameraScreen} />
     </Stack.Navigator>
   );
 }

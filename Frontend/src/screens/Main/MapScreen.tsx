@@ -28,9 +28,9 @@ const MapScreen: React.FC = () => {
   useEffect(() => {
     const params = route.params as RouteParams;
     console.log('[MapScreen] 받은 파라미터:', params);
-    
+
     let url = '';
-    
+
     if (params?.destination) {
       if (params.destinationLat && params.destinationLng) {
         // 좌표가 있는 경우: 현재위치에서 목적지까지
@@ -46,7 +46,7 @@ const MapScreen: React.FC = () => {
       url = 'https://map.kakao.com/link/map/인천,37.4563,126.7052';
       console.log('[MapScreen] 기본 지도 URL:', url);
     }
-    
+
     setMapUrl(url);
     setIsLoading(false);
   }, [route.params]);
@@ -71,8 +71,8 @@ const MapScreen: React.FC = () => {
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
-          {(route.params as RouteParams)?.destination 
-            ? `${(route.params as RouteParams).destination} 길찾기` 
+          {(route.params as RouteParams)?.destination
+            ? `${(route.params as RouteParams).destination} 길찾기`
             : '지도'
           }
         </Text>

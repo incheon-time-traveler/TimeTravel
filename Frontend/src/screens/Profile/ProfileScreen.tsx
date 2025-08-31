@@ -22,10 +22,13 @@ export default function ProfileScreen({ navigation, route }: any) {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   const loadUserProfile = async () => {
+    console.log('[ProfileScreen] loadUserProfile 함수 시작');
     try {
       setIsLoading(true);
+      console.log('[ProfileScreen] isLoading을 true로 설정');
       
       const tokens = await authService.getTokens();
+      console.log('[ProfileScreen] 토큰 가져오기 완료:', !!tokens?.access);
       if (!tokens?.access) {
         console.log('[ProfileScreen] 로그인되지 않음 - 토큰 없음');
         setIsLoggedIn(false);
@@ -34,6 +37,7 @@ export default function ProfileScreen({ navigation, route }: any) {
       }
 
       const user = await authService.getUser();
+      console.log('[ProfileScreen] 사용자 정보 가져오기 완료:', !!user, user?.id);
       if (!user) {
         console.log('[ProfileScreen] 사용자 정보 없음');
         setIsLoggedIn(false);
@@ -43,18 +47,27 @@ export default function ProfileScreen({ navigation, route }: any) {
 
       if (user.id) {
         try {
-          const response = await fetch(`${BACKEND_API.BASE_URL}/v1/users/profile/${user.id}/`, {
+          const apiUrl = `${BACKEND_API.BASE_URL}/v1/users/profile/${user.id}/`;
+          console.log('[ProfileScreen] API 요청 URL:', apiUrl);
+          console.log('[ProfileScreen] BACKEND_API.BASE_URL:', BACKEND_API.BASE_URL);
+          
+          const response = await fetch(apiUrl, {
             method: 'GET',
             headers: {
               'Authorization': `Bearer ${tokens.access}`,
             },
           });
 
+          console.log('[ProfileScreen] API 응답 상태:', response.status, response.statusText);
+          console.log('[ProfileScreen] API 응답 헤더:', Object.fromEntries(response.headers.entries()));
+
           if (response.ok) {
             const backendUser = await response.json();
+            console.log('[ProfileScreen] 백엔드 사용자 정보 받기 완료:', backendUser.nickname);
             setUserProfile(backendUser);
             setIsLoggedIn(true);
             await authService.saveUser(backendUser);
+            console.log('[ProfileScreen] 사용자 정보 저장 완료');
           } else if (response.status === 401) {
             console.log('[ProfileScreen] 토큰 만료 또는 유효하지 않음');
             setIsLoggedIn(false);
@@ -75,6 +88,11 @@ export default function ProfileScreen({ navigation, route }: any) {
           }
         } catch (error) {
           console.error('백엔드 프로필 로드 실패:', error);
+          console.error('에러 상세:', {
+            message: error?.message,
+            name: error?.name,
+            stack: error?.stack
+          });
           setIsLoggedIn(false);
           setUserProfile(null);
           return;
@@ -91,6 +109,7 @@ export default function ProfileScreen({ navigation, route }: any) {
       setUserProfile(null);
       return;
     } finally {
+      console.log('[ProfileScreen] loadUserProfile 함수 완료, isLoading을 false로 설정');
       setIsLoading(false);
     }
   };
@@ -149,15 +168,26 @@ export default function ProfileScreen({ navigation, route }: any) {
   // 화면이 포커스될 때마다 프로필 새로고침 (로그인된 경우에만)
   useFocusEffect(
     React.useCallback(() => {
-      if (isLoggedIn) {
-        console.log('[ProfileScreen] 화면 포커스됨 - 프로필 새로고침');
-        loadUserProfile();
-      }
-    }, [isLoggedIn])
+      console.log('[ProfileScreen] useFocusEffect 실행');
+      // 로그인 상태를 다시 확인
+      const checkLoginStatus = async () => {
+        const tokens = await authService.getTokens();
+        const user = await authService.getUser();
+        const isUserLoggedIn = !!(tokens?.access && user);
+        console.log('[ProfileScreen] useFocusEffect에서 로그인 상태 확인:', isUserLoggedIn);
+        
+        if (isUserLoggedIn) {
+          console.log('[ProfileScreen] 화면 포커스됨 - 프로필 새로고침');
+          loadUserProfile();
+        }
+      };
+      checkLoginStatus();
+    }, []) // isLoggedIn 의존성 제거
   );
 
   // 컴포넌트 마운트 시 프로필 로드 (초기 로드)
   useEffect(() => {
+    console.log('[ProfileScreen] useEffect 실행 - 초기 프로필 로드');
     loadUserProfile();
   }, []);
 

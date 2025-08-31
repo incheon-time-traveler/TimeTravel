@@ -42,6 +42,11 @@ let activeMissions: Mission[] = [];
 let completedMissions: Mission[] = [];
 let currentLocation: { lat: number; lng: number } | null = null;
 
+// 스팟 정보 캐싱
+let cachedSpots: any[] = [];
+let lastFetchTime: number = 0;
+const CACHE_DURATION = 5 * 60 * 1000; // 5분
+
 // 사용자의 현재 위치 설정
 export const setCurrentLocation = (lat: number, lng: number) => {
   currentLocation = { lat, lng };
@@ -177,25 +182,37 @@ export const createMissionsFromUserCourse = async (authToken?: string): Promise<
       lng: nextDestination.lng
     });
     
-    // 전체 스팟 목록에서 past_image_url이 있는 스팟들 가져오기
-    const allSpotsResponse = await fetch(`${BACKEND_API.BASE_URL}/v1/spots/`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${authToken}`,
-      },
-    });
-    
-    if (!allSpotsResponse.ok) {
-      console.error('[missions] 전체 스팟 정보 가져오기 실패:', allSpotsResponse.status);
-      return [];
+    // 캐시된 스팟 정보가 있고 유효한 경우 사용
+    const now = Date.now();
+    if (cachedSpots.length > 0 && (now - lastFetchTime) < CACHE_DURATION) {
+      console.log('[missions] 캐시된 스팟 정보 사용 (캐시 시간:', Math.round((now - lastFetchTime) / 1000), '초)');
+    } else {
+      // 전체 스팟 목록에서 past_image_url이 있는 스팟들 가져오기
+      const allSpotsResponse = await fetch(`${BACKEND_API.BASE_URL}/v1/spots/`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`,
+        },
+      });
+      
+      if (!allSpotsResponse.ok) {
+        console.error('[missions] 전체 스팟 정보 가져오기 실패:', allSpotsResponse.status);
+        // 401 에러인 경우 캐시된 데이터가 있으면 사용
+        if (allSpotsResponse.status === 401 && cachedSpots.length > 0) {
+          console.log('[missions] 401 에러로 인해 캐시된 스팟 정보 사용');
+        } else {
+          return [];
+        }
+      } else {
+        cachedSpots = await allSpotsResponse.json();
+        lastFetchTime = now;
+        console.log('[missions] 전체 스팟 개수:', cachedSpots.length);
+      }
     }
     
-    const allSpots = await allSpotsResponse.json();
-    console.log('[missions] 전체 스팟 개수:', allSpots.length);
-    
     // 다음 목적지의 상세 정보 찾기 (past_image_url 포함)
-    const nextDestinationDetail = allSpots.find((spot: any) => spot.id === nextDestination.id);
+    const nextDestinationDetail = cachedSpots.find((spot: any) => spot.id === nextDestination.id);
     
     if (!nextDestinationDetail) {
       console.log('[missions] 다음 목적지 상세 정보를 찾을 수 없습니다.');

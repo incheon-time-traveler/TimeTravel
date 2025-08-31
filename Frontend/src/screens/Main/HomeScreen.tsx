@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Dimensions, Alert, AppState } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import Geolocation from '@react-native-community/geolocation';
 import { INCHEON_BLUE, INCHEON_BLUE_LIGHT, INCHEON_GRAY, TEXT_STYLES } from '../../styles/fonts';
 import authService from '../../services/authService';
 import { BACKEND_API } from '../../config/apiKeys';
@@ -103,7 +104,7 @@ export default function HomeScreen({ navigation }: any) {
       clearInterval(locationIntervalRef.current);
     }
     
-    // 10초마다 위치 기반 미션 감지
+    // 60초마다 위치 기반 미션 감지 (10초 → 60초로 변경)
     locationIntervalRef.current = setInterval(async () => {
       if (currentLocation && isLoggedIn) {
         try {
@@ -117,9 +118,9 @@ export default function HomeScreen({ navigation }: any) {
           console.error('[HomeScreen] 위치 기반 미션 감지 실패:', error);
         }
       }
-    }, 10000); // 10초마다
+    }, 60000); // 60초마다 (10초 → 60초)
     
-    console.log('[HomeScreen] 위치 기반 미션 감지 시작');
+    console.log('[HomeScreen] 위치 기반 미션 감지 시작 (60초 간격)');
   };
 
   // 위치 기반 미션 감지 중지
@@ -134,9 +135,7 @@ export default function HomeScreen({ navigation }: any) {
   // 현재 위치 설정 (GPS나 네트워크 기반 위치 서비스에서 가져오기)
   const setUserLocation = async () => {
     try {
-      // 실제 위치 서비스 사용 (React Native Geolocation)
-      const { Geolocation } = require('react-native');
-      
+      // React Native Geolocation 사용
       Geolocation.getCurrentPosition(
         (position: any) => {
           const { latitude, longitude } = position.coords;
@@ -161,14 +160,15 @@ export default function HomeScreen({ navigation }: any) {
           setCurrentLocationState({ lat: defaultLat, lng: defaultLng });
           setCurrentLocation(defaultLat, defaultLng);
           
-          if (isLoggedIn) {
-            startLocationDetection();
-          }
+          // GPS 실패 시에는 미션 감지를 시작하지 않음 (무한 루프 방지)
+          // if (isLoggedIn) {
+          //   startLocationDetection();
+          // }
         },
         {
-          enableHighAccuracy: true,
-          timeout: 15000,
-          maximumAge: 10000,
+          enableHighAccuracy: false, // true → false로 변경하여 배터리 절약
+          timeout: 10000, // 15초 → 10초로 단축
+          maximumAge: 300000, // 10초 → 5분으로 증가 (캐시된 위치 사용)
         }
       );
     } catch (error) {
@@ -180,9 +180,10 @@ export default function HomeScreen({ navigation }: any) {
       setCurrentLocationState({ lat: defaultLat, lng: defaultLng });
       setCurrentLocation(defaultLat, defaultLng);
       
-      if (isLoggedIn) {
-        startLocationDetection();
-      }
+      // 위치 서비스 실패 시에도 미션 감지를 시작하지 않음 (무한 루프 방지)
+      // if (isLoggedIn) {
+      //   startLocationDetection();
+      // }
     }
   };
 
@@ -354,6 +355,96 @@ export default function HomeScreen({ navigation }: any) {
     }
   };
 
+  // 백엔드 연결 테스트 (상세)
+  const testBackendConnection = async () => {
+    try {
+      console.log('[HomeScreen] 백엔드 연결 테스트 시작');
+      console.log('[HomeScreen] 테스트 URL:', `${BACKEND_API.BASE_URL}/v1/photos/`);
+      
+      const startTime = Date.now();
+      const response = await fetch(`${BACKEND_API.BASE_URL}/v1/photos/`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      const endTime = Date.now();
+      
+      console.log('[HomeScreen] 백엔드 연결 테스트 결과:', {
+        status: response.status,
+        statusText: response.statusText,
+        responseTime: `${endTime - startTime}ms`,
+        url: `${BACKEND_API.BASE_URL}/v1/photos/`,
+        headers: Object.fromEntries(response.headers.entries())
+      });
+      
+      if (response.ok) {
+        Alert.alert(
+          '백엔드 연결 성공! 🎉',
+          `상태: ${response.status}\n응답 시간: ${endTime - startTime}ms\nURL: ${BACKEND_API.BASE_URL}/v1/photos/`
+        );
+      } else {
+        Alert.alert(
+          '백엔드 연결 실패 ❌',
+          `상태: ${response.status} ${response.statusText}\n응답 시간: ${endTime - startTime}ms\nURL: ${BACKEND_API.BASE_URL}/v1/photos/`
+        );
+      }
+      
+    } catch (error) {
+      console.error('[HomeScreen] 백엔드 연결 테스트 실패:', error);
+      Alert.alert(
+        '백엔드 연결 실패 ❌',
+        `에러: ${error?.message || '알 수 없는 오류'}\nURL: ${BACKEND_API.BASE_URL}/v1/photos/`
+      );
+    }
+  };
+
+  // 간단한 GET 요청 테스트
+  const testSimpleGetRequest = async () => {
+    try {
+      console.log('[HomeScreen] 간단한 GET 요청 테스트 시작');
+      console.log('[HomeScreen] 테스트 URL:', `${BACKEND_API.BASE_URL}/v1/routes/`);
+      
+      const startTime = Date.now();
+      const response = await fetch(`${BACKEND_API.BASE_URL}/v1/routes/`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      const endTime = Date.now();
+      
+      console.log('[HomeScreen] 간단한 GET 요청 테스트 결과:', {
+        status: response.status,
+        statusText: response.statusText,
+        responseTime: `${endTime - startTime}ms`,
+        url: `${BACKEND_API.BASE_URL}/v1/routes/`,
+        headers: Object.fromEntries(response.headers.entries())
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('[HomeScreen] 응답 데이터:', data);
+        Alert.alert(
+          'GET 요청 성공! 🎉',
+          `상태: ${response.status}\n응답 시간: ${endTime - startTime}ms\n데이터 개수: ${Array.isArray(data) ? data.length : 'N/A'}`
+        );
+      } else {
+        Alert.alert(
+          'GET 요청 실패 ❌',
+          `상태: ${response.status} ${response.statusText}\n응답 시간: ${endTime - startTime}ms`
+        );
+      }
+      
+    } catch (error) {
+      console.error('[HomeScreen] 간단한 GET 요청 테스트 실패:', error);
+      Alert.alert(
+        'GET 요청 실패 ❌',
+        `에러: ${error?.message || '알 수 없는 오류'}`
+      );
+    }
+  };
+
   const checkLoginStatus = async () => {
     try {
       // 토큰과 사용자 정보 모두 확인
@@ -430,9 +521,11 @@ export default function HomeScreen({ navigation }: any) {
     try {
       console.log('[HomeScreen] 추천 루트 데이터 가져오기 시작');
       console.log('[HomeScreen] API URL:', `${BACKEND_API.BASE_URL}/v1/routes/`);
+      console.log('[HomeScreen] BACKEND_API.BASE_URL:', BACKEND_API.BASE_URL);
       
       // 로그인 상태와 관계없이 기존 DB에 있는 루트를 GET으로 가져오기
       // 백엔드 urls.py의 path('', views.routes, name='routes') 사용
+      console.log('[HomeScreen] fetch 요청 시작...');
       const response = await fetch(`${BACKEND_API.BASE_URL}/v1/routes/`, {
         method: 'GET',
         headers: {
@@ -440,6 +533,7 @@ export default function HomeScreen({ navigation }: any) {
         },
       });
 
+      console.log('[HomeScreen] fetch 요청 완료!');
       console.log('[HomeScreen] API 응답 상태:', response.status, response.statusText);
       console.log('[HomeScreen] API 응답 헤더:', response.headers);
 
@@ -643,6 +737,12 @@ export default function HomeScreen({ navigation }: any) {
            </TouchableOpacity>
            <TouchableOpacity style={styles.spotInfoBtn} onPress={checkSpotInfo}>
              <Text style={styles.spotInfoBtnText}>스팟 정보 확인</Text>
+           </TouchableOpacity>
+           <TouchableOpacity style={styles.backendTestBtn} onPress={testBackendConnection}>
+             <Text style={styles.backendTestBtnText}>백엔드 연결 테스트</Text>
+           </TouchableOpacity>
+           <TouchableOpacity style={styles.simpleGetBtn} onPress={testSimpleGetRequest}>
+             <Text style={styles.simpleGetBtnText}>간단한 GET 요청</Text>
            </TouchableOpacity>
          </View>
        </View>
@@ -1214,6 +1314,50 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   spotInfoBtnText: {
+    fontFamily: 'NeoDunggeunmoPro-Regular',
+    fontSize: 12,
+    color: '#fff',
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  backendTestBtn: {
+    backgroundColor: '#2ECC71',
+    borderRadius: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    marginHorizontal: 8,
+    shadowColor: '#2ECC71',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  backendTestBtnText: {
+    fontFamily: 'NeoDunggeunmoPro-Regular',
+    fontSize: 12,
+    color: '#fff',
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  simpleGetBtn: {
+    backgroundColor: '#3498DB',
+    borderRadius: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    marginHorizontal: 8,
+    shadowColor: '#3498DB',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  simpleGetBtnText: {
     fontFamily: 'NeoDunggeunmoPro-Regular',
     fontSize: 12,
     color: '#fff',

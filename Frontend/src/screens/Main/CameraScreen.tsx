@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,9 +8,14 @@ import {
   Dimensions,
   Image,
   StatusBar,
+  PermissionsAndroid,
+  Platform,
 } from 'react-native';
+import { launchCamera, launchImageLibrary, ImagePickerResponse, CameraOptions } from 'react-native-image-picker';
 import { INCHEON_BLUE, INCHEON_GRAY } from '../../styles/fonts';
 import { Mission } from '../../types/mission';
+import { BACKEND_API } from '../../config/apiKeys';
+import authService from '../../services/authService';
 
 const { width, height } = Dimensions.get('window');
 
@@ -19,19 +24,28 @@ interface CameraScreenProps {
     params: {
       mission: Mission;
       selectedPhotoId: number;
+      selectedPhoto: {
+        id: number;
+        name: string;
+        past_image_url: string;
+        address: string;
+      };
     };
   };
   navigation: any;
 }
 
 const CameraScreen: React.FC<CameraScreenProps> = ({ route, navigation }) => {
-  const { mission, selectedPhotoId } = route.params;
+  const { mission, selectedPhotoId, selectedPhoto } = route.params;
   const [photoTaken, setPhotoTaken] = useState(false);
   const [currentMode, setCurrentMode] = useState<'past' | 'overlay' | 'current'>('overlay');
   const [zoomLevel, setZoomLevel] = useState(1);
   const [overlayOpacity, setOverlayOpacity] = useState(0.6);
+  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+  const [currentPhoto, setCurrentPhoto] = useState<string | null>(null);
 
   useEffect(() => {
+    requestCameraPermission();
     // 화면 진입 시 미션 완료 알림
     Alert.alert(
       '미션 완료! 🎉',
@@ -39,6 +53,33 @@ const CameraScreen: React.FC<CameraScreenProps> = ({ route, navigation }) => {
       [{ text: '확인' }]
     );
   }, []);
+
+  const requestCameraPermission = async () => {
+    if (Platform.OS === 'android') {
+      try {
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.CAMERA,
+          {
+            title: '카메라 권한',
+            message: '사진 촬영을 위해 카메라 권한이 필요합니다.',
+            buttonNeutral: '나중에',
+            buttonNegative: '거부',
+            buttonPositive: '허용',
+          }
+        );
+        if (granted === PermissionsAndroid.RESULTS.GRANTED) {
+          setHasPermission(true);
+        } else {
+          setHasPermission(false);
+        }
+      } catch (err) {
+        console.warn(err);
+        setHasPermission(false);
+      }
+    } else {
+      setHasPermission(true);
+    }
+  };
 
   const handleModeChange = (mode: 'past' | 'overlay' | 'current') => {
     setCurrentMode(mode);
@@ -56,47 +97,151 @@ const CameraScreen: React.FC<CameraScreenProps> = ({ route, navigation }) => {
     }
   };
 
-  const handleTakePhoto = () => {
-    setPhotoTaken(true);
-    Alert.alert('사진 촬영 완료!', '과거와 현재가 합쳐진 사진이 촬영되었습니다.');
+  const handleTakePhoto = async () => {
+    const options: CameraOptions = {
+      mediaType: 'photo',
+      quality: 0.8,
+      saveToPhotos: false,
+      includeBase64: false,
+    };
+
+    try {
+      const response: ImagePickerResponse = await launchCamera(options);
+      
+      if (response.didCancel) {
+        console.log('사용자가 카메라를 취소했습니다');
+        return;
+      }
+      
+      if (response.errorCode) {
+        console.error('카메라 오류:', response.errorMessage);
+        Alert.alert('오류', '카메라 실행 중 오류가 발생했습니다.');
+        return;
+      }
+      
+      if (response.assets && response.assets[0]) {
+        const photoUri = response.assets[0].uri;
+        if (photoUri) {
+          setCurrentPhoto(photoUri);
+          setPhotoTaken(true);
+          Alert.alert('사진 촬영 완료!', '과거와 현재가 합쳐진 사진이 촬영되었습니다.');
+        }
+      }
+    } catch (error) {
+      console.error('사진 촬영 실패:', error);
+      Alert.alert('오류', '사진 촬영에 실패했습니다.');
+    }
   };
 
   const handleRetakePhoto = () => {
     setPhotoTaken(false);
+    setCurrentPhoto(null);
   };
 
-  const handleSaveToGallery = () => {
-    Alert.alert(
-      '갤러리 저장',
-      '과거와 현재가 합쳐진 사진이 갤러리에 저장되었습니다!',
-      [
-        {
-          text: '확인',
-          onPress: () => {
-            navigation.navigate('MainTabs');
-          }
-        }
-      ]
-    );
+  const handleSaveToGallery = async () => {
+    try {
+      // 인증 토큰 가져오기
+      const tokens = await authService.getTokens();
+      if (!tokens?.access) {
+        Alert.alert('오류', '로그인이 필요합니다.');
+        return;
+      }
+
+      // 갤러리에 사진 저장 API 호출 (백엔드 URL 패턴에 맞춤)
+      console.log('[CameraScreen] API 호출:', {
+        url: `${BACKEND_API.BASE_URL}/v1/photos/${mission.id}/${selectedPhoto.id}`,
+        missionId: mission.id,
+        selectedPhotoId: selectedPhoto.id
+      });
+      
+      // FormData 사용 (ImageField 처리용)
+      const formData = new FormData();
+      if (currentPhoto) {
+        formData.append('image_url', {
+          uri: currentPhoto,
+          type: 'image/jpeg',
+          name: 'photo.jpg'
+        } as any);
+      }
+      
+      const response = await fetch(`${BACKEND_API.BASE_URL}/v1/photos/${mission.id}/${selectedPhoto.id}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${tokens.access}`,
+          // FormData 사용 시 Content-Type은 자동으로 설정됨
+        },
+        body: formData,
+      });
+
+      if (response.ok) {
+        Alert.alert(
+          '갤러리 저장 완료! 🎉',
+          '과거와 현재가 합쳐진 사진이 갤러리에 저장되었습니다!',
+          [
+            {
+              text: '갤러리 보기',
+              onPress: () => {
+                navigation.navigate('Gallery');
+              }
+            },
+            {
+              text: '홈으로',
+              onPress: () => {
+                navigation.navigate('MainTabs');
+              }
+            }
+          ]
+        );
+      } else {
+        console.error('[CameraScreen] 갤러리 저장 실패:', response.status);
+        Alert.alert('오류', '갤러리 저장에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('[CameraScreen] 갤러리 저장 에러:', error);
+      Alert.alert('오류', '갤러리 저장 중 오류가 발생했습니다.');
+    }
   };
 
   const handleBackToMap = () => {
     navigation.navigate('Map');
   };
 
-  const selectedPhoto = mission.historicalPhotos.find((p: any) => p.id === selectedPhotoId);
+  if (hasPermission === null) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.permissionText}>카메라 권한을 요청 중...</Text>
+      </View>
+    );
+  }
+
+  if (hasPermission === false) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.permissionText}>카메라 권한이 거부되었습니다.</Text>
+        <TouchableOpacity style={styles.permissionButton} onPress={requestCameraPermission}>
+          <Text style={styles.permissionButtonText}>권한 다시 요청</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
       
-      {/* 카메라 피드 (배경 이미지) */}
-      <View style={styles.cameraFeed}>
-        <Image
-          source={require('../../assets/images/대불호텔.jpg')}
-          style={styles.backgroundImage}
-          resizeMode="cover"
-        />
+      {/* 카메라 프리뷰 영역 */}
+      <View style={styles.cameraPreview}>
+        {currentPhoto ? (
+          // 촬영된 사진 표시
+          <Image source={{ uri: currentPhoto }} style={styles.capturedImage} resizeMode="cover" />
+        ) : (
+          // 카메라 프리뷰 (실제 카메라는 촬영 시에만 열림)
+          <View style={styles.cameraPlaceholder}>
+            <Text style={styles.cameraText}>📸 카메라 프리뷰</Text>
+            <Text style={styles.cameraSubText}>현재 위치의 모습이 여기에 표시됩니다</Text>
+            <Text style={styles.cameraInstruction}>촬영 버튼을 눌러 실제 카메라를 열어보세요</Text>
+          </View>
+        )}
         
         {/* 격자선 오버레이 */}
         <View style={styles.gridOverlay}>
@@ -112,7 +257,7 @@ const CameraScreen: React.FC<CameraScreenProps> = ({ route, navigation }) => {
         {currentMode === 'overlay' && selectedPhoto && (
           <View style={[styles.historicalOverlay, { opacity: overlayOpacity }]}>
             <Image
-              source={selectedPhoto.imageUrl as any}
+              source={{ uri: selectedPhoto.past_image_url }}
               style={[styles.historicalImage, { transform: [{ scale: zoomLevel }] }]}
               resizeMode="cover"
             />
@@ -132,7 +277,7 @@ const CameraScreen: React.FC<CameraScreenProps> = ({ route, navigation }) => {
         {currentMode === 'past' && selectedPhoto && (
           <View style={styles.historicalOnly}>
             <Image
-              source={selectedPhoto.imageUrl as any}
+              source={{ uri: selectedPhoto.past_image_url }}
               style={styles.historicalImage}
               resizeMode="cover"
             />
@@ -222,13 +367,57 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'black',
   },
-  cameraFeed: {
+  cameraPreview: {
     flex: 1,
     position: 'relative',
+    backgroundColor: '#000',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  backgroundImage: {
+  cameraPlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  cameraText: {
+    color: '#fff',
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  cameraSubText: {
+    color: '#ccc',
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  cameraInstruction: {
+    color: '#888',
+    fontSize: 14,
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
+  capturedImage: {
     width: '100%',
     height: '100%',
+  },
+  permissionText: {
+    color: 'white',
+    fontSize: 18,
+    textAlign: 'center',
+    marginTop: 100,
+  },
+  permissionButton: {
+    backgroundColor: INCHEON_BLUE,
+    padding: 15,
+    borderRadius: 10,
+    margin: 20,
+    alignItems: 'center',
+  },
+  permissionButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   gridOverlay: {
     position: 'absolute',

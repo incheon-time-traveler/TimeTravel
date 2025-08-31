@@ -17,18 +17,35 @@ def photos(request):
     serializer = PhotoSerializer(photos, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
 
-# post, api/v1/photos
+# post, api/v1/photos/{route_id}/{spot_id}
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def photo(request, route_id, spot_id):
     user_id = request.user.id
-    route_id = route_id
-    spot_id = spot_id
-    serializer = PhotoDetailSerializer(data=request.data)
+    
+    print(f"[photos] POST 요청 받음: route_id={route_id}, spot_id={spot_id}")
+    print(f"[photos] 요청 데이터: {request.data}")
+    print(f"[photos] 사용자 ID: {user_id}")
+    
+    # 요청 데이터에 route_id와 spot_id 추가
+    data = request.data.copy()
+    data['route_id'] = route_id
+    data['spot_id'] = spot_id
+    
+    # ImageField가 비어있을 수 있으므로 기본값 설정
+    if not data.get('image_url'):
+        data['image_url'] = None  # ImageField는 None을 허용
+    
+    print(f"[photos] 변환된 데이터: {data}")
+    
+    serializer = PhotoDetailSerializer(data=data)
     if serializer.is_valid():
+        print(f"[photos] 시리얼라이저 유효함")
         serializer.save(user_id=user_id, route_id=route_id, spot_id=spot_id)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    else:
+        print(f"[photos] 시리얼라이저 에러: {serializer.errors}")
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 # patch, api/v1/photos/{photo_id}
 @api_view(['PATCH', 'DELETE'])

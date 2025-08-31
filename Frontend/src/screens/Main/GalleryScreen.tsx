@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -8,74 +8,40 @@ import {
   Dimensions, 
   TouchableOpacity, 
   Modal, 
-  Alert 
+  Alert,
+  ActivityIndicator
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import CheckIcon from '../../components/ui/CheckIcon';
 import PixelLockIcon from '../../components/ui/PixelLockIcon';
 import { INCHEON_BLUE, INCHEON_BLUE_LIGHT, INCHEON_GRAY, TEXT_STYLES } from '../../styles/fonts';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { BACKEND_API } from '../../config/apiKeys';
+import authService from '../../services/authService';
 
 const { width, height } = Dimensions.get('window');
 
-const MISSION_DATA = [
-  { 
-    id: 1, 
-    title: '대불호텔',
-    image: require('../../assets/icons/대불호텔.jpg'), 
-    completed: true,
-    hasStamp: true,
-    stampUsed: false
-  },
-  { 
-    id: 2, 
-    title: '과거 찾기 미션 2', 
-    image: 'https://cdn.ggilbo.com/news/photo/202210/953273_905995_3932.jpg', 
-    completed: true,
-    hasStamp: false,
-    stampUsed: false
-  },
-  { 
-    id: 3, 
-    title: '과거 찾기 미션 3', 
-    image: '', 
-    completed: false,
-    hasStamp: false,
-    stampUsed: false
-  },
-  { 
-    id: 4, 
-    title: '과거 찾기 미션 4', 
-    image: '', 
-    completed: false,
-    hasStamp: false,
-    stampUsed: false
-  },
-  { 
-    id: 5, 
-    title: '과거 찾기 미션 5', 
-    image: '', 
-    completed: false,
-    hasStamp: false,
-    stampUsed: false
-  },
-  { 
-    id: 6, 
-    title: '과거 찾기 미션 6', 
-    image: '', 
-    completed: false,
-    hasStamp: false,
-    stampUsed: false
-  },
-];
+// 갤러리 데이터 타입
+interface GalleryItem {
+  id: number;
+  title: string;
+  image_url: string;
+  past_image_url: string;
+  completed: boolean;
+  hasStamp: boolean;
+  stampUsed: boolean;
+  route_id: number;
+  spot_id: number;
+}
 
-const TOTAL_COURSE = 52;
-const FOUND_COUNT = 8;
+const TOTAL_COURSE = 52; // 전체 코스 수 (API에서 가져올 수 있음)
 
 export default function GalleryScreen() {
-  const [selectedImage, setSelectedImage] = useState<any>(null);
+  const [selectedImage, setSelectedImage] = useState<GalleryItem | null>(null);
   const [imageModalVisible, setImageModalVisible] = useState(false);
-  const [missionData, setMissionData] = useState(MISSION_DATA);
+  const [galleryData, setGalleryData] = useState<GalleryItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [foundCount, setFoundCount] = useState(0);
 
   const handleImagePress = (item: any) => {
     if (item.completed && item.image) {
@@ -84,7 +50,61 @@ export default function GalleryScreen() {
     }
   };
 
+  // 갤러리 데이터 가져오기
+  const fetchGalleryData = async () => {
+    try {
+      setIsLoading(true);
+      const tokens = await authService.getTokens();
+      if (!tokens?.access) {
+        console.error('[GalleryScreen] 인증 토큰이 없습니다.');
+        return;
+      }
+
+      const response = await fetch(`${BACKEND_API.BASE_URL}/v1/photos/`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${tokens.access}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('[GalleryScreen] 갤러리 데이터:', data);
+        
+        // GalleryItem 형식으로 변환
+        const galleryItems: GalleryItem[] = data.map((item: any) => ({
+          id: item.id,
+          title: `스팟 ${item.spot_id}`, // spot_name이 없으므로 spot_id 사용
+          image_url: item.image_url || '',
+          past_image_url: '', // past_image_url은 별도로 저장되지 않음
+          completed: !!item.image_url,
+          hasStamp: true, // 모든 완료된 미션에 스탬프 부여
+          stampUsed: item.is_used || false, // 백엔드 필드명에 맞춤
+          route_id: item.route_id,
+          spot_id: item.spot_id
+        }));
+        
+        setGalleryData(galleryItems);
+        setFoundCount(galleryItems.filter(item => item.completed).length);
+      } else {
+        console.error('[GalleryScreen] 갤러리 데이터 가져오기 실패:', response.status);
+      }
+    } catch (error) {
+      console.error('[GalleryScreen] 갤러리 데이터 가져오기 에러:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 컴포넌트 마운트 시 데이터 가져오기
+  useEffect(() => {
+    fetchGalleryData();
+  }, []);
+
   const handleStampPress = () => {
+    if (!selectedImage) return;
+    
     Alert.alert(
       '스탬프 사용',
       '스탬프를 사장님께 보여주세요!\n(사용 버튼을 직접 누르지 않도록 조심해주세요)',
@@ -95,16 +115,44 @@ export default function GalleryScreen() {
         },
         {
           text: '사용',
-          onPress: () => {
-            // 스탬프 사용 처리
-            setMissionData(prev => 
-              prev.map(item => 
-                item.id === selectedImage.id 
-                  ? { ...item, stampUsed: true }
-                  : item
-              )
-            );
-            setImageModalVisible(false);
+          onPress: async () => {
+            try {
+              // 스탬프 사용 API 호출
+              const tokens = await authService.getTokens();
+              if (!tokens?.access) {
+                Alert.alert('오류', '로그인이 필요합니다.');
+                return;
+              }
+
+              const response = await fetch(`${BACKEND_API.BASE_URL}/v1/photos/${selectedImage.id}/`, {
+                method: 'PATCH',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${tokens.access}`,
+                },
+                body: JSON.stringify({
+                  stamp_used: true
+                }),
+              });
+
+              if (response.ok) {
+                // 로컬 상태 업데이트
+                setGalleryData(prev => 
+                  prev.map(item => 
+                    item.id === selectedImage.id 
+                      ? { ...item, stampUsed: true }
+                      : item
+                  )
+                );
+                setImageModalVisible(false);
+                Alert.alert('스탬프 사용 완료!', '스탬프가 사용되었습니다.');
+              } else {
+                Alert.alert('오류', '스탬프 사용에 실패했습니다.');
+              }
+            } catch (error) {
+              console.error('[GalleryScreen] 스탬프 사용 에러:', error);
+              Alert.alert('오류', '스탬프 사용 중 오류가 발생했습니다.');
+            }
           },
           style: 'destructive',
         },
@@ -136,26 +184,26 @@ export default function GalleryScreen() {
           <ScrollView contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
             <Text style={styles.title}>완료한 미션</Text>
             <View style={styles.underline} />
-            <Text style={styles.subtitle}>전체 코스 {TOTAL_COURSE}개 중 {FOUND_COUNT}개의 과거를 찾았어요</Text>
+            <Text style={styles.subtitle}>전체 코스 {TOTAL_COURSE}개 중 {foundCount}개의 과거를 찾았어요</Text>
             <View style={styles.gridWrap}>
-              {missionData.map((item) => (
+              {galleryData.map((item) => (
                 <TouchableOpacity
                   key={item.id}
                   style={styles.card}
                   onPress={() => handleImagePress(item)}
                   activeOpacity={0.8}
                 >
-                  {item.completed && item.image ? (
+                  {item.completed && item.image_url ? (
                     <View style={styles.imageContainer}>
                       <Image
-                        source={typeof item.image === 'string' ? { uri: item.image } : item.image}
+                        source={{ uri: item.image_url }}
                         style={styles.photo}
                         resizeMode="cover"
                       />
                       {item.hasStamp && !item.stampUsed && (
                         <View style={styles.stampOverlay}>
                           <View style={styles.stamp}>
-                            <Text style={styles.stampText}>대불호텔</Text>
+                            <Text style={styles.stampText}>{item.title}</Text>
                           </View>
                         </View>
                       )}
@@ -199,7 +247,7 @@ export default function GalleryScreen() {
 
                 <View style={styles.imageModalContainer}>
                   <Image
-                    source={typeof selectedImage?.image === 'string' ? { uri: selectedImage.image } : selectedImage?.image}
+                    source={{ uri: selectedImage?.image_url }}
                     style={styles.modalImage}
                     resizeMode="contain"
                   />

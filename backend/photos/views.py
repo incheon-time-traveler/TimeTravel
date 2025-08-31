@@ -31,12 +31,18 @@ def photo(request, route_id, spot_id):
     data = request.data.copy()
     data['route_id'] = route_id
     data['spot_id'] = spot_id
+    print(f"[photos] 요청 데이터: {request.data}")  # 일반 폼 데이터
+    print(f"[photos] 파일 데이터: {request.FILES}")  # 파일 데이터
+    print(f"[photos] 요청 헤더: {request.headers}")  # 요청 헤더 확인
     
-    # ImageField가 비어있을 수 있으므로 기본값 설정
-    if not data.get('image_url'):
-        data['image_url'] = None  # ImageField는 None을 허용
-    
-    print(f"[photos] 변환된 데이터: {data}")
+    # 수정 필요
+    if 'image' in request.FILES:
+        data['image_url'] = request.FILES['image']  # 모델 필드명에 맞춰서 수정
+    else:
+        return Response(
+            {"error": "이미지 파일이 필요합니다."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
     
     serializer = PhotoDetailSerializer(data=data)
     if serializer.is_valid():

@@ -1,9 +1,10 @@
 from django.urls import path
 from . import views
 
-
+# v1/routes/
 urlpatterns = [
     path('', views.routes, name='routes'),
+    path('best/', views.best_routes, name='best-routes'),
     path('<int:route_id>/', views.route_detail, name='route-detail'),
     path('<int:route_id>/users/', views.user_routes, name='user-routes'),
     path('generate_course/', views.generate_travel_course, name='generate-travel-course'),

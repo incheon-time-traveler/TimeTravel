@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,9 +8,14 @@ import {
   Dimensions,
   Image,
   StatusBar,
+  PermissionsAndroid,
+  Platform,
 } from 'react-native';
+import { launchCamera, launchImageLibrary, ImagePickerResponse, CameraOptions } from 'react-native-image-picker';
 import { INCHEON_BLUE, INCHEON_GRAY } from '../../styles/fonts';
 import { Mission } from '../../types/mission';
+import { BACKEND_API } from '../../config/apiKeys';
+import authService from '../../services/authService';
 
 const { width, height } = Dimensions.get('window');
 
@@ -19,19 +24,28 @@ interface CameraScreenProps {
     params: {
       mission: Mission;
       selectedPhotoId: number;
+      selectedPhoto: {
+        id: number;
+        name: string;
+        past_image_url: string;
+        address: string;
+      };
     };
   };
   navigation: any;
 }
 
 const CameraScreen: React.FC<CameraScreenProps> = ({ route, navigation }) => {
-  const { mission, selectedPhotoId } = route.params;
+  const { mission, selectedPhotoId, selectedPhoto } = route.params;
   const [photoTaken, setPhotoTaken] = useState(false);
   const [currentMode, setCurrentMode] = useState<'past' | 'overlay' | 'current'>('overlay');
   const [zoomLevel, setZoomLevel] = useState(1);
   const [overlayOpacity, setOverlayOpacity] = useState(0.6);
+  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+  const [currentPhoto, setCurrentPhoto] = useState<string | null>(null);
 
   useEffect(() => {
+    requestCameraPermission();
     // 화면 진입 시 미션 완료 알림
     Alert.alert(
       '미션 완료! 🎉',
@@ -39,6 +53,33 @@ const CameraScreen: React.FC<CameraScreenProps> = ({ route, navigation }) => {
       [{ text: '확인' }]
     );
   }, []);
+
+  const requestCameraPermission = async () => {
+    if (Platform.OS === 'android') {
+      try {
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.CAMERA,
+          {
+            title: '카메라 권한',
+            message: '사진 촬영을 위해 카메라 권한이 필요합니다.',
+            buttonNeutral: '나중에',
+            buttonNegative: '거부',
+            buttonPositive: '허용',
+          }
+        );
+        if (granted === PermissionsAndroid.RESULTS.GRANTED) {
+          setHasPermission(true);
+        } else {
+          setHasPermission(false);
+        }
+      } catch (err) {
+        console.warn(err);
+        setHasPermission(false);
+      }
+    } else {
+      setHasPermission(true);
+    }
+  };
 
   const handleModeChange = (mode: 'past' | 'overlay' | 'current') => {
     setCurrentMode(mode);
@@ -56,47 +97,375 @@ const CameraScreen: React.FC<CameraScreenProps> = ({ route, navigation }) => {
     }
   };
 
-  const handleTakePhoto = () => {
-    setPhotoTaken(true);
-    Alert.alert('사진 촬영 완료!', '과거와 현재가 합쳐진 사진이 촬영되었습니다.');
+  const handleTakePhoto = async () => {
+    const options: CameraOptions = {
+      mediaType: 'photo',
+      quality: 0.8,
+      saveToPhotos: false,
+      includeBase64: false,
+    };
+
+    try {
+      const response: ImagePickerResponse = await launchCamera(options);
+      
+      if (response.didCancel) {
+        console.log('사용자가 카메라를 취소했습니다');
+        return;
+      }
+      
+      if (response.errorCode) {
+        console.error('카메라 오류:', response.errorMessage);
+        Alert.alert('오류', '카메라 실행 중 오류가 발생했습니다.');
+        return;
+      }
+      
+      if (response.assets && response.assets[0]) {
+        const photoUri = response.assets[0].uri;
+        if (photoUri) {
+          setCurrentPhoto(photoUri);
+          setPhotoTaken(true);
+          Alert.alert('사진 촬영 완료!', '과거와 현재가 합쳐진 사진이 촬영되었습니다.');
+        }
+      }
+    } catch (error) {
+      console.error('사진 촬영 실패:', error);
+      Alert.alert('오류', '사진 촬영에 실패했습니다.');
+    }
   };
 
   const handleRetakePhoto = () => {
     setPhotoTaken(false);
+    setCurrentPhoto(null);
   };
 
-  const handleSaveToGallery = () => {
-    Alert.alert(
-      '갤러리 저장',
-      '과거와 현재가 합쳐진 사진이 갤러리에 저장되었습니다!',
-      [
-        {
-          text: '확인',
-          onPress: () => {
-            navigation.navigate('MainTabs');
-          }
+  const handleSaveToGallery = async () => {
+    try {
+      // 인증 토큰 가져오기
+      const tokens = await authService.getTokens();
+      if (!tokens?.access) {
+        Alert.alert('오류', '로그인이 필요합니다.');
+        return;
+      }
+
+      console.log('[CameraScreen] 토큰 확인:', {
+        hasAccessToken: !!tokens.access,
+        tokenLength: tokens.access?.length,
+        tokenPreview: tokens.access?.substring(0, 20) + '...'
+      });
+
+      // FormData 구성 확인
+      if (!currentPhoto) {
+        console.error('[CameraScreen] 현재 사진이 없습니다.');
+        Alert.alert('오류', '촬영된 사진이 없습니다.');
+        return;
+      }
+
+      console.log('[CameraScreen] 사진 정보:', {
+        photoUri: currentPhoto,
+        photoType: typeof currentPhoto,
+        photoLength: currentPhoto?.length
+      });
+
+
+      // 백엔드에서 사용자의 현재 진행 중인 코스 정보 가져오기
+      console.log('[CameraScreen] 사용자 코스 정보 가져오기 시작 (올바른 엔드포인트: /v1/routes/user_routes/)');
+      let routeId = null;
+      
+      // 토큰 갱신 시도
+      console.log('[CameraScreen] 토큰 갱신 시도...');
+      try {
+        await authService.refreshToken();
+        const refreshedTokens = await authService.getTokens();
+        if (refreshedTokens?.access) {
+          console.log('[CameraScreen] 토큰 갱신 성공');
+        } else {
+          console.log('[CameraScreen] 토큰 갱신 실패, 기존 토큰 사용');
         }
-      ]
-    );
+      } catch (refreshError) {
+        console.log('[CameraScreen] 토큰 갱신 중 오류 (기존 토큰 사용):', refreshError);
+      }
+      
+      try {
+        const userRoutesResponse = await fetch(`${BACKEND_API.BASE_URL}/v1/routes/user_routes/`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${tokens.access}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (userRoutesResponse.ok) {
+          const userRoutesData = await userRoutesResponse.json();
+          console.log('[CameraScreen] 사용자 코스 데이터:', userRoutesData);
+          
+          if (userRoutesData && userRoutesData.length > 0) {
+            // 가장 최근에 생성된 코스의 route_id 사용
+            routeId = userRoutesData[0].route_id;
+            console.log('[CameraScreen] 현재 진행 중인 코스 ID:', routeId);
+          } else {
+            console.warn('[CameraScreen] 사용자의 진행 중인 코스가 없습니다.');
+            Alert.alert('오류', '진행 중인 코스가 없습니다. 먼저 코스를 생성해주세요.');
+            return;
+          }
+        } else {
+          console.error('[CameraScreen] 사용자 코스 조회 실패:', {
+            status: userRoutesResponse.status,
+            statusText: userRoutesResponse.statusText,
+            headers: Object.fromEntries(userRoutesResponse.headers.entries())
+          });
+          
+          if (userRoutesResponse.status === 401) {
+            console.error('[CameraScreen] 401 인증 실패 상세:', {
+              tokenExists: !!tokens.access,
+              tokenLength: tokens.access?.length,
+              tokenPreview: tokens.access?.substring(0, 50) + '...',
+              authorizationHeader: `Bearer ${tokens.access}`,
+              requestUrl: `${BACKEND_API.BASE_URL}/v1/routes/user_routes/`
+            });
+            Alert.alert('인증 오류', '로그인이 만료되었습니다. 다시 로그인해주세요.');
+          } else {
+            Alert.alert('오류', '사용자 코스 정보를 가져올 수 없습니다.');
+          }
+          return;
+        }
+      } catch (routeError) {
+        console.error('[CameraScreen] 사용자 코스 조회 중 에러:', routeError);
+        Alert.alert('오류', '사용자 코스 정보를 가져오는 중 오류가 발생했습니다.');
+        return;
+      }
+
+      // FormData 사용 (ImageField 처리용)
+      const formData = new FormData();
+      const photoFile = {
+        uri: currentPhoto,
+        type: 'image/jpeg',
+        name: 'photo.jpg'
+      } as any;
+      
+      // FormData에 파일 추가
+      try {
+        formData.append('image_url', photoFile);
+        console.log('[CameraScreen] FormData에 파일 추가 성공');
+      } catch (formDataError) {
+        console.error('[CameraScreen] FormData 파일 추가 실패:', formDataError);
+        Alert.alert('오류', '사진 파일을 준비하는 중 오류가 발생했습니다.');
+        return;
+      }
+      
+      console.log('[CameraScreen] FormData 구성:', {
+        formDataType: typeof formData,
+        formDataConstructor: formData?.constructor?.name,
+        hasEntries: typeof formData?.entries === 'function',
+        formDataKeys: formData ? Object.keys(formData) : 'FormData 없음',
+        photoFile: photoFile
+      });
+
+      // ✅ 수정 완료: 백엔드에서 가져온 실제 route_id 사용
+      const spotId = mission.id; // mission.id는 실제로 spot_id
+      
+      const apiUrl = `${BACKEND_API.BASE_URL}/v1/photos/${routeId}/${spotId}/`;
+      console.log('[CameraScreen] API 요청 정보 (수정됨):', {
+        url: apiUrl,
+        method: 'POST',
+        routeId: routeId,
+        spotId: spotId,
+        baseUrl: BACKEND_API.BASE_URL,
+        fullUrl: apiUrl
+      });
+
+      // URL 구성 요소별 상세 로그 (백엔드 연동)
+      console.log('[CameraScreen] URL 구성 상세 (백엔드 연동):', {
+        'BACKEND_API.BASE_URL': BACKEND_API.BASE_URL,
+        'routeId (백엔드에서 가져옴)': routeId,
+        'spotId (mission.id)': spotId,
+        '경로 조각': '/v1/photos/',
+        '최종 URL': `${BACKEND_API.BASE_URL}/v1/photos/${routeId}/${spotId}`,
+        'URL 타입': typeof apiUrl,
+        'URL 길이': apiUrl.length
+      });
+
+      // URL 유효성 사전 체크 (백엔드 연동)
+      console.log('[CameraScreen] URL 유효성 사전 체크 (백엔드 연동):', {
+        baseUrlEmpty: !BACKEND_API.BASE_URL,
+        baseUrlType: typeof BACKEND_API.BASE_URL,
+        baseUrlValue: `"${BACKEND_API.BASE_URL}"`,
+        routeIdEmpty: !routeId,
+        routeIdType: typeof routeId,
+        routeIdValue: `"${routeId}"`,
+        spotIdEmpty: !spotId,
+        spotIdType: typeof spotId,
+        spotIdValue: `"${spotId}"`,
+        finalUrl: `"${apiUrl}"`
+      });
+
+      // ✅ 수정 완료: 백엔드 연동 URL 구성
+      console.log('[CameraScreen] ✅ 백엔드 연동 URL 구성 완료:', {
+        '이전 하드코딩된 URL': `${BACKEND_API.BASE_URL}/v1/photos/1/${mission.id}`,
+        '현재 백엔드 연동 URL': `"${apiUrl}"`,
+        '수정 내용': {
+          'route_id': `하드코딩 (1) → 백엔드 API (${routeId})`,
+          'spot_id': `mission.id (${mission.id})`
+        }
+      });
+
+      // 요청 헤더 확인
+      const headers = {
+        'Authorization': `Bearer ${tokens.access}`,
+        // FormData 사용 시 Content-Type은 자동으로 설정됨
+      };
+      
+      console.log('[CameraScreen] 요청 헤더:', headers);
+      
+      // 네트워크 요청 시작 시간 기록
+      const startTime = Date.now();
+      console.log('[CameraScreen] 네트워크 요청 시작:', new Date(startTime).toISOString());
+      console.log('[CameraScreen] 실제 요청할 URL:', `"${apiUrl}"`);
+      
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers,
+        body: formData,
+      });
+
+      const endTime = Date.now();
+      console.log('[CameraScreen] 네트워크 요청 완료:', {
+        duration: endTime - startTime,
+        timestamp: new Date(endTime).toISOString()
+      });
+
+      console.log('[CameraScreen] 응답 정보:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries())
+      });
+
+      if (response.ok) {
+        const responseData = await response.text();
+        console.log('[CameraScreen] 응답 데이터:', responseData);
+        
+        Alert.alert(
+          '갤러리 저장 완료! 🎉',
+          '과거와 현재가 합쳐진 사진이 갤러리에 저장되었습니다!',
+          [
+            {
+              text: '갤러리 보기',
+              onPress: () => {
+                navigation.navigate('Gallery');
+              }
+            },
+            {
+              text: '홈으로',
+              onPress: () => {
+                navigation.navigate('MainTabs');
+              }
+            }
+          ]
+        );
+      } else {
+        const errorText = await response.text();
+        console.error('[CameraScreen] 갤러리 저장 실패:', {
+          status: response.status,
+          statusText: response.statusText,
+          errorText: errorText,
+          headers: Object.fromEntries(response.headers.entries())
+        });
+        Alert.alert('오류', `갤러리 저장에 실패했습니다. (${response.status})`);
+      }
+    } catch (error) {
+      console.error('[CameraScreen] 갤러리 저장 에러 상세:', {
+        error: error,
+        errorType: typeof error,
+        errorMessage: error?.message,
+        errorStack: error?.stack,
+        errorName: error?.name,
+        errorCode: error?.code,
+        errorCause: error?.cause
+      });
+      
+      // 모든 에러에서 URL 정보 출력
+      console.error('[CameraScreen] 에러 발생 시 URL 정보:', {
+        'BACKEND_API.BASE_URL 값': `"${BACKEND_API.BASE_URL}"`,
+        'routeId 값 (백엔드에서 가져옴)': `"${routeId}"`,
+        'spotId 값 (mission.id)': `"${spotId}"`,
+        '전체 URL (백엔드 연동)': `"${BACKEND_API.BASE_URL}/v1/photos/${routeId}/${spotId}"`,
+        'URL 유효성': {
+          baseUrlEmpty: !BACKEND_API.BASE_URL,
+          baseUrlType: typeof BACKEND_API.BASE_URL,
+          routeIdEmpty: !routeId,
+          routeIdType: typeof routeId,
+          spotIdEmpty: !spotId,
+          spotIdType: typeof spotId
+        }
+      });
+      
+              // 네트워크 관련 에러인지 확인
+        if (error?.message?.includes('Network request failed')) {
+          console.error('[CameraScreen] 네트워크 요청 실패 상세:', {
+            apiUrl: `${BACKEND_API.BASE_URL}/v1/photos/${routeId}/${spotId}`,
+            baseUrl: BACKEND_API.BASE_URL,
+            networkState: '네트워크 연결 상태 확인 필요',
+            errorDetails: {
+              message: error.message,
+              name: error.name,
+              stack: error.stack
+            }
+          });
+        
+        // 네트워크 상태 추가 확인
+        console.log('[CameraScreen] 네트워크 상태 확인:', {
+          userAgent: navigator.userAgent,
+          onLine: navigator.onLine,
+          connection: (navigator as any).connection,
+          platform: Platform.OS,
+          version: Platform.Version
+        });
+      }
+      
+      Alert.alert('오류', '갤러리 저장 중 오류가 발생했습니다: ' + (error?.message || '알 수 없는 오류'));
+    }
   };
 
   const handleBackToMap = () => {
     navigation.navigate('Map');
   };
 
-  const selectedPhoto = mission.historicalPhotos.find((p: any) => p.id === selectedPhotoId);
+  if (hasPermission === null) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.permissionText}>카메라 권한을 요청 중...</Text>
+      </View>
+    );
+  }
+
+  if (hasPermission === false) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.permissionText}>카메라 권한이 거부되었습니다.</Text>
+        <TouchableOpacity style={styles.permissionButton} onPress={requestCameraPermission}>
+          <Text style={styles.permissionButtonText}>권한 다시 요청</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
       
-      {/* 카메라 피드 (배경 이미지) */}
-      <View style={styles.cameraFeed}>
-        <Image
-          source={require('../../assets/images/대불호텔.jpg')}
-          style={styles.backgroundImage}
-          resizeMode="cover"
-        />
+      {/* 카메라 프리뷰 영역 */}
+      <View style={styles.cameraPreview}>
+        {currentPhoto ? (
+          // 촬영된 사진 표시
+          <Image source={{ uri: currentPhoto }} style={styles.capturedImage} resizeMode="cover" />
+        ) : (
+          // 카메라 프리뷰 (실제 카메라는 촬영 시에만 열림)
+          <View style={styles.cameraPlaceholder}>
+            <Text style={styles.cameraText}>📸 카메라 프리뷰</Text>
+            <Text style={styles.cameraSubText}>현재 위치의 모습이 여기에 표시됩니다</Text>
+            <Text style={styles.cameraInstruction}>촬영 버튼을 눌러 실제 카메라를 열어보세요</Text>
+          </View>
+        )}
         
         {/* 격자선 오버레이 */}
         <View style={styles.gridOverlay}>
@@ -112,7 +481,7 @@ const CameraScreen: React.FC<CameraScreenProps> = ({ route, navigation }) => {
         {currentMode === 'overlay' && selectedPhoto && (
           <View style={[styles.historicalOverlay, { opacity: overlayOpacity }]}>
             <Image
-              source={selectedPhoto.imageUrl as any}
+              source={{ uri: selectedPhoto.past_image_url }}
               style={[styles.historicalImage, { transform: [{ scale: zoomLevel }] }]}
               resizeMode="cover"
             />
@@ -132,7 +501,7 @@ const CameraScreen: React.FC<CameraScreenProps> = ({ route, navigation }) => {
         {currentMode === 'past' && selectedPhoto && (
           <View style={styles.historicalOnly}>
             <Image
-              source={selectedPhoto.imageUrl as any}
+              source={{ uri: selectedPhoto.past_image_url }}
               style={styles.historicalImage}
               resizeMode="cover"
             />
@@ -222,13 +591,57 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'black',
   },
-  cameraFeed: {
+  cameraPreview: {
     flex: 1,
     position: 'relative',
+    backgroundColor: '#000',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  backgroundImage: {
+  cameraPlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  cameraText: {
+    color: '#fff',
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  cameraSubText: {
+    color: '#ccc',
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  cameraInstruction: {
+    color: '#888',
+    fontSize: 14,
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
+  capturedImage: {
     width: '100%',
     height: '100%',
+  },
+  permissionText: {
+    color: 'white',
+    fontSize: 18,
+    textAlign: 'center',
+    marginTop: 100,
+  },
+  permissionButton: {
+    backgroundColor: INCHEON_BLUE,
+    padding: 15,
+    borderRadius: 10,
+    margin: 20,
+    alignItems: 'center',
+  },
+  permissionButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   gridOverlay: {
     position: 'absolute',

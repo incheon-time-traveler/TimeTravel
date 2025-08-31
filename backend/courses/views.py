@@ -6,7 +6,7 @@ from .models import Route, RouteSpot, UserRouteSpot
 from .serializers import RouteSerializer, RouteDetailSerializer, UserRouteSpotSerializer
 from .utils import generate_course, save_course
 from rest_framework.permissions import IsAuthenticated, AllowAny
-
+from django.db.models import Count
 
 # Create your views here.
 """
@@ -17,9 +17,29 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def routes(request):
+    """
+    여행 코스 조회 API
+    프론트엔드에서 전체 코스를 조회합니다.
+    """
     # 전체 코스 조회
     if request.method == 'GET':
         routes = Route.objects.all()
+        serializer = RouteSerializer(routes, many=True)
+        return Response(serializer.data, status=200)
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def best_routes(request):
+    if request.method == 'GET':
+        # route_id 언급 순으로 상위 5개 추출
+        top_route_ids = (UserRouteSpot.objects
+                        .values('route_id')
+                        .annotate(count=Count('route_id'))
+                        .order_by('-count')[:5])
+        # 실제 route 객체 반환환
+        route_ids = [item['route_id'] for item in top_route_ids]
+        routes = Route.objects.filter(id__in=route_ids)
+
         serializer = RouteSerializer(routes, many=True)
         return Response(serializer.data, status=200)
 
@@ -27,6 +47,10 @@ def routes(request):
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def route_detail(request, route_id):
+    """
+    여행 코스 상세 조회 API
+    프론트엔드에서 특정 코스의 상세 정보를 조회합니다.
+    """
     try:
         # Route 모델을 먼저 찾기
         route = get_object_or_404(Route, id=route_id)
@@ -70,6 +94,10 @@ def route_detail(request, route_id):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def generate_user_course(request):
+    """
+    유저 코스 생성 API
+    프론트엔드에서 사용자와 코스 정보를 통해 사용자용 코스를 생성합니다.
+    """
     if request.method == "POST":
         try:
             user = request.user
@@ -112,6 +140,7 @@ def generate_user_course(request):
                 try:
                     user_route_data = {
                         'user_id': user,  # CustomUser 인스턴스 전달
+                        'route_id': route,  # Route 인스턴스 전달
                         'route_spot_id': route_spot,  # RouteSpot 인스턴스 전달
                         'order': route_spot.order,  # order 필드 추가
                     }
@@ -119,7 +148,8 @@ def generate_user_course(request):
                     # 이미 존재하는지 확인
                     existing_user_route = UserRouteSpot.objects.filter(
                         user_id=user,
-                        route_spot_id=route_spot
+                        route_spot_id=route_spot,
+                        route_id=route
                     ).first()
                     
                     if not existing_user_route:
@@ -164,6 +194,10 @@ def generate_user_course(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def user_routes(request, route_id=None):
+    """
+    유저 코스 조회 API
+    프론트엔드에서 사용자의 코스를 조회합니다.
+    """
     try:
         user = request.user
         print(f"[user_routes] 사용자 {user.id}의 코스 조회 시작, route_id: {route_id}")
@@ -228,6 +262,10 @@ def user_routes(request, route_id=None):
 @api_view(['PATCH'])
 @permission_classes([IsAuthenticated])
 def unlock_route_spot(request):
+    """
+    유저 코스 잠금 해제 API
+    프론트엔드에서 사용자가 이동하는 코스의 특정 스팟의 잠금을 해제합니다.
+    """
     if request.method == "PATCH":
         user = request.user
         serializer = UserRouteSpotUpdateSerializer(data=request.data, partial=True)
@@ -241,7 +279,7 @@ def unlock_route_spot(request):
 @permission_classes([AllowAny])
 def generate_travel_course(request):
     """
-    여행 코스 생성 API
+    유저 코스 생성 API
     프론트엔드에서 사용자의 답변과 위치 정보를 받아 코스를 생성합니다.
     """
     try:

@@ -15,10 +15,10 @@ from spots.models import Spot
 
 class Photo(models.Model):
     id = models.AutoField(primary_key=True)
-    user_id = models.ForeignKey(settings.AUTH_USER_MODEL, null=False, on_delete=models.CASCADE, related_name='user_photos')
+    user_id = models.ForeignKey('accounts.CustomUser', null=False, on_delete=models.CASCADE, related_name='user_photos')
     route_id = models.ForeignKey(Route, null=True, blank=True, on_delete=models.CASCADE, related_name='user_photos')
     spot_id = models.ForeignKey(Spot, on_delete=models.CASCADE, related_name='user_photos')
-    image_url = models.ImageField(upload_to='photos/') # 사진 저장 URL(uploads/photos/에 저장됨)
+    image_url = models.ImageField(upload_to='photos/', blank=True) # 사진 저장 URL
     is_used = models.BooleanField(default=False) # 스탬프 사용 여부
     created_at = models.DateTimeField(auto_now_add=True) # 생성 일시    
     used_at = models.DateTimeField(auto_now=True) # 스탬프 사용 일시

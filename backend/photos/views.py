@@ -36,8 +36,8 @@ def photo(request, route_id, spot_id):
     print(f"[photos] 요청 헤더: {request.headers}")  # 요청 헤더 확인
     
     # 수정 필요
-    if 'image' in request.FILES:
-        data['image_url'] = request.FILES['image']  # 모델 필드명에 맞춰서 수정
+    if 'image_url' in request.FILES:
+        data['image_url'] = request.FILES['image_url']  # 모델 필드명에 맞춰서 수정
     else:
         return Response(
             {"error": "이미지 파일이 필요합니다."},

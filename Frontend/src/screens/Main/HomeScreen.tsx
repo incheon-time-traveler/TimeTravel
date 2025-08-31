@@ -4,6 +4,7 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import { INCHEON_BLUE, INCHEON_BLUE_LIGHT, INCHEON_GRAY, TEXT_STYLES } from '../../styles/fonts';
 import authService from '../../services/authService';
 import { BACKEND_API } from '../../config/apiKeys';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 
 const { width } = Dimensions.get('window');
@@ -278,14 +279,14 @@ export default function HomeScreen({ navigation }: any) {
               </Text>
             </View>
             <View style={styles.spotStatus}>
-                             {index === 0 ? (
-                 <TouchableOpacity 
-                   style={styles.nextDestinationBtn}
-                   onPress={() => handleNextDestination(spot)}
-                 >
-                   <Text style={styles.nextDestinationText}>다음 목적지</Text>
-                 </TouchableOpacity>
-               ) : (
+              {index === 0 ? (
+                <TouchableOpacity
+                  style={styles.nextDestinationBtn}
+                  onPress={() => handleNextDestination(spot)}
+                >
+                  <Text style={styles.nextDestinationText}>다음 목적지</Text>
+                </TouchableOpacity>
+              ) : (
                 <View style={styles.lockedIcon}>
                   <Ionicons name="lock-closed" size={16} color="#FFD700" />
                 </View>
@@ -294,7 +295,7 @@ export default function HomeScreen({ navigation }: any) {
           </View>
         ))}
       </View>
-      
+
       <TouchableOpacity style={styles.continueBtn} onPress={handleContinueCourse}>
         <Text style={styles.continueBtnText}>코스 계속하기</Text>
       </TouchableOpacity>
@@ -342,6 +343,8 @@ export default function HomeScreen({ navigation }: any) {
   );
 
   return (
+  <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+
     <View style={styles.container}>
       <ScrollView contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
 
@@ -358,71 +361,71 @@ export default function HomeScreen({ navigation }: any) {
             <Text style={styles.sectionTitle}>추천 코스</Text>
             <View style={styles.underline} />
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.cardScroll}>
-                             {recommendedCourses.length > 0 ? (
-                 recommendedCourses.map((course) => (
-                   <TouchableOpacity 
-                     key={course.id} 
-                     style={styles.courseCard}
-                     onPress={() => handleRouteCardPress(course.id)}
-                     activeOpacity={0.7}
-                   >
-                     <View style={styles.imageBox}>
-                       <TouchableOpacity 
-                         style={styles.bookmarkIcon}
-                         onPress={(e) => {
-                           e.stopPropagation();
-                           Alert.alert('북마크', '북마크에 루트가 추가되었습니다.');
-                         }}
-                       >
-                         <Ionicons name="bookmark-outline" size={20} color="#fff" />
-                       </TouchableOpacity>
-                       <View style={styles.priceIndicator}>
-                         <Text style={styles.priceText}>$~~~</Text>
-                       </View>
-                       <Ionicons name="image-outline" size={36} color="#bbb" />
-                     </View>
-                     <Text style={styles.courseTitle} numberOfLines={1}>{course.title}</Text>
-                     <View style={styles.locationContainer}>
-                       <Ionicons name="location-outline" size={14} color={INCHEON_GRAY} />
-                       <Text style={styles.locationText} numberOfLines={1}>{course.location || '위치 정보 없음'}</Text>
-                     </View>
-                     <TouchableOpacity style={styles.startBtn} disabled>
-                       <Text style={styles.startBtnText}>시작하기</Text>
-                     </TouchableOpacity>
-                   </TouchableOpacity>
-                 ))
-               ) : (sampleCourses.map((course) => (
-                   <TouchableOpacity 
-                     key={course.id} 
-                     style={styles.courseCard}
-                     onPress={() => handleRouteCardPress(course.id)}
-                     activeOpacity={0.7}
-                   >
-                     <View style={styles.imageBox}>
-                       <TouchableOpacity 
-                         style={styles.bookmarkIcon}
-                         onPress={(e) => {
-                           e.stopPropagation();
-                           Alert.alert('북마크', '북마크에 루트가 추가되었습니다.');
-                         }}
-                       >
-                         <Ionicons name="bookmark-outline" size={20} color="#fff" />
-                       </TouchableOpacity>
-                       <View style={styles.priceIndicator}>
-                         <Text style={styles.priceText}>$~~~</Text>
-                       </View>
-                       <Ionicons name="image-outline" size={36} color="#bbb" />
-                     </View>
-                     <Text style={styles.courseTitle} numberOfLines={1}>{course.title}</Text>
-                     <View style={styles.locationContainer}>
-                       <Ionicons name="location-outline" size={14} color={INCHEON_GRAY} />
-                       <Text style={styles.locationText} numberOfLines={1}>인천</Text>
-                     </View>
-                     <TouchableOpacity style={styles.startBtn} disabled>
-                       <Text style={styles.startBtnText}>시작하기</Text>
-                     </TouchableOpacity>
-                   </TouchableOpacity>
-                 ))
+              {recommendedCourses.length > 0 ? (
+                recommendedCourses.map((course) => (
+                  <TouchableOpacity
+                    key={course.id}
+                    style={styles.courseCard}
+                    onPress={() => handleRouteCardPress(course.id)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.imageBox}>
+                      <TouchableOpacity
+                        style={styles.bookmarkIcon}
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          Alert.alert('북마크', '북마크에 추가하기 위해선 로그인이 필요해요.');
+                        }}
+                      >
+                        <Ionicons name="bookmark-outline" size={20} color="#fff" />
+                      </TouchableOpacity>
+                      <View style={styles.priceIndicator}>
+                        <Text style={styles.priceText}>$~~~</Text>
+                      </View>
+                      <Ionicons name="image-outline" size={36} color="#bbb" />
+                    </View>
+                    <Text style={styles.courseTitle} numberOfLines={1}>{course.title}</Text>
+                    <View style={styles.locationContainer}>
+                      <Ionicons name="location-outline" size={14} color={INCHEON_GRAY} />
+                      <Text style={styles.locationText} numberOfLines={1}>{course.location || '위치 정보 없음'}</Text>
+                    </View>
+                    <TouchableOpacity style={styles.startBtn} disabled>
+                      <Text style={styles.startBtnText}>시작하기</Text>
+                    </TouchableOpacity>
+                  </TouchableOpacity>
+                ))
+              ) : (sampleCourses.map((course) => (
+                  <TouchableOpacity
+                    key={course.id}
+                    style={styles.courseCard}
+                    onPress={() => handleRouteCardPress(course.id)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.imageBox}>
+                      <TouchableOpacity
+                        style={styles.bookmarkIcon}
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          Alert.alert('북마크', '북마크에 추가하기 위해선 로그인이 필요해요.');
+                        }}
+                      >
+                        <Ionicons name="bookmark-outline" size={20} color="#fff" />
+                      </TouchableOpacity>
+                      <View style={styles.priceIndicator}>
+                        <Text style={styles.priceText}>$~~~</Text>
+                      </View>
+                      <Ionicons name="image-outline" size={36} color="#bbb" />
+                    </View>
+                    <Text style={styles.courseTitle} numberOfLines={1}>{course.title}</Text>
+                    <View style={styles.locationContainer}>
+                      <Ionicons name="location-outline" size={14} color={INCHEON_GRAY} />
+                      <Text style={styles.locationText} numberOfLines={1}>인천</Text>
+                    </View>
+                    <TouchableOpacity style={styles.startBtn} disabled>
+                      <Text style={styles.startBtnText}>시작하기</Text>
+                    </TouchableOpacity>
+                  </TouchableOpacity>
+                ))
               )}
             </ScrollView>
             {isLoggedIn ? renderLoggedInHeader() : renderLoggedOutHeader()}
@@ -430,6 +433,8 @@ export default function HomeScreen({ navigation }: any) {
         )}
       </ScrollView>
     </View>
+  </SafeAreaView>
+
   );
 }
 
@@ -451,9 +456,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   topTitle: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 20,
-    color: INCHEON_GRAY,
+    ...TEXT_STYLES.heading,
     marginBottom: 16,
     textAlign: 'center',
   },
@@ -461,7 +464,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     ...TEXT_STYLES.subtitle,
     textAlign: 'center',
-    marginTop: 50,
+    marginTop: 30,
     marginBottom: 4,
     marginLeft: 8,
   },
@@ -564,15 +567,13 @@ underline: {
     marginBottom: 12,
   },
   ongoingCourseTitle: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 18,
+    ...TEXT_STYLES.heading,
     color: INCHEON_GRAY,
     fontWeight: '600',
     textAlign: 'center',
   },
   courseSubtitle: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 14,
+    ...TEXT_STYLES.body,
     color: INCHEON_GRAY,
     marginTop: 4,
   },
@@ -586,21 +587,17 @@ underline: {
     marginBottom: 8,
   },
   spotOrderGray: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 16,
+    ...TEXT_STYLES.body,
     color: INCHEON_GRAY,
-    fontWeight: '600',
     marginRight: 8,
   },
   spotTitleGray: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 15,
+    ...TEXT_STYLES.body,
     color: INCHEON_GRAY,
     flex: 1,
   },
   moreSpots: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 14,
+    ...TEXT_STYLES.small,
     color: INCHEON_GRAY,
     marginTop: 4,
   },
@@ -620,10 +617,8 @@ underline: {
     elevation: 6,
   },
   continueBtnText: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 16,
+    ...TEXT_STYLES.button,
     color: '#fff',
-    fontWeight: '600',
   },
   // 로그인된 상태 스타일
   loggedInHeader: {
@@ -659,10 +654,8 @@ underline: {
     elevation: 6,
   },
   userAvatarText: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 28,
+    ...TEXT_STYLES.title,
     color: '#fff',
-    fontWeight: 'bold',
   },
   userGreeting: {
     flex: 1,
@@ -673,15 +666,12 @@ underline: {
     marginBottom: 6,
   },
   userName: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 18,
+    ...TEXT_STYLES.heading,
     color: INCHEON_GRAY,
     marginLeft: 6,
-    fontWeight: '600',
   },
   greetingText: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 16,
+    ...TEXT_STYLES.heading,
     color: INCHEON_GRAY,
   },
   continueCourseBtn: {
@@ -700,10 +690,8 @@ underline: {
     elevation: 6,
   },
   continueCourseBtnText: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 16,
+    ...TEXT_STYLES.button,
     color: '#fff',
-    fontWeight: '600',
   },
   recommendCourseBtn: {
     backgroundColor: INCHEON_BLUE,
@@ -721,10 +709,8 @@ underline: {
     elevation: 6,
   },
   recommendCourseBtnText: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 16,
+    ...TEXT_STYLES.button,
     color: '#fff',
-    fontWeight: '600',
   },
   spotsList: {
     width: '100%',
@@ -740,24 +726,19 @@ underline: {
     marginRight: 12,
   },
   spotOrder: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 16,
+    ...TEXT_STYLES.button,
     color: '#fff',
-    fontWeight: 'bold',
   },
   spotInfo: {
     flex: 1,
     marginRight: 12,
   },
   spotTitle: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 15,
+    ...TEXT_STYLES.heading,
     color: INCHEON_GRAY,
-    fontWeight: '600',
   },
   spotLocation: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 13,
+    ...TEXT_STYLES.small,
     color: INCHEON_GRAY,
     marginTop: 2,
   },
@@ -772,10 +753,8 @@ underline: {
     paddingHorizontal: 12,
   },
   nextDestinationText: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 14,
+    ...TEXT_STYLES.small,
     color: '#fff',
-    fontWeight: '600',
   },
   lockedIcon: {
     marginTop: 8,
@@ -784,7 +763,6 @@ underline: {
     position: 'absolute',
     top: 10,
     left: 10,
-    backgroundColor: 'rgba(0,0,0,0.5)',
     borderRadius: 10,
     padding: 5,
   },
@@ -798,15 +776,13 @@ underline: {
     paddingHorizontal: 8,
   },
   priceText: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 12,
+    ...TEXT_STYLES.small,
     color: '#fff',
     fontWeight: 'bold',
   },
   locationText: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 12,
+    ...TEXT_STYLES.small,
     color: INCHEON_GRAY,
     marginLeft: 4,
   },
-}); 
+});

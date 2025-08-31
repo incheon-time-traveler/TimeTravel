@@ -47,7 +47,10 @@ def photo(request, route_id, spot_id):
     serializer = PhotoDetailSerializer(data=data)
     if serializer.is_valid():
         print(f"[photos] 시리얼라이저 유효함")
-        serializer.save(user_id=user_id, route_id=route_id, spot_id=spot_id)
+        serializer.save(user_id=CustomUser.objects.get(pk=user_id),  # ✅ 인스턴스 대입
+                        route_id=Route.objects.get(pk=route_id),
+                        spot_id=Spot.objects.get(pk=spot_id),
+                        )
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     else:
         print(f"[photos] 시리얼라이저 에러: {serializer.errors}")

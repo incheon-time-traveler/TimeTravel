@@ -44,14 +44,13 @@ def spot_detail(request, spot_id):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-def get_mission_photos(request):
+def get_mission_photos(request, spot_id):
     """
     미션 사진 조회 API
     미션 스팟의 과거 사진을 포함한 총 4개의 사진을 반환합니다.
     """
     try:
         # 정답 과거 사진 가져오기
-        spot_id = request.GET.get('spot_id')
         target_spot = Spot.objects.filter(is_mission_available=True, id=spot_id).first()
         # 에러 처리
         if not target_spot or not target_spot.past_image_url:

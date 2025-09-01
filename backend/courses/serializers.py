@@ -16,11 +16,9 @@ class RouteDetailSerializer(serializers.ModelSerializer):
 class UserRouteSpotSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserRouteSpot
-        fields = '__all__'
         exclude = ['user_id']
 
 class UserRouteSpotUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserRouteSpot
-        fields = '__all__'
         exclude = ['user_id']

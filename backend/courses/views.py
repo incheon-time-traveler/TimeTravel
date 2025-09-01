@@ -7,6 +7,7 @@ from .serializers import RouteSerializer, RouteDetailSerializer, UserRouteSpotSe
 from .utils import generate_course, save_course
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.db.models import Count
+from spots.models import Spot
 
 # Create your views here.
 """
@@ -288,7 +289,8 @@ def unlock_spots(request):
         user_route_spots = UserRouteSpot.objects.filter(user_id=user.id, unlock_at__isnull=False)
         serializer = UserRouteSpotSerializer(user_route_spots, many=True)
         for spot in serializer.data:
-            past_photo_url = Spot.objects.get(id=spot['spot_id']).photo_url
+            spot_id = RouteSpot.objects.get(id=spot['route_spot_id'])
+            past_photo_url = Spot.objects.get(id=spot_id.spot_id.id).past_image_url
             spot['past_photo_url'] = past_photo_url
         return Response(serializer.data, status=status.HTTP_200_OK)
     else:

@@ -288,7 +288,8 @@ def unlock_spots(request):
         user_route_spots = UserRouteSpot.objects.filter(user_id=user.id, unlock_at__isnull=False)
         serializer = UserRouteSpotSerializer(user_route_spots, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
-
+    else:
+        return Response({'error': 'GET 메서드만 지원됩니다.'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 @api_view(['POST'])
 @permission_classes([AllowAny])

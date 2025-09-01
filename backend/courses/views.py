@@ -292,6 +292,7 @@ def unlock_spots(request):
             spot_id = RouteSpot.objects.get(id=spot['route_spot_id'])
             past_photo_url = Spot.objects.get(id=spot_id.spot_id.id).past_image_url
             spot['past_photo_url'] = past_photo_url
+            spot['spot_name'] = spot_id.spot_id.name
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 

@@ -38,12 +38,12 @@ def photo(request, route_id, spot_id):
     print(f"[photos] 파일 데이터: {request.FILES}")  # 파일 데이터
     print(f"[photos] 요청 헤더: {request.headers}")  # 요청 헤더 확인
     
-    # 수정 필요
-    if 'image_url' in request.FILES:
-        data['image_url'] = request.FILES['image_url']  # 모델 필드명에 맞춰서 수정
+    # JSON 방식: image_url을 문자열로 받음
+    if 'image_url' in data and data['image_url']:
+        print(f"[photos] 받은 이미지 URL: {data['image_url']}")
     else:
         return Response(
-            {"error": "이미지 파일이 필요합니다."},
+            {"error": "이미지 URL이 필요합니다."},
             status=status.HTTP_400_BAD_REQUEST
         )
     

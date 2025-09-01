@@ -161,12 +161,24 @@ export default function GalleryScreen() {
   };
 
   const renderStamp = () => {
-    if (!selectedImage?.hasStamp || selectedImage?.stampUsed) {
+    if (!selectedImage?.hasStamp) {
       return null;
     }
 
+    if (selectedImage?.stampUsed) {
+      // 사용 완료된 스탬프
+      return (
+        <View style={styles.stampContainer}>
+          <View style={[styles.stamp, styles.stampUsed]}>
+            <Text style={[styles.stampText, styles.stampUsedText]}>사용완료</Text>
+          </View>
+        </View>
+      );
+    }
+
+    // 사용 가능한 스탬프
     return (
-      <TouchableOpacity 
+      <TouchableOpacity
         style={styles.stampContainer}
         onPress={handleStampPress}
         activeOpacity={0.8}
@@ -200,10 +212,13 @@ export default function GalleryScreen() {
                         style={styles.photo}
                         resizeMode="cover"
                       />
-                      {item.hasStamp && !item.stampUsed && (
+                      {item.hasStamp && (
                         <View style={styles.stampOverlay}>
-                          <View style={styles.stamp}>
-                            <Text style={styles.stampText}>{item.title}</Text>
+                          <View style={[styles.stamp, item.stampUsed && styles.stampUsed]}>
+                            <Text style={[styles.stampText, item.stampUsed && styles.stampUsedText]}>
+                              {item.stampUsed ? '사용완료' : '대불호텔'}
+                            </Text>
+
                           </View>
                         </View>
                       )}
@@ -251,6 +266,7 @@ export default function GalleryScreen() {
                     style={styles.modalImage}
                     resizeMode="contain"
                   />
+
                   {renderStamp()}
                 </View>
               </View>
@@ -398,13 +414,18 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 5,
   },
+  stampUsed: {
+    backgroundColor: INCHEON_GRAY, // 회색으로 변경
+  },
   stampText: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 10,
+    ...TEXT_STYLES.button,
     color: '#fff',
-    fontWeight: 'bold',
     textAlign: 'center',
   },
+  stampUsedText: {
+    fontSize: 12, // 텍스트가 길어서 폰트 크기 조정
+  },
+
   // 모달 스타일
   modalOverlay: {
     flex: 1,
@@ -449,4 +470,4 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-}); 
+});

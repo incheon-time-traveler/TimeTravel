@@ -293,6 +293,7 @@ def unlock_spots(request):
             past_photo_url = Spot.objects.get(id=spot_id.spot_id.id).past_image_url
             spot['past_photo_url'] = past_photo_url
             spot['spot_name'] = spot_id.spot_id.name
+            spot['is_used'] = spot_id.is_used
         return Response(serializer.data, status=status.HTTP_200_OK)
     else:
         return Response({'error': 'GET 메서드만 지원됩니다.'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)

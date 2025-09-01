@@ -5,7 +5,6 @@ import Geolocation from '@react-native-community/geolocation';
 import { INCHEON_BLUE, INCHEON_BLUE_LIGHT, INCHEON_GRAY, TEXT_STYLES } from '../../styles/fonts';
 import authService from '../../services/authService';
 import { BACKEND_API } from '../../config/apiKeys';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { 
   setCurrentLocation, 
   startLocationBasedMissionDetection, 
@@ -214,12 +213,8 @@ export default function HomeScreen({ navigation }: any) {
         return;
       }
       
-      console.log('[HomeScreen] 토큰 확인 완료:', tokens.access ? '있음' : '없음');
-      
       // 먼저 사용자의 진행중인 코스에서 미션 생성 (토큰 전달)
-      console.log('[HomeScreen] createMissionsFromUserCourse 호출 시작...');
       const missions = await createMissionsFromUserCourse(tokens.access);
-      console.log('[HomeScreen] createMissionsFromUserCourse 결과:', missions);
       
       if (missions.length === 0) {
         Alert.alert(
@@ -231,32 +226,19 @@ export default function HomeScreen({ navigation }: any) {
 
       // 첫 번째 미션을 현재 미션으로 설정
       const testMission = missions[0];
-      console.log('[HomeScreen] 테스트 미션 전체 데이터:', testMission);
-      console.log('[HomeScreen] 테스트 미션 location:', testMission.location);
-      console.log('[HomeScreen] 테스트 미션 location.name:', testMission.location?.name);
-      
-      if (!testMission.location?.name) {
-        console.error('[HomeScreen] 미션 location.name이 없음:', testMission);
-        Alert.alert('오류', '미션 위치 정보가 올바르지 않습니다.');
-        return;
-      }
+      console.log('[HomeScreen] 테스트 미션 설정:', testMission.location.name);
       
       setCurrentMission(testMission);
       setShowMissionNotification(true);
       
       // 성공 메시지
       Alert.alert(
-        '미션 시뮬레이션 성공! 🎉', 
+        '미션 시뮬레이션 성공!', 
         `${testMission.location.name} 미션이 발견되었습니다!\n미션 알림을 확인해보세요.`
       );
       
     } catch (error) {
       console.error('[HomeScreen] 미션 시뮬레이션 실패:', error);
-      console.error('[HomeScreen] 에러 상세:', {
-        message: error?.message,
-        stack: error?.stack,
-        name: error?.name
-      });
       Alert.alert('오류', '미션 시뮬레이션 중 오류가 발생했습니다.');
     }
   };
@@ -264,14 +246,8 @@ export default function HomeScreen({ navigation }: any) {
   // 미션 상태 확인 (디버깅용)
   const checkMissionStatus = async () => {
     try {
-      console.log('[HomeScreen] 미션 상태 확인 시작');
-      
       const activeMissions = getActiveMissions();
       const completedMissions = getCompletedMissions();
-      
-      console.log('[HomeScreen] 활성 미션 개수:', activeMissions.length);
-      console.log('[HomeScreen] 완료된 미션 개수:', completedMissions.length);
-      console.log('[HomeScreen] 현재 위치:', currentLocation);
       
       let message = '🎯 미션 상태 확인\n\n';
       message += `📍 현재 위치: ${currentLocation ? `${currentLocation.lat.toFixed(4)}, ${currentLocation.lng.toFixed(4)}` : '설정되지 않음'}\n\n`;
@@ -284,9 +260,6 @@ export default function HomeScreen({ navigation }: any) {
           // 디버깅: 미션 객체 전체 구조 확인
           console.log(`[HomeScreen] 미션 ${index + 1} 전체 데이터:`, mission);
           console.log(`[HomeScreen] 미션 ${index + 1} location:`, mission.location);
-          console.log(`[HomeScreen] 미션 ${index + 1} location.name:`, mission.location?.name);
-          console.log(`[HomeScreen] 미션 ${index + 1} location.lat:`, mission.location?.lat);
-          console.log(`[HomeScreen] 미션 ${index + 1} location.lng:`, mission.location?.lng);
           
           const missionName = mission.location?.name || '이름 없음';
           const missionLat = mission.location?.lat || 0;
@@ -294,169 +267,17 @@ export default function HomeScreen({ navigation }: any) {
           
           message += `${index + 1}. ${missionName} (${missionLat.toFixed(4)}, ${missionLng.toFixed(4)})\n`;
         });
-      } else {
-        message += '📋 활성 미션이 없습니다.\n';
-        message += '💡 미션 시뮬레이션을 실행해보세요!\n';
       }
       
       Alert.alert('미션 상태', message);
       
     } catch (error) {
       console.error('[HomeScreen] 미션 상태 확인 실패:', error);
-      console.error('[HomeScreen] 에러 상세:', {
-        message: error?.message,
-        stack: error?.stack,
-        name: error?.name
-      });
       Alert.alert('오류', '미션 상태 확인 중 오류가 발생했습니다.');
     }
   };
 
-  // 스팟 정보 확인 (디버깅용)
-  const checkSpotInfo = async () => {
-    try {
-      console.log('[HomeScreen] 스팟 정보 확인 시작');
-      
-      // 로그인 상태 확인 및 토큰 가져오기
-      const tokens = await authService.getTokens();
-      if (!tokens?.access) {
-        Alert.alert('오류', '로그인이 필요합니다.');
-        return;
-      }
-      
-      console.log('[HomeScreen] 토큰 확인 완료:', tokens.access ? '있음' : '없음');
-      console.log('[HomeScreen] API URL:', `${BACKEND_API.BASE_URL}/v1/spots/`);
-      
-      // /v1/spots/ API 호출하여 전체 스팟 정보 가져오기 (인증 토큰 포함)
-      const response = await fetch(`${BACKEND_API.BASE_URL}/v1/spots/`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${tokens.access}`,
-        },
-      });
 
-      console.log('[HomeScreen] 스팟 API 응답 상태:', response.status, response.statusText);
-      console.log('[HomeScreen] 스팟 API 응답 헤더:', Object.fromEntries(response.headers.entries()));
-
-      if (response.ok) {
-        const data = await response.json();
-        console.log('[HomeScreen] 전체 스팟 데이터:', data);
-        console.log('[HomeScreen] 스팟 데이터 타입:', typeof data);
-        console.log('[HomeScreen] 스팟 데이터 길이:', Array.isArray(data) ? data.length : '배열 아님');
-        
-        if (!Array.isArray(data)) {
-          console.error('[HomeScreen] 스팟 데이터가 배열이 아님:', data);
-          Alert.alert('오류', '스팟 데이터 형식이 올바르지 않습니다.');
-          return;
-        }
-        
-        // past_image_url이 있는 스팟들 필터링
-        const spotsWithPastImage = data.filter((spot: any) => 
-          spot.past_image_url && spot.past_image_url.trim() !== ''
-        );
-        
-        // past_image_url이 없는 스팟들
-        const spotsWithoutPastImage = data.filter((spot: any) => 
-          !spot.past_image_url || spot.past_image_url.trim() === ''
-        );
-        
-        console.log('[HomeScreen] 과거사진 있는 스팟:', spotsWithPastImage.length);
-        console.log('[HomeScreen] 과거사진 없는 스팟:', spotsWithoutPastImage.length);
-        
-        let message = '🗺️ 스팟 정보 확인\n\n';
-        message += `📊 전체 스팟: ${data.length}개\n`;
-        message += `🖼️ 과거사진 있는 스팟: ${spotsWithPastImage.length}개\n`;
-        message += `❌ 과거사진 없는 스팟: ${spotsWithoutPastImage.length}개\n\n`;
-        
-        if (spotsWithPastImage.length > 0) {
-          message += '🖼️ 과거사진 있는 스팟들:\n';
-          spotsWithPastImage.slice(0, 10).forEach((spot: any, index: number) => {
-            message += `${index + 1}. ${spot.name || spot.title || `스팟 ${spot.id}`}\n`;
-            message += `   📍 ${spot.address || '주소 없음'}\n`;
-            message += `   🖼️ ${spot.past_image_url?.substring(0, 50)}...\n\n`;
-          });
-          
-          if (spotsWithPastImage.length > 10) {
-            message += `... 외 ${spotsWithPastImage.length - 10}개 더\n\n`;
-          }
-        }
-        
-        if (spotsWithoutPastImage.length > 0) {
-          message += '❌ 과거사진 없는 스팟들 (샘플):\n';
-          spotsWithoutPastImage.slice(0, 5).forEach((spot: any, index: number) => {
-            message += `${index + 1}. ${spot.name || spot.title || `스팟 ${spot.id}`}\n`;
-            message += `   📍 ${spot.address || '주소 없음'}\n\n`;
-          });
-          
-          if (spotsWithoutPastImage.length > 5) {
-            message += `... 외 ${spotsWithoutPastImage.length - 5}개 더\n\n`;
-          }
-        }
-        
-        Alert.alert('스팟 정보', message);
-        
-      } else {
-        console.error('[HomeScreen] 스팟 정보 가져오기 실패:', response.status, response.statusText);
-        Alert.alert('오류', `스팟 정보를 가져올 수 없습니다. (${response.status})`);
-      }
-      
-    } catch (error) {
-      console.error('[HomeScreen] 스팟 정보 확인 실패:', error);
-      console.error('[HomeScreen] 에러 상세:', {
-        message: error?.message,
-        stack: error?.stack,
-        name: error?.name
-      });
-      Alert.alert('오류', '스팟 정보 확인 중 오류가 발생했습니다.');
-    }
-  };
-
-  // 간단한 GET 요청 테스트
-  const testSimpleGetRequest = async () => {
-    try {
-      console.log('[HomeScreen] 간단한 GET 요청 테스트 시작');
-      console.log('[HomeScreen] 테스트 URL:', `${BACKEND_API.BASE_URL}/v1/routes/`);
-      
-      const startTime = Date.now();
-      const response = await fetch(`${BACKEND_API.BASE_URL}/v1/routes/`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      const endTime = Date.now();
-      
-      console.log('[HomeScreen] 간단한 GET 요청 테스트 결과:', {
-        status: response.status,
-        statusText: response.statusText,
-        responseTime: `${endTime - startTime}ms`,
-        url: `${BACKEND_API.BASE_URL}/v1/routes/`,
-        headers: Object.fromEntries(response.headers.entries())
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        console.log('[HomeScreen] 응답 데이터:', data);
-        Alert.alert(
-          'GET 요청 성공! 🎉',
-          `상태: ${response.status}\n응답 시간: ${endTime - startTime}ms\n데이터 개수: ${Array.isArray(data) ? data.length : 'N/A'}`
-        );
-      } else {
-        Alert.alert(
-          'GET 요청 실패 ❌',
-          `상태: ${response.status} ${response.statusText}\n응답 시간: ${endTime - startTime}ms`
-        );
-      }
-      
-    } catch (error) {
-      console.error('[HomeScreen] 간단한 GET 요청 테스트 실패:', error);
-      Alert.alert(
-        'GET 요청 실패 ❌',
-        `에러: ${error?.message || '알 수 없는 오류'}`
-      );
-    }
-  };
 
   const checkLoginStatus = async () => {
     try {
@@ -687,14 +508,14 @@ export default function HomeScreen({ navigation }: any) {
               </Text>
             </View>
             <View style={styles.spotStatus}>
-              {index === 0 ? (
-                <TouchableOpacity
-                  style={styles.nextDestinationBtn}
-                  onPress={() => handleNextDestination(spot)}
-                >
-                  <Text style={styles.nextDestinationText}>다음 목적지</Text>
-                </TouchableOpacity>
-              ) : (
+                             {index === 0 ? (
+                 <TouchableOpacity 
+                   style={styles.nextDestinationBtn}
+                   onPress={() => handleNextDestination(spot)}
+                 >
+                   <Text style={styles.nextDestinationText}>다음 목적지</Text>
+                 </TouchableOpacity>
+               ) : (
                 <View style={styles.lockedIcon}>
                   <Ionicons name="lock-closed" size={16} color="#FFD700" />
                 </View>
@@ -703,7 +524,7 @@ export default function HomeScreen({ navigation }: any) {
           </View>
         ))}
       </View>
-
+      
       <TouchableOpacity style={styles.continueBtn} onPress={handleContinueCourse}>
         <Text style={styles.continueBtnText}>코스 계속하기</Text>
       </TouchableOpacity>
@@ -727,7 +548,6 @@ export default function HomeScreen({ navigation }: any) {
           <Text style={styles.greetingText}>어디로 떠나볼까요?</Text>
         </View>
       </View>
-
 
              {hasOngoingCourse ? (
          <TouchableOpacity style={styles.continueCourseBtn} onPress={handleContinueCourse}>
@@ -756,7 +576,7 @@ export default function HomeScreen({ navigation }: any) {
 
   // 로그인되지 않은 상태일 때 상단 섹션
   const renderLoggedOutHeader = () => (
-    <View style={styles.loginSection}>
+    <View style={styles.topSection}>
       <Text style={styles.topTitle}>어디로 떠나볼까요?</Text>
       <TouchableOpacity style={styles.loginBtn} onPress={handleLoginPress}>
         <Text style={styles.loginBtnText}>로그인으로 여행을 시작해보세요</Text>
@@ -765,15 +585,13 @@ export default function HomeScreen({ navigation }: any) {
   );
 
   return (
-  <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-
     <View style={styles.container}>
       <ScrollView contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
+        {isLoggedIn ? renderLoggedInHeader() : renderLoggedOutHeader()}
 
         {isLoggedIn && hasOngoingCourse ? (
           <>
-            <Text style={styles.sectionTitle}>진행 중인 코스</Text>
-            <View style={styles.underline} />
+            <Text style={styles.sectionTitle}>진행중인 코스</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.cardScroll}>
               {ongoingCourses.map(renderOngoingCourseCard)}
             </ScrollView>
@@ -781,76 +599,75 @@ export default function HomeScreen({ navigation }: any) {
         ) : (
           <>
             <Text style={styles.sectionTitle}>추천 코스</Text>
-            <View style={styles.underline} />
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.cardScroll}>
-              {recommendedCourses.length > 0 ? (
-                recommendedCourses.map((course) => (
-                  <TouchableOpacity
-                    key={course.id}
-                    style={styles.courseCard}
-                    onPress={() => handleRouteCardPress(course.id)}
-                    activeOpacity={0.7}
-                  >
-                    <View style={styles.imageBox}>
-                      <TouchableOpacity
-                        style={styles.bookmarkIcon}
-                        onPress={(e) => {
-                          e.stopPropagation();
-                          Alert.alert('북마크', '북마크에 추가하기 위해선 로그인이 필요해요.');
-                        }}
-                      >
-                        <Ionicons name="bookmark-outline" size={20} color="#fff" />
-                      </TouchableOpacity>
-                      <View style={styles.priceIndicator}>
-                        <Text style={styles.priceText}>$~~~</Text>
-                      </View>
-                      <Ionicons name="image-outline" size={36} color="#bbb" />
-                    </View>
-                    <Text style={styles.courseTitle} numberOfLines={1}>{course.title}</Text>
-                    <View style={styles.locationContainer}>
-                      <Ionicons name="location-outline" size={14} color={INCHEON_GRAY} />
-                      <Text style={styles.locationText} numberOfLines={1}>{course.location || '위치 정보 없음'}</Text>
-                    </View>
-                    <TouchableOpacity style={styles.startBtn} disabled>
-                      <Text style={styles.startBtnText}>시작하기</Text>
-                    </TouchableOpacity>
-                  </TouchableOpacity>
-                ))
-              ) : (sampleCourses.map((course) => (
-                  <TouchableOpacity
-                    key={course.id}
-                    style={styles.courseCard}
-                    onPress={() => handleRouteCardPress(course.id)}
-                    activeOpacity={0.7}
-                  >
-                    <View style={styles.imageBox}>
-                      <TouchableOpacity
-                        style={styles.bookmarkIcon}
-                        onPress={(e) => {
-                          e.stopPropagation();
-                          Alert.alert('북마크', '북마크에 추가하기 위해선 로그인이 필요해요.');
-                        }}
-                      >
-                        <Ionicons name="bookmark-outline" size={20} color="#fff" />
-                      </TouchableOpacity>
-                      <View style={styles.priceIndicator}>
-                        <Text style={styles.priceText}>$~~~</Text>
-                      </View>
-                      <Ionicons name="image-outline" size={36} color="#bbb" />
-                    </View>
-                    <Text style={styles.courseTitle} numberOfLines={1}>{course.title}</Text>
-                    <View style={styles.locationContainer}>
-                      <Ionicons name="location-outline" size={14} color={INCHEON_GRAY} />
-                      <Text style={styles.locationText} numberOfLines={1}>인천</Text>
-                    </View>
-                    <TouchableOpacity style={styles.startBtn} disabled>
-                      <Text style={styles.startBtnText}>시작하기</Text>
-                    </TouchableOpacity>
-                  </TouchableOpacity>
-                ))
+                             {recommendedCourses.length > 0 ? (
+                 recommendedCourses.map((course) => (
+                   <TouchableOpacity 
+                     key={course.id} 
+                     style={styles.courseCard}
+                     onPress={() => handleRouteCardPress(course.id)}
+                     activeOpacity={0.7}
+                   >
+                     <View style={styles.imageBox}>
+                       <TouchableOpacity 
+                         style={styles.bookmarkIcon}
+                         onPress={(e) => {
+                           e.stopPropagation();
+                           Alert.alert('북마크', '이 루트를 북마크에 추가했습니다!');
+                         }}
+                       >
+                         <Ionicons name="bookmark-outline" size={20} color="#fff" />
+                       </TouchableOpacity>
+                       <View style={styles.priceIndicator}>
+                         <Text style={styles.priceText}>$~~~</Text>
+                       </View>
+                       <Ionicons name="image-outline" size={36} color="#bbb" />
+                     </View>
+                     <Text style={styles.courseTitle} numberOfLines={1}>{course.title}</Text>
+                     <View style={styles.locationContainer}>
+                       <Ionicons name="location-outline" size={14} color={INCHEON_GRAY} />
+                       <Text style={styles.locationText} numberOfLines={1}>{course.location || '위치 정보 없음'}</Text>
+                     </View>
+                     <TouchableOpacity style={styles.startBtn} disabled>
+                       <Text style={styles.startBtnText}>Start</Text>
+                     </TouchableOpacity>
+                   </TouchableOpacity>
+                 ))
+               ) : (
+                                 sampleCourses.map((course) => (
+                   <TouchableOpacity 
+                     key={course.id} 
+                     style={styles.courseCard}
+                     onPress={() => handleRouteCardPress(course.id)}
+                     activeOpacity={0.7}
+                   >
+                     <View style={styles.imageBox}>
+                       <TouchableOpacity 
+                         style={styles.bookmarkIcon}
+                         onPress={(e) => {
+                           e.stopPropagation();
+                           Alert.alert('북마크', '이 루트를 북마크에 추가했습니다!');
+                         }}
+                       >
+                         <Ionicons name="bookmark-outline" size={20} color="#fff" />
+                       </TouchableOpacity>
+                       <View style={styles.priceIndicator}>
+                         <Text style={styles.priceText}>$~~~</Text>
+                       </View>
+                       <Ionicons name="image-outline" size={36} color="#bbb" />
+                     </View>
+                     <Text style={styles.courseTitle} numberOfLines={1}>{course.title}</Text>
+                     <View style={styles.locationContainer}>
+                       <Ionicons name="location-outline" size={14} color={INCHEON_GRAY} />
+                       <Text style={styles.locationText} numberOfLines={1}>인천</Text>
+                     </View>
+                     <TouchableOpacity style={styles.startBtn} disabled>
+                       <Text style={styles.startBtnText}>Start</Text>
+                     </TouchableOpacity>
+                   </TouchableOpacity>
+                 ))
               )}
             </ScrollView>
-            {isLoggedIn ? renderLoggedInHeader() : renderLoggedOutHeader()}
           </>
         )}
       </ScrollView>
@@ -863,8 +680,6 @@ export default function HomeScreen({ navigation }: any) {
         onStartMission={handleStartMission}
       />
     </View>
-  </SafeAreaView>
-
   );
 }
 
@@ -880,32 +695,32 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     padding: 8,
   },
-  loginSection: {
+  topSection: {
     alignItems: 'center',
-    marginTop: 70,
+    marginTop: 32,
     marginBottom: 24,
   },
   topTitle: {
-    ...TEXT_STYLES.heading,
+    fontFamily: 'NeoDunggeunmoPro-Regular',
+    fontSize: 20,
+    color: INCHEON_GRAY,
     marginBottom: 16,
     textAlign: 'center',
   },
-
-  sectionTitle: {
-    ...TEXT_STYLES.subtitle,
-    textAlign: 'center',
-    marginTop: 30,
-    marginBottom: 4,
-    marginLeft: 8,
+  loginSection: {
+    flex:1,
+    justifyContent: 'center',
+    minHeight: 400,
+    alignItems: 'center',
   },
-underline: {
-  height: 3,
-  backgroundColor: INCHEON_BLUE,
-  width: 120,
-  alignSelf: 'center',
-  marginBottom: 16,
-  borderRadius: 2,
-},
+  sectionTitle: {
+    fontFamily: 'NeoDunggeunmoPro-Regular',
+    fontSize: 16,
+    color: INCHEON_GRAY,
+    marginBottom: 12,
+    marginLeft: 8,
+    fontWeight: '600',
+  },
   loginTitle: {
     ...TEXT_STYLES.subtitle,
   },
@@ -969,12 +784,15 @@ underline: {
     borderColor: '#e0e0e0',
     borderWidth: 0.3,
     borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 32,
-    marginTop: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 24,
+    marginTop: 4,
   },
   startBtnText: {
-      ...TEXT_STYLES.button,
+    fontFamily: 'NeoDunggeunmoPro-Regular',
+    fontSize: 14,
+    color: '#fff',
+    fontWeight: '600',
   },
   // 진행중인 코스 카드 스타일
   ongoingCourseCard: {
@@ -997,13 +815,15 @@ underline: {
     marginBottom: 12,
   },
   ongoingCourseTitle: {
-    ...TEXT_STYLES.heading,
+    fontFamily: 'NeoDunggeunmoPro-Regular',
+    fontSize: 18,
     color: INCHEON_GRAY,
     fontWeight: '600',
     textAlign: 'center',
   },
   courseSubtitle: {
-    ...TEXT_STYLES.body,
+    fontFamily: 'NeoDunggeunmoPro-Regular',
+    fontSize: 14,
     color: INCHEON_GRAY,
     marginTop: 4,
   },
@@ -1017,17 +837,21 @@ underline: {
     marginBottom: 8,
   },
   spotOrderGray: {
-    ...TEXT_STYLES.body,
+    fontFamily: 'NeoDunggeunmoPro-Regular',
+    fontSize: 16,
     color: INCHEON_GRAY,
+    fontWeight: '600',
     marginRight: 8,
   },
   spotTitleGray: {
-    ...TEXT_STYLES.body,
+    fontFamily: 'NeoDunggeunmoPro-Regular',
+    fontSize: 15,
     color: INCHEON_GRAY,
     flex: 1,
   },
   moreSpots: {
-    ...TEXT_STYLES.small,
+    fontFamily: 'NeoDunggeunmoPro-Regular',
+    fontSize: 14,
     color: INCHEON_GRAY,
     marginTop: 4,
   },
@@ -1047,8 +871,10 @@ underline: {
     elevation: 6,
   },
   continueBtnText: {
-    ...TEXT_STYLES.button,
+    fontFamily: 'NeoDunggeunmoPro-Regular',
+    fontSize: 16,
     color: '#fff',
+    fontWeight: '600',
   },
   // 로그인된 상태 스타일
   loggedInHeader: {
@@ -1084,8 +910,10 @@ underline: {
     elevation: 6,
   },
   userAvatarText: {
-    ...TEXT_STYLES.title,
+    fontFamily: 'NeoDunggeunmoPro-Regular',
+    fontSize: 28,
     color: '#fff',
+    fontWeight: 'bold',
   },
   userGreeting: {
     flex: 1,
@@ -1096,12 +924,15 @@ underline: {
     marginBottom: 6,
   },
   userName: {
-    ...TEXT_STYLES.heading,
+    fontFamily: 'NeoDunggeunmoPro-Regular',
+    fontSize: 18,
     color: INCHEON_GRAY,
     marginLeft: 6,
+    fontWeight: '600',
   },
   greetingText: {
-    ...TEXT_STYLES.heading,
+    fontFamily: 'NeoDunggeunmoPro-Regular',
+    fontSize: 16,
     color: INCHEON_GRAY,
   },
   continueCourseBtn: {
@@ -1120,8 +951,10 @@ underline: {
     elevation: 6,
   },
   continueCourseBtnText: {
-    ...TEXT_STYLES.button,
+    fontFamily: 'NeoDunggeunmoPro-Regular',
+    fontSize: 16,
     color: '#fff',
+    fontWeight: '600',
   },
   recommendCourseBtn: {
     backgroundColor: INCHEON_BLUE,
@@ -1139,8 +972,10 @@ underline: {
     elevation: 6,
   },
   recommendCourseBtnText: {
-    ...TEXT_STYLES.button,
+    fontFamily: 'NeoDunggeunmoPro-Regular',
+    fontSize: 16,
     color: '#fff',
+    fontWeight: '600',
   },
   spotsList: {
     width: '100%',
@@ -1156,19 +991,24 @@ underline: {
     marginRight: 12,
   },
   spotOrder: {
-    ...TEXT_STYLES.button,
+    fontFamily: 'NeoDunggeunmoPro-Regular',
+    fontSize: 16,
     color: '#fff',
+    fontWeight: 'bold',
   },
   spotInfo: {
     flex: 1,
     marginRight: 12,
   },
   spotTitle: {
-    ...TEXT_STYLES.heading,
+    fontFamily: 'NeoDunggeunmoPro-Regular',
+    fontSize: 15,
     color: INCHEON_GRAY,
+    fontWeight: '600',
   },
   spotLocation: {
-    ...TEXT_STYLES.small,
+    fontFamily: 'NeoDunggeunmoPro-Regular',
+    fontSize: 13,
     color: INCHEON_GRAY,
     marginTop: 2,
   },
@@ -1183,8 +1023,10 @@ underline: {
     paddingHorizontal: 12,
   },
   nextDestinationText: {
-    ...TEXT_STYLES.small,
+    fontFamily: 'NeoDunggeunmoPro-Regular',
+    fontSize: 14,
     color: '#fff',
+    fontWeight: '600',
   },
   lockedIcon: {
     marginTop: 8,
@@ -1193,6 +1035,7 @@ underline: {
     position: 'absolute',
     top: 10,
     left: 10,
+    backgroundColor: 'rgba(0,0,0,0.5)',
     borderRadius: 10,
     padding: 5,
   },
@@ -1206,12 +1049,14 @@ underline: {
     paddingHorizontal: 8,
   },
   priceText: {
-    ...TEXT_STYLES.small,
+    fontFamily: 'NeoDunggeunmoPro-Regular',
+    fontSize: 12,
     color: '#fff',
     fontWeight: 'bold',
   },
   locationText: {
-    ...TEXT_STYLES.small,
+    fontFamily: 'NeoDunggeunmoPro-Regular',
+    fontSize: 12,
     color: INCHEON_GRAY,
     marginLeft: 4,
   },
@@ -1278,71 +1123,5 @@ underline: {
     fontWeight: '600',
     textAlign: 'center',
   },
-  spotInfoBtn: {
-    backgroundColor: '#9B59B6',
-    borderRadius: 20,
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    marginHorizontal: 8,
-    shadowColor: '#9B59B6',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  spotInfoBtnText: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 12,
-    color: '#fff',
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  backendTestBtn: {
-    backgroundColor: '#2ECC71',
-    borderRadius: 20,
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    marginHorizontal: 8,
-    shadowColor: '#2ECC71',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  backendTestBtnText: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 12,
-    color: '#fff',
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  simpleGetBtn: {
-    backgroundColor: '#3498DB',
-    borderRadius: 20,
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    marginHorizontal: 8,
-    shadowColor: '#3498DB',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  simpleGetBtnText: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 12,
-    color: '#fff',
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-}); 
 
+}); 

@@ -11,8 +11,10 @@ import {
   Modal, 
   ActivityIndicator,
   SafeAreaView,
-  ScrollView
+  Alert
 } from 'react-native';
+import authService from '../../services/authService';
+import { BACKEND_API } from '../../config/apiKeys';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
 // 스탬프 이미지 매핑
@@ -74,9 +76,16 @@ const COLORS = {
 const GalleryScreen = () => {
   // State
   const [galleryData, setGalleryData] = useState<GalleryItem[]>([]);
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [selectedImage, setSelectedImage] = useState<SelectedImage | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Types for selected image
+  type SelectedImage = {
+    id: number;
+    url: string;
+    stampUsed: boolean;
+  };
 
   // Load gallery data
   useEffect(() => {
@@ -142,8 +151,71 @@ const GalleryScreen = () => {
   // Handle image press
   const handleImagePress = (item: GalleryItem) => {
     if (item.completed && item.past_image_url) {
-      setSelectedImage(item.past_image_url);
+      setSelectedImage({
+        id: item.id,
+        url: item.past_image_url,
+        stampUsed: item.stampUsed
+      });
     }
+  };
+
+  // Handle stamp press
+  const handleStampPress = async () => {
+    if (!selectedImage) return;
+    
+    Alert.alert(
+      '스탬프 사용',
+      '스탬프를 사장님께 보여주세요!\n(사용 버튼을 직접 누르지 않도록 조심해주세요)',
+      [
+        {
+          text: '돌아가기',
+          style: 'cancel',
+        },
+        {
+          text: '사용',
+          onPress: async () => {
+            try {
+              // 스탬프 사용 API 호출
+              const tokens = await authService.getTokens();
+              if (!tokens?.access) {
+                Alert.alert('오류', '로그인이 필요합니다.');
+                return;
+              }
+
+              const response = await fetch(`${BACKEND_API.BASE_URL}/v1/photos/${selectedImage.id}/`, {
+                method: 'PATCH',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${tokens.access}`,
+                },
+                body: JSON.stringify({
+                  stamp_used: true
+                }),
+              });
+
+              if (response.ok) {
+                // 로컬 상태 업데이트
+                setGalleryData(prev => 
+                  prev.map(item => 
+                    item.id === selectedImage.id 
+                      ? { ...item, stampUsed: true }
+                      : item
+                  )
+                );
+                setSelectedImage(null);
+                Alert.alert('스탬프 사용 완료!', '스탬프가 사용되었습니다.');
+              } else {
+                Alert.alert('오류', '스탬프 사용에 실패했습니다.');
+              }
+            } catch (error) {
+              console.error('[GalleryScreen] 스탬프 사용 에러:', error);
+              Alert.alert('오류', '스탬프 사용 중 오류가 발생했습니다.');
+            }
+          },
+          style: 'destructive',
+        },
+      ]
+    );
   };
 
   // Render gallery item
@@ -297,11 +369,7 @@ const GalleryScreen = () => {
         animationType="fade"
         onRequestClose={() => setSelectedImage(null)}
       >
-        <TouchableOpacity 
-          style={styles.modalOverlay} 
-          activeOpacity={1}
-          onPress={() => setSelectedImage(null)}
-        >
+        <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>사진 상세 보기</Text>
@@ -313,12 +381,20 @@ const GalleryScreen = () => {
               </TouchableOpacity>
             </View>
             <Image 
-              source={{ uri: selectedImage || '' }} 
+              source={{ uri: selectedImage?.url || '' }} 
               style={styles.modalImage}
               resizeMode="contain"
             />
+            {selectedImage && !selectedImage.stampUsed && (
+              <TouchableOpacity 
+                style={styles.useStampButton}
+                onPress={handleStampPress}
+              >
+                <Text style={styles.useStampButtonText}>스탬프 사용하기</Text>
+              </TouchableOpacity>
+            )}
           </View>
-        </TouchableOpacity>
+        </View>
       </Modal>
     </SafeAreaView>
   );
@@ -479,6 +555,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.8)',
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 20,
   },
   modalContent: {
     backgroundColor: COLORS.white,
@@ -505,6 +582,19 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 300,
     borderRadius: 8,
+    marginBottom: 20,
+  },
+  useStampButton: {
+    backgroundColor: COLORS.incheonBlue,
+    padding: 15,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  useStampButtonText: {
+    color: COLORS.white,
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 

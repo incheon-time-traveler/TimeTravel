@@ -13,7 +13,7 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { INCHEON_BLUE, INCHEON_BLUE_LIGHT, INCHEON_GRAY } from '../../styles/fonts';
+import { INCHEON_BLUE, INCHEON_BLUE_LIGHT, INCHEON_GRAY, TEXT_STYLES } from '../../styles/fonts';
 import { ChatMessage, ChatBotResponse } from '../../types/chat';
 import { ChatbotService } from '../../services/chatbotService';
 
@@ -155,7 +155,24 @@ const ChatScreen: React.FC<{ visible: boolean; onClose: () => void }> = ({ visib
               </View>
             )}
           </ScrollView>
-
+        {/* 추천 질문 */}
+        <View style={styles.suggestionsContainer}>
+          <Text style={styles.suggestionsTitle}>추천 질문</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            {['인천 추천 코스', '대불호텔 정보', '미션 도움말', '길찾기'].map((suggestion, index) => (
+              <TouchableOpacity
+                key={index}
+                style={[styles.suggestionButton, isLoading && styles.suggestionButtonDisabled]}
+                onPress={() => handleSuggestionPress(suggestion)}
+                disabled={isLoading}
+              >
+                <Text style={[styles.suggestionText, isLoading && styles.suggestionTextDisabled]}>
+                  {suggestion}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
           {/* 입력 영역 */}
           <View style={styles.inputContainer}>
             <TextInput
@@ -182,25 +199,6 @@ const ChatScreen: React.FC<{ visible: boolean; onClose: () => void }> = ({ visib
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
-
-        {/* 추천 질문 */}
-        <View style={styles.suggestionsContainer}>
-          <Text style={styles.suggestionsTitle}>추천 질문</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {['인천 추천 코스', '대불호텔 정보', '미션 도움말', '길찾기'].map((suggestion, index) => (
-              <TouchableOpacity
-                key={index}
-                style={[styles.suggestionButton, isLoading && styles.suggestionButtonDisabled]}
-                onPress={() => handleSuggestionPress(suggestion)}
-                disabled={isLoading}
-              >
-                <Text style={[styles.suggestionText, isLoading && styles.suggestionTextDisabled]}>
-                  {suggestion}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
       </SafeAreaView>
     </Modal>
   );
@@ -217,15 +215,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 15,
-    borderBottomWidth: 2,
-    borderBottomColor: '#222',
     backgroundColor: INCHEON_BLUE_LIGHT,
   },
   headerTitle: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 20,
+    ...TEXT_STYLES.subtitle,
     color: INCHEON_BLUE,
-    fontWeight: 'bold',
   },
   closeButton: {
     width: 30,
@@ -254,17 +248,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 18,
-    borderWidth: 2,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
   },
   userMessage: {
     alignSelf: 'flex-end',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
     backgroundColor: INCHEON_BLUE,
-    borderColor: '#222',
   },
   botMessage: {
     alignSelf: 'flex-start',
     backgroundColor: '#fff',
-    borderColor: '#222',
+    borderColor: '#e0e0e0',
+    borderWidth: 1,
   },
   messageText: {
     fontSize: 16,
@@ -275,12 +272,10 @@ const styles = StyleSheet.create({
     fontFamily: 'NeoDunggeunmoPro-Regular',
   },
   botMessageText: {
-    color: '#000',
-    fontFamily: 'NeoDunggeunmoPro-Regular',
+    ...TEXT_STYLES.body
   },
   timestamp: {
-    fontSize: 12,
-    color: INCHEON_GRAY,
+    ...TEXT_STYLES.small,
     marginTop: 4,
     alignSelf: 'flex-end',
   },
@@ -288,67 +283,58 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingTop: 10,
+    paddingBottom: 20,
     borderTopWidth: 2,
-    borderTopColor: '#222',
+    borderTopColor: '#e0e0e0',
     backgroundColor: '#fff',
   },
   textInput: {
+    ...TEXT_STYLES.body,
     flex: 1,
     borderWidth: 2,
-    borderColor: '#222',
+    borderColor: '#d0d0d0',
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 10,
     marginRight: 10,
-    fontSize: 16,
-    fontFamily: 'NeoDunggeunmoPro-Regular',
     maxHeight: 100,
   },
   sendButton: {
     backgroundColor: INCHEON_BLUE,
-    borderWidth: 2,
-    borderColor: '#222',
     borderRadius: 20,
     paddingHorizontal: 20,
-    paddingVertical: 10,
+    paddingVertical: 15,
   },
   sendButtonDisabled: {
     backgroundColor: INCHEON_GRAY,
   },
   sendButtonText: {
+    ...TEXT_STYLES.button,
     color: '#fff',
-    fontSize: 16,
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontWeight: 'bold',
   },
   suggestionsContainer: {
     paddingHorizontal: 16,
     paddingVertical: 10,
-    borderTopWidth: 2,
-    borderTopColor: '#222',
     backgroundColor: INCHEON_BLUE_LIGHT,
   },
   suggestionsTitle: {
-    fontSize: 16,
+    ...TEXT_STYLES.heading,
+    fontWeight: "bold",
     color: INCHEON_BLUE,
-    marginBottom: 8,
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontWeight: 'bold',
+    marginBottom: 12,
   },
   suggestionButton: {
     backgroundColor: '#fff',
-    borderWidth: 2,
-    borderColor: '#222',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
     borderRadius: 15,
+    paddingVertical: 6,
     paddingHorizontal: 12,
-    paddingVertical: 8,
     marginRight: 8,
   },
   suggestionText: {
-    fontSize: 14,
-    color: INCHEON_GRAY,
-    fontFamily: 'NeoDunggeunmoPro-Regular',
+    ...TEXT_STYLES.body,
   },
   suggestionButtonDisabled: {
     opacity: 0.7,

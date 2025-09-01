@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   ScrollView,
@@ -8,92 +8,26 @@ import {
   Dimensions,
   Text,
   Modal,
+  Alert,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { WebView } from 'react-native-webview';
 import { INCHEON_BLUE, INCHEON_BLUE_LIGHT, INCHEON_GRAY, WARNING, TEXT_STYLES } from '../../styles/fonts';
 import PixelLockIcon from '../../components/ui/PixelLockIcon';
 import CheckIcon from '../../components/ui/CheckIcon';
 import { useNavigation } from '@react-navigation/native';
+import authService from '../../services/authService';
+import { BACKEND_API } from '../../config/apiKeys';
+
+// 대동여지도 이미지 import
+const daedongyeojidoImage = require('../../assets/images/대동여지도.jpg');
 
 const { width } = Dimensions.get('window');
 
 const TABS = [
   { key: 'progress', label: '진행 중' },
   { key: 'completed', label: '진행 완료' },
-  { key: 'saved', label: '찜해 놓은' },
-];
-
-const coursePhotos = [
-  { local: require('../../assets/icons/대불호텔.jpg'), locked: false },
-  { local: null, locked: true },
-  { local: null, locked: true },
-  { local: null, locked: true },
-];
-
-// 진행완료된 코스 데이터
-const completedCourses = [
-  {
-    id: 1,
-    title: '인천 역사 탐방',
-    description: '인천의 역사적 의미를 담은 코스',
-    locations: ['대불호텔', '인천대공원', '월미도', '송도국제도시'],
-    completedDate: '2024.01.15',
-    totalPhotos: 4,
-    photos: [
-      require('../../assets/icons/대불호텔.jpg'),
-      require('../../assets/icons/대불호텔.jpg'),
-      require('../../assets/icons/대불호텔.jpg'),
-      require('../../assets/icons/대불호텔.jpg'),
-    ]
-  },
-  {
-    id: 2,
-    title: '인천 자연 탐방',
-    description: '인천의 아름다운 자연을 만나는 코스',
-    locations: ['인천대공원', '월미도', '송도국제도시'],
-    completedDate: '2024.01.10',
-    totalPhotos: 3,
-    photos: [
-      require('../../assets/icons/대불호텔.jpg'),
-      require('../../assets/icons/대불호텔.jpg'),
-      require('../../assets/icons/대불호텔.jpg'),
-    ]
-  }
-];
-
-// 찜해놓은 코스 데이터
-const savedCourses = [
-  {
-    id: 1,
-    title: '인천 맛집 탐방',
-    description: '인천의 유명한 맛집들을 찾아가는 코스',
-    author: '여행러버',
-    locations: ['인천항 맛집거리', '월미도 해산물', '송도 맛집'],
-    savedDate: '2024.01.20',
-    totalPhotos: 5,
-    photos: [
-      require('../../assets/icons/대불호텔.jpg'),
-      require('../../assets/icons/대불호텔.jpg'),
-      require('../../assets/icons/대불호텔.jpg'),
-      require('../../assets/icons/대불호텔.jpg'),
-      require('../../assets/icons/대불호텔.jpg'),
-    ]
-  },
-  {
-    id: 2,
-    title: '인천 야경 코스',
-    description: '인천의 아름다운 야경을 감상하는 코스',
-    author: '사진작가김',
-    locations: ['송도국제도시', '월미도', '인천항'],
-    savedDate: '2024.01.18',
-    totalPhotos: 4,
-    photos: [
-      require('../../assets/icons/대불호텔.jpg'),
-      require('../../assets/icons/대불호텔.jpg'),
-      require('../../assets/icons/대불호텔.jpg'),
-      require('../../assets/icons/대불호텔.jpg'),
-    ]
-  }
 ];
 
 const TripsScreen: React.FC = () => {
@@ -101,116 +35,404 @@ const TripsScreen: React.FC = () => {
   const [activeTab, setActiveTab] = useState('progress');
   const [selectedCourse, setSelectedCourse] = useState<any>(null);
   const [courseModalVisible, setCourseModalVisible] = useState(false);
+  
+  // 백엔드 데이터 상태
+  const [userCourses, setUserCourses] = useState<any[]>([]);
+  const [completedCourses, setCompletedCourses] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // 진행률 계산 (4개 장소 중 2개 완료 = 50%)
-  const totalLocations = 4;
-  const completedLocations = 2;
-  const progressPercentage = (completedLocations / totalLocations) * 100;
+  // 화면이 포커스될 때마다 데이터 새로고침
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      fetchUserCourses();
+    });
 
-  const renderProgressTab = () => (
-    <ScrollView style={styles.content} contentContainerStyle={{paddingBottom: 32}} showsVerticalScrollIndicator={false}>
-      {/* 제목 */}
-      {/* <Text style={[styles.progressTitle, { fontFamily: 'NeoDunggeunmoPro-Regular' }]}>진행 중인 코스</Text>*/}
+    return unsubscribe;
+  }, [navigation]);
 
-      {/* 진행률 섹션 */}
-      <View style={styles.progressSection}>
-        <View style={styles.progressHeader}>
-          <Text style={styles.progressText}>진행률</Text>
-          <Text style={styles.progressPercentage}>{progressPercentage}%</Text>
-        </View>
-        <View style={styles.progressBarContainer}>
-          <View style={styles.progressBarBackground}>
-            <View 
-              style={[
-                styles.progressBarFill, 
-                { width: `${progressPercentage}%` }
-              ]} 
-            />
+  // 사용자 코스 데이터 가져오기
+  const fetchUserCourses = async () => {
+    try {
+      setIsLoading(true);
+      const tokens = await authService.getTokens();
+      if (!tokens?.access) {
+        console.log('[TripsScreen] 로그인이 필요합니다.');
+        setUserCourses([]);
+        setCompletedCourses([]);
+        return;
+      }
+
+      const response = await fetch(`${BACKEND_API.BASE_URL}/v1/courses/user_routes/`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${tokens.access}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('[TripsScreen] 사용자 코스 데이터:', data);
+        
+        // 진행중인 코스와 완료된 코스 분리
+        const inProgress: any[] = [];
+        const completed: any[] = [];
+        
+        data.forEach((course: any) => {
+          const completedSpots = course.spots.filter((spot: any) => spot.completed_at);
+          const totalSpots = course.spots.length;
+          
+          if (completedSpots.length === totalSpots) {
+            // 모든 스팟이 완료된 경우
+            completed.push({
+              ...course,
+              completedDate: completedSpots[completedSpots.length - 1]?.completed_at?.split('T')[0] || '2024.01.01',
+              totalPhotos: totalSpots,
+              photos: Array(totalSpots).fill(require('../../assets/icons/대불호텔.jpg'))
+            });
+          } else {
+            // 진행중인 코스
+            inProgress.push(course);
+          }
+        });
+        
+        setUserCourses(inProgress);
+        setCompletedCourses(completed);
+        
+      } else {
+        console.log('[TripsScreen] 코스 조회 실패:', response.status);
+        setUserCourses([]);
+        setCompletedCourses([]);
+      }
+    } catch (error) {
+      console.error('[TripsScreen] 코스 조회 에러:', error);
+      setUserCourses([]);
+      setCompletedCourses([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 인천 정적 지도에 핀을 표시하는 HTML 생성 함수
+  const generateStaticMapHTML = (spots: any[]) => {
+    // spot 데이터를 JavaScript 배열로 변환
+    const spotsData = spots.map(spot => ({
+      title: spot.title,
+      lat: spot.lat,
+      lng: spot.lng,
+      completed: spot.completed_at ? true : false
+    }));
+    
+    // WebView에서 접근 가능한 로컬 자산의 절대 URI로 변환
+    const resolved = Image.resolveAssetSource(daedongyeojidoImage);
+    const daedongyeojidoUri = resolved?.uri || '';
+        
+        return `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>지도</title>
+            <style>
+          body { 
+            margin: 0; 
+            padding: 0; 
+            font-family: Arial, sans-serif;
+            background: #f8f9fa;
+            height: 100vh;
+            overflow: hidden;
+          }
+          .map-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background: #fff;
+            border-radius: 8px;
+            overflow: hidden;
+          }
+          .map-content {
+            position: relative;
+            width: 100%;
+            height: 100%;
+          }
+          .map-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+            position: relative;
+            background-image: url('${daedongyeojidoUri}');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-color: #f8f9fa;
+          }
+          .map-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="%23e0e0e0" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+            opacity: 0.3;
+          }
+          .pin {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border-radius: 50% 50% 50% 0;
+            transform: rotate(-45deg);
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: bold;
+            color: white;
+            z-index: 10;
+            border: 2px solid white;
+          }
+          .pin.completed {
+            background: #4caf50;
+          }
+          .pin.next {
+            background: #ff9800;
+            animation: pulse 2s infinite;
+            z-index: 999;
+          }
+          .pin.waiting {
+            background: #2196f3;
+          }
+          .pin::after {
+            content: attr(data-number);
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(45deg);
+            font-size: 8px;
+            font-weight: bold;
+            text-shadow: 1px 1px 1px rgba(0,0,0,0.5);
+          }
+          @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(255, 152, 0, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(255, 152, 0, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 152, 0, 0); }
+          }
+            </style>
+          </head>
+          <body>
+        <div class="map-container" id="mapContainer">
+          <div class="map-content" id="mapContent">
+            <div class="map-overlay"></div>
+            <div class="map-image"></div>
+            
+            ${spotsData.map((spot, index) => {
+              // 실제 좌표를 화면 위치로 변환하는 함수 (대동여지도 비율에 맞춤)
+              function latLngToScreenPosition(lat, lng) {
+                // 대동여지도에서 인천 지역의 좌표 범위 (실제 지도 비율에 맞춤)
+                // 대동여지도는 세로가 긴 형태이므로 비율 조정
+                const minLat = 37.25;
+                const maxLat = 37.65;
+                const minLng = 126.35;
+                const maxLng = 126.85;
+                
+                // 좌표를 0-100 범위로 정규화
+                const x = ((lng - minLng) / (maxLng - minLng)) * 100;
+                const y = ((maxLat - lat) / (maxLat - minLat)) * 100;
+                
+                // 대동여지도의 세로 긴 형태에 맞춰 y축 조정 (세로가 더 길므로)
+                const adjustedY = y * 0.8 + 10; // 세로 비율 조정
+                
+                // 화면 경계 내로 제한 (5-95% 범위)
+                return {
+                  x: Math.max(5, Math.min(95, x)),
+                  y: Math.max(5, Math.min(95, adjustedY))
+                };
+              }
+              
+              // 실제 spot 좌표를 사용해서 위치 계산
+              const pos = latLngToScreenPosition(spot.lat, spot.lng);
+              
+              let pinClass = 'waiting';
+              
+              if (spot.completed) {
+                pinClass = 'completed';
+              } else if (index === spotsData.findIndex(s => !s.completed)) {
+                pinClass = 'next';
+              }
+              
+      return `
+                <div class="pin ${pinClass}" 
+                     style="left: ${pos.x}%; top: ${pos.y}%;" 
+                     data-number="${index + 1}">
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+          </script>
+        </body>
+        </html>
+      `;
+    };
+
+  const renderProgressTab = () => {
+    // 진행중인 코스가 없으면 빈 화면 표시
+    if (userCourses.length === 0) {
+      return (
+        <ScrollView style={styles.content} contentContainerStyle={{paddingBottom: 32}} showsVerticalScrollIndicator={false}>
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyStateText}>진행중인 코스가 없습니다.</Text>
+            <Text style={styles.emptyStateSubtext}>새로운 코스를 생성해보세요!</Text>
           </View>
-        </View>
-        <Text style={styles.progressDetail}>
-          {completedLocations} / {totalLocations} 완료
-        </Text>
-      </View>
+        </ScrollView>
+      );
+    }
 
-      {/* 지도 영역 (이미지로 대체) */}
-      <View style={styles.mapBox}>
-        <Image source={require('../../assets/icons/Map_mockup.png')} style={styles.mapImg} resizeMode="cover" />
-      </View>
+    // 첫 번째 진행중인 코스의 진행률 계산
+    const currentCourse = userCourses[0];
+    const completedSpots = currentCourse.spots.filter((spot: any) => spot.completed_at);
+    const totalSpots = currentCourse.spots.length;
+    const progressPercentage = totalSpots > 0 ? (completedSpots.length / totalSpots) * 100 : 0;
 
-      <View style={styles.cardContainer}>
-      {/* 대불 호텔 카드 */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-            <TouchableOpacity style={styles.hotelCard} activeOpacity={0.8}>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Text style={styles.hotelCardText}>대불 호텔</Text>
-              </View>
-              < CheckIcon />
-            </TouchableOpacity>
+    return (
+      <ScrollView style={styles.content} contentContainerStyle={{paddingBottom: 32}} showsVerticalScrollIndicator={false}>
+        {/* 진행률 섹션 */}
+        <View style={styles.progressSection}>
+          <View style={styles.progressHeader}>
+            <Text style={styles.progressText}>진행률</Text>
+            <Text style={styles.progressPercentage}>{Math.round(progressPercentage)}%</Text>
           </View>
-
-          {/* 인천대공원 코스 카드 */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-            <View style={styles.hotelCard}>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Text style={styles.hotelCardText}>인천대공원</Text>
-              </View>
-              <TouchableOpacity
-                style={[styles.prevNextBtn]}
-                onPress={() => (navigation as any).navigate('Map', { startLocation: '현위치', endLocation: '인천대공원' })}
-              >
-                <Text style={styles.hotelCardArrow}>{'>'}</Text>
-              </TouchableOpacity>
+          <View style={styles.progressBarContainer}>
+            <View style={styles.progressBarBackground}>
+              <View 
+                style={[
+                  styles.progressBarFill, 
+                  { width: `${progressPercentage}%` }
+                ]} 
+              />
             </View>
           </View>
-      </View>
-
-      {/* 잠금 카드들 */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-        <View style={styles.lockedCard}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Text style={styles.lockedCardText}>인천의 중심</Text>
-          </View>
-          <PixelLockIcon />
+          <Text style={styles.progressDetail}>
+            {completedSpots.length} / {totalSpots} 완료
+          </Text>
         </View>
-      </View>
-      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-        <View style={styles.lockedCard}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Text style={styles.lockedCardText}>인천의 역사적인 공간</Text>
-          </View>
-          <PixelLockIcon />
+
+        {/* 지도 영역 - 인천 정적 지도 with 핀 */}
+        <View style={styles.mapBox}>
+          <WebView
+            source={{ html: generateStaticMapHTML(currentCourse.spots) }}
+            style={styles.mapImg}
+            javaScriptEnabled={true}
+            domStorageEnabled={true}
+            allowFileAccess={true}
+            allowingReadAccessToURL={"*"}
+            startInLoadingState={true}
+            scalesPageToFit={false}
+            allowsInlineMediaPlayback={true}
+            mediaPlaybackRequiresUserAction={false}
+            mixedContentMode="always"
+            allowsBackForwardNavigationGestures={false}
+            cacheEnabled={false}
+            incognito={false}
+            androidLayerType="hardware"
+            originWhitelist={['*']}
+            onLoadStart={() => {
+              console.log('[TripsScreen] 카카오맵 로딩 시작');
+            }}
+            onLoadEnd={() => {
+              console.log('[TripsScreen] 카카오맵 로딩 완료');
+            }}
+            onError={(syntheticEvent) => {
+              const { nativeEvent } = syntheticEvent;
+              console.error('[TripsScreen] 카카오맵 에러:', nativeEvent);
+            }}
+            onHttpError={(syntheticEvent) => {
+              const { nativeEvent } = syntheticEvent;
+              console.error('[TripsScreen] 카카오맵 HTTP 에러:', nativeEvent);
+            }}
+            onMessage={(event) => {
+              console.log('[TripsScreen] WebView 메시지:', event.nativeEvent.data);
+            }}
+          />
         </View>
-      </View>
 
-      {/* 사진 섹션 */}
-      <Text style={[styles.photoSectionTitle, { fontFamily: 'NeoDunggeunmoPro-Regular' }]}>미션 완료</Text>
-      <View style={styles.photoGrid}>
-        {coursePhotos.map((photo, idx) => (
-          <View key={idx} style={styles.photoSlot}>
-            {photo.locked ? (
-              <PixelLockIcon />
-            ) : (
-              <Image source={photo.local} style={styles.photo} resizeMode="cover" />
-            )}
-          </View>
-        ))}
-      </View>
+        <View style={styles.cardContainer}>
+          {/* 실제 코스 스팟들 렌더링 */}
+          {currentCourse.spots.map((spot: any, index: number) => (
+            <View key={spot.id} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+              {spot.completed_at ? (
+                // 완료된 스팟
+                <TouchableOpacity style={styles.hotelCard} activeOpacity={0.8}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Text style={styles.hotelCardText}>{spot.title}</Text>
+                  </View>
+                  <CheckIcon />
+                </TouchableOpacity>
+              ) : index === currentCourse.spots.findIndex((s: any) => !s.completed_at) ? (
+                 // 다음 목적지 (첫 번째 미완료 스팟)
+                 <View style={styles.hotelCard}>
+                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                     <Text style={styles.hotelCardText}>{spot.title}</Text>
+                   </View>
+                   <TouchableOpacity
+                     onPress={() => (navigation as any).navigate('Map', {
+                       screen: 'MapMain',
+                       params: {
+                         destination: spot.title,
+                         destinationLat: spot.lat,
+                         destinationLng: spot.lng,
+                       }
+                     })}
+                     style={styles.nextDestinationButton}
+                     activeOpacity={0.8}
+                   >
+                     <Text style={styles.nextDestinationButtonText}>다음 목적지</Text>
+                   </TouchableOpacity>
+                 </View>
+              ) : (
+                // 잠긴 스팟
+                <View style={styles.lockedCard}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Text style={styles.lockedCardText}>{spot.title}</Text>
+                  </View>
+                  <PixelLockIcon />
+                </View>
+              )}
+            </View>
+          ))}
+        </View>
 
-      {/* 하단 버튼 */}
-      <View style={styles.bottomRow}>
-        <TouchableOpacity style={styles.quitBtn} activeOpacity={0.8}>
-          <Text style={styles.quitBtnText}>코스 그만두기</Text>
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
-  );
+        {/* 사진 섹션 */}
+        <Text style={[styles.photoSectionTitle, { fontFamily: 'NeoDunggeunmoPro-Regular' }]}>미션 완료</Text>
+        <View style={styles.photoGrid}>
+          {currentCourse.spots.map((spot: any, idx: number) => (
+            <View key={idx} style={styles.photoSlot}>
+              {spot.completed_at ? (
+                <Image source={require('../../assets/icons/대불호텔.jpg')} style={styles.photo} resizeMode="cover" />
+              ) : (
+                <PixelLockIcon />
+              )}
+            </View>
+          ))}
+        </View>
+
+        {/* 하단 버튼 */}
+        <View style={styles.bottomRow}>
+          <TouchableOpacity style={styles.quitBtn} activeOpacity={0.8}>
+            <Text style={styles.quitBtnText}>코스 그만두기</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    );
+  };
 
   const renderCompletedTab = () => (
     <ScrollView style={styles.content} contentContainerStyle={{paddingVertical: 16}} showsVerticalScrollIndicator={false}>
       {completedCourses.map((course) => (
         <TouchableOpacity
-          key={course.id}
+          key={course.route_id}
           style={styles.courseCard}
           onPress={() => {
             setSelectedCourse(course);
@@ -219,19 +441,19 @@ const TripsScreen: React.FC = () => {
           activeOpacity={0.8}
         >
           <View style={styles.courseCardHeader}>
-            <Text style={styles.courseCardTitle}>{course.title}</Text>
+            <Text style={styles.courseCardTitle}>{course.user_region_name || '인천 여행 코스'}</Text>
             <Text style={styles.courseCardDate}>{course.completedDate}</Text>
           </View>
-          <Text style={styles.courseCardDescription}>{course.description}</Text>
+          <Text style={styles.courseCardDescription}>완료된 여행 코스입니다.</Text>
           <View style={styles.courseCardLocations}>
-            {course.locations.map((location, index) => (
+            {course.spots.map((spot: any, index: number) => (
               <Text key={index} style={styles.courseCardLocation}>
-                {index + 1}. {location}
+                {index + 1}. {spot.title}
               </Text>
             ))}
           </View>
           <View style={styles.courseCardPhotos}>
-            {course.photos.slice(0, 3).map((photo, index) => (
+            {course.photos.slice(0, 3).map((photo: any, index: number) => (
               <Image key={index} source={photo} style={styles.courseCardPhoto} resizeMode="cover" />
             ))}
             {course.photos.length > 3 && (
@@ -240,46 +462,6 @@ const TripsScreen: React.FC = () => {
               </View>
             )}
           </View>
-        </TouchableOpacity>
-      ))}
-    </ScrollView>
-  );
-
-  const renderSavedTab = () => (
-    <ScrollView style={styles.content} contentContainerStyle={{paddingVertical: 16}} showsVerticalScrollIndicator={false}>
-      {savedCourses.map((course) => (
-        <TouchableOpacity
-          key={course.id}
-          style={styles.courseCard}
-          onPress={() => {
-            setSelectedCourse(course);
-            setCourseModalVisible(true);
-          }}
-          activeOpacity={0.8}
-        >
-          <View style={styles.courseCardHeader}>
-            <Text style={styles.courseCardTitle}>{course.title}</Text>
-            <Text style={styles.courseCardAuthor}>by {course.author}</Text>
-          </View>
-          <Text style={styles.courseCardDescription}>{course.description}</Text>
-          <View style={styles.courseCardLocations}>
-            {course.locations.map((location, index) => (
-              <Text key={index} style={styles.courseCardLocation}>
-                {index + 1}. {location}
-              </Text>
-            ))}
-          </View>
-          <View style={styles.courseCardPhotos}>
-            {course.photos.slice(0, 3).map((photo, index) => (
-              <Image key={index} source={photo} style={styles.courseCardPhoto} resizeMode="cover" />
-            ))}
-            {course.photos.length > 3 && (
-              <View style={styles.courseCardPhotoMore}>
-                <Text style={styles.courseCardPhotoMoreText}>+{course.photos.length - 3}</Text>
-              </View>
-            )}
-          </View>
-          <Text style={styles.courseCardSavedDate}>찜한 날짜: {course.savedDate}</Text>
         </TouchableOpacity>
       ))}
     </ScrollView>
@@ -293,38 +475,32 @@ const TripsScreen: React.FC = () => {
     >
       <SafeAreaView style={styles.modalContainer} edges={['top', 'left', 'right']}>
         <View style={styles.modalHeader}>
-          <Text style={styles.modalTitle}>{selectedCourse?.title}</Text>
+          <Text style={styles.modalTitle}>{selectedCourse?.user_region_name || '인천 여행 코스'}</Text>
           <TouchableOpacity onPress={() => setCourseModalVisible(false)} style={styles.modalCloseButton}>
             <Text style={styles.modalCloseButtonText}>✕</Text>
           </TouchableOpacity>
         </View>
         
         <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
-          <Text style={styles.modalDescription}>{selectedCourse?.description}</Text>
+          <Text style={styles.modalDescription}>완료된 여행 코스입니다.</Text>
           
           <Text style={styles.modalSectionTitle}>방문 장소</Text>
-          {selectedCourse?.locations.map((location: string, index: number) => (
+          {selectedCourse?.spots?.map((spot: any, index: number) => (
             <View key={index} style={styles.modalLocationItem}>
               <Text style={styles.modalLocationNumber}>{index + 1}</Text>
-              <Text style={styles.modalLocationText}>{location}</Text>
+              <Text style={styles.modalLocationText}>{spot.title}</Text>
             </View>
           ))}
           
           <Text style={styles.modalSectionTitle}>코스 사진</Text>
           <View style={styles.modalPhotoGrid}>
-            {selectedCourse?.photos.map((photo: any, index: number) => (
+            {selectedCourse?.photos?.map((photo: any, index: number) => (
               <Image key={index} source={photo} style={styles.modalPhoto} resizeMode="cover" />
             ))}
           </View>
           
-          {selectedCourse?.author && (
-            <Text style={styles.modalAuthor}>작성자: {selectedCourse.author}</Text>
-          )}
           {selectedCourse?.completedDate && (
             <Text style={styles.modalDate}>완료 날짜: {selectedCourse.completedDate}</Text>
-          )}
-          {selectedCourse?.savedDate && (
-            <Text style={styles.modalDate}>찜한 날짜: {selectedCourse.savedDate}</Text>
           )}
         </ScrollView>
       </SafeAreaView>
@@ -365,7 +541,6 @@ const TripsScreen: React.FC = () => {
           {/* 탭별 콘텐츠 */}
           {activeTab === 'progress' && renderProgressTab()}
           {activeTab === 'completed' && renderCompletedTab()}
-          {activeTab === 'saved' && renderSavedTab()}
         </View>
       </SafeAreaView>
       
@@ -380,7 +555,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
     padding: 8,
-
   },
   content: {
     flex: 1,
@@ -509,23 +683,16 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: INCHEON_GRAY,
   },
-  prevNextRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-    gap: 8,
-  },
-  prevNextBtn: {
-    flex: 1,
-    paddingVertical: 0,
-    alignItems: 'center',
-    flex: undefined,
+  nextDestinationButton: {
     paddingVertical: 8,
-    paddingHorizontal: 14
+    paddingHorizontal: 12,
+    backgroundColor: INCHEON_BLUE,
+    borderRadius: 8,
   },
-  prevNextBtnText: {
-    ...TEXT_STYLES.button,
-    color: '#000'
+  nextDestinationButtonText: {
+    color: '#fff',
+    fontSize: 12,
+    fontFamily: 'NeoDunggeunmoPro-Regular',
   },
   lockedCard: {
     flex: 1,
@@ -542,11 +709,6 @@ const styles = StyleSheet.create({
   },
   lockedCardText: {
     ...TEXT_STYLES.body,
-  },
-  lockIconPixel: {
-    textShadowColor: '#fff',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 0,
   },
   photoSectionTitle: {
     ...TEXT_STYLES.subtitle,
@@ -596,28 +758,6 @@ const styles = StyleSheet.create({
     ...TEXT_STYLES.button,
     color: WARNING,
   },
-  pixelLockIcon: {
-    width: 28,
-    height: 28,
-    marginLeft: 4,
-    marginRight: 4,
-  },
-  // 확인 필요
-  pixelStepNum: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 38,
-    color: INCHEON_GRAY,
-    marginRight: 5,
-    minWidth: 36,
-    textAlign: 'center',
-  },
-  pixelStepNumActive: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 38,
-    marginRight: 5,
-    color: INCHEON_BLUE,
-    textAlign: 'center',
-  },
   // 새로운 코스 카드 스타일
   courseCard: {
     borderWidth: 2,
@@ -638,9 +778,6 @@ const styles = StyleSheet.create({
     color: INCHEON_BLUE,
   },
   courseCardDate: {
-    ...TEXT_STYLES.small
-  },
-  courseCardAuthor: {
     ...TEXT_STYLES.small
   },
   courseCardDescription: {
@@ -671,7 +808,7 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 8,
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: '#e0e0e0',
     backgroundColor: INCHEON_BLUE_LIGHT,
     alignItems: 'center',
@@ -681,15 +818,10 @@ const styles = StyleSheet.create({
     ...TEXT_STYLES.small,
     color: INCHEON_BLUE,
   },
-  courseCardSavedDate: {
-    ...TEXT_STYLES.small,
-    textAlign: 'right'
-  },
   // 모달 스타일
   modalContainer: {
     flex: 1,
     backgroundColor: '#fff',
-
   },
   modalHeader: {
     flexDirection: 'row',
@@ -758,13 +890,120 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e0e0e0',
   },
-  modalAuthor: {
-    ...TEXT_STYLES.small,
-    marginBottom: 8,
-  },
   modalDate: {
     ...TEXT_STYLES.small,
     marginBottom: 8,
+  },
+  // 빈 상태 스타일
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 100,
+  },
+  emptyStateText: {
+    ...TEXT_STYLES.subtitle,
+    color: INCHEON_GRAY,
+    marginBottom: 8,
+  },
+  emptyStateSubtext: {
+    ...TEXT_STYLES.body,
+    color: INCHEON_GRAY,
+  },
+  // 길찾기 버튼 스타일
+  routeContainer: {
+    width: width - 40,
+    height: 180,
+    backgroundColor: '#fff',
+    borderRadius: 18,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  routeTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 15,
+    color: '#fff',
+  },
+  routeDestination: {
+    fontSize: 16,
+    marginBottom: 20,
+    opacity: 0.9,
+    color: '#fff',
+  },
+     routeButton: {
+     backgroundColor: '#ff5722',
+     paddingVertical: 12,
+     paddingHorizontal: 24,
+     borderRadius: 8,
+     margin: 10,
+   },
+  routeButtonText: {
+    color: '#fff',
+  },
+  routeInfo: {
+    fontSize: 14,
+    opacity: 0.8,
+    marginTop: 20,
+    color: '#fff',
+    textAlign: 'center',
+  },
+  completionContainer: {
+    width: width - 40,
+    height: 180,
+    backgroundColor: '#4caf50',
+    borderRadius: 18,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  completionTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    color: '#fff',
+  },
+     completionText: {
+     fontSize: 16,
+     opacity: 0.9,
+    color: '#fff',
+  },
+   mapOverlay: {
+    position: 'absolute',
+    top: 10,
+     left: 10,
+     backgroundColor: 'rgba(0, 0, 0, 0.7)',
+     paddingHorizontal: 12,
+     paddingVertical: 6,
+     borderRadius: 6,
+   },
+   mapOverlayText: {
+     color: '#fff',
+     fontSize: 14,
+    fontWeight: 'bold',
+  },
+   mapPlaceholder: {
+     flex: 1,
+    alignItems: 'center',
+     justifyContent: 'center',
+     backgroundColor: '#f8f9fa',
+   },
+   mapPlaceholderIcon: {
+     fontSize: 48,
+     marginBottom: 16,
+   },
+   mapPlaceholderTitle: {
+     fontSize: 20,
+     fontWeight: 'bold',
+     color: INCHEON_BLUE,
+     marginBottom: 8,
+   },
+   mapPlaceholderSubtitle: {
+     fontSize: 14,
+    color: INCHEON_GRAY,
   },
 });
 

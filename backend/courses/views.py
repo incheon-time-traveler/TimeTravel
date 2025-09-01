@@ -287,6 +287,9 @@ def unlock_spots(request):
         user = request.user
         user_route_spots = UserRouteSpot.objects.filter(user_id=user.id, unlock_at__isnull=False)
         serializer = UserRouteSpotSerializer(user_route_spots, many=True)
+        for spot in serializer.data:
+            past_photo_url = Spot.objects.get(id=spot['spot_id']).photo_url
+            spot['past_photo_url'] = past_photo_url
         return Response(serializer.data, status=status.HTTP_200_OK)
     else:
         return Response({'error': 'GET 메서드만 지원됩니다.'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)

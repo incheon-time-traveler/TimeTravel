@@ -120,8 +120,47 @@ const CameraScreen: React.FC<CameraScreenProps> = ({ route, navigation }) => {
       }
       
       if (response.assets && response.assets[0]) {
-        const photoUri = response.assets[0].uri;
+        const photoAsset = response.assets[0];
+        const photoUri = photoAsset.uri;
+        
         if (photoUri) {
+          // 🖼️ 사진 메타데이터 상세 로그 출력
+          console.log('📸 [CameraScreen] 사진 촬영 완료! 상세 메타데이터:');
+          console.log('📊 사진 기본 정보:', {
+            uri: photoUri,
+            type: photoAsset.type,
+            fileName: photoAsset.fileName,
+            fileSize: photoAsset.fileSize,
+            width: photoAsset.width,
+            height: photoAsset.height,
+            timestamp: photoAsset.timestamp,
+            duration: photoAsset.duration,
+            bitrate: photoAsset.bitrate,
+          });
+          
+          // 📏 사진 사이즈 정보 강조
+          console.log('📏 [CameraScreen] 🎯 사진 사이즈 정보 (중요!):', {
+            width: photoAsset.width || '알 수 없음',
+            height: photoAsset.height || '알 수 없음',
+            aspectRatio: photoAsset.width && photoAsset.height ? 
+              (photoAsset.width / photoAsset.height).toFixed(2) : '알 수 없음',
+            megapixels: photoAsset.width && photoAsset.height ? 
+              ((photoAsset.width * photoAsset.height) / 1000000).toFixed(2) : '알 수 없음',
+            orientation: photoAsset.width && photoAsset.height ? 
+              (photoAsset.width > photoAsset.height ? '가로' : '세로') : '알 수 없음'
+          });
+          
+          // 💾 파일 정보
+          console.log('💾 [CameraScreen] 파일 정보:', {
+            fileSize: photoAsset.fileSize ? `${(photoAsset.fileSize / 1024 / 1024).toFixed(2)} MB` : '알 수 없음',
+            fileSizeBytes: photoAsset.fileSize || '알 수 없음',
+            mimeType: photoAsset.type || '알 수 없음',
+            fileName: photoAsset.fileName || '알 수 없음'
+          });
+          
+          // 🔍 전체 메타데이터 객체 출력
+          console.log('🔍 [CameraScreen] 전체 메타데이터 객체:', JSON.stringify(photoAsset, null, 2));
+          
           setCurrentPhoto(photoUri);
           setPhotoTaken(true);
           Alert.alert('사진 촬영 완료!', '과거와 현재가 합쳐진 사진이 촬영되었습니다.');
@@ -163,10 +202,72 @@ const CameraScreen: React.FC<CameraScreenProps> = ({ route, navigation }) => {
       console.log('[CameraScreen] 사진 정보:', {
         photoUri: currentPhoto,
         photoType: typeof currentPhoto,
-        photoLength: currentPhoto?.length
+        photoLength: currentPhoto?.length,
+        // 🖼️ 추가된 상세 사진 정보
+        fileName: currentPhoto?.split('/').pop() || '알 수 없음',
+        fileExtension: currentPhoto?.split('.').pop() || '알 수 없음',
+        cachePath: currentPhoto?.includes('/cache/') ? '캐시 경로' : '다른 경로',
+        // 📏 파일 경로 분석
+        pathInfo: {
+          isFileUri: currentPhoto?.startsWith('file://'),
+          isCacheFile: currentPhoto?.includes('rn_image_picker_lib_temp'),
+          isJpgFile: currentPhoto?.endsWith('.jpg'),
+          isPngFile: currentPhoto?.endsWith('.png'),
+        }
       });
-
-
+      
+      // 🖼️ 추가: Image.getSize로 실제 이미지 크기 가져오기
+      if (currentPhoto) {
+        console.log('📏 [CameraScreen] 이미지 크기 정보 가져오기 시작...');
+        
+        // Image.getSize를 Promise로 감싸기
+        const getImageSize = (uri: string): Promise<{width: number, height: number}> => {
+          return new Promise((resolve, reject) => {
+            Image.getSize(uri, (width, height) => {
+              resolve({ width, height });
+            }, (error) => {
+              reject(error);
+            });
+          });
+        };
+        
+        try {
+          const { width, height } = await getImageSize(currentPhoto);
+          console.log('📏 [CameraScreen] 🎯 실제 이미지 크기 정보:', {
+            width: width,
+            height: height,
+            aspectRatio: (width / height).toFixed(2),
+            megapixels: ((width * height) / 1000000).toFixed(2),
+            orientation: width > height ? '가로' : '세로',
+            totalPixels: width * height
+          });
+        } catch (error) {
+          console.log('📏 [CameraScreen] 이미지 크기 가져오기 실패:', error);
+        }
+      }
+      
+      // 🔍 추가: 파일 시스템에서 파일 정보 가져오기 시도
+      try {
+        const { stat } = require('react-native-fs');
+        if (currentPhoto && currentPhoto.startsWith('file://')) {
+          const filePath = currentPhoto.replace('file://', '');
+          stat(filePath).then((fileStats: any) => {
+            console.log('📁 [CameraScreen] 파일 시스템 정보:', {
+              size: fileStats.size ? `${(fileStats.size / 1024 / 1024).toFixed(2)} MB` : '알 수 없음',
+              sizeBytes: fileStats.size || '알 수 없음',
+              lastModified: fileStats.lastModified ? new Date(fileStats.lastModified).toISOString() : '알 수 없음',
+              isFile: fileStats.isFile,
+              isDirectory: fileStats.isDirectory,
+              path: filePath
+            });
+          }).catch((fsError: any) => {
+            console.log('📁 [CameraScreen] 파일 시스템 정보 가져오기 실패:', fsError);
+          });
+        }
+      } catch (fsError) {
+        console.log('📁 [CameraScreen] react-native-fs 모듈 없음, 파일 시스템 정보 생략');
+      }
+      
       // 백엔드에서 사용자의 현재 진행 중인 코스 정보 가져오기
       console.log('[CameraScreen] 사용자 코스 정보 가져오기 시작 (올바른 엔드포인트: /v1/routes/user_routes/)');
       let routeId = null;

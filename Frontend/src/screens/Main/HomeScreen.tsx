@@ -213,8 +213,12 @@ export default function HomeScreen({ navigation }: any) {
         return;
       }
       
+      console.log('[HomeScreen] 토큰 확인 완료:', tokens.access ? '있음' : '없음');
+      
       // 먼저 사용자의 진행중인 코스에서 미션 생성 (토큰 전달)
+      console.log('[HomeScreen] createMissionsFromUserCourse 호출 시작...');
       const missions = await createMissionsFromUserCourse(tokens.access);
+      console.log('[HomeScreen] createMissionsFromUserCourse 결과:', missions);
       
       if (missions.length === 0) {
         Alert.alert(
@@ -226,19 +230,32 @@ export default function HomeScreen({ navigation }: any) {
 
       // 첫 번째 미션을 현재 미션으로 설정
       const testMission = missions[0];
-      console.log('[HomeScreen] 테스트 미션 설정:', testMission.location.name);
+      console.log('[HomeScreen] 테스트 미션 전체 데이터:', testMission);
+      console.log('[HomeScreen] 테스트 미션 location:', testMission.location);
+      console.log('[HomeScreen] 테스트 미션 location.name:', testMission.location?.name);
+      
+      if (!testMission.location?.name) {
+        console.error('[HomeScreen] 미션 location.name이 없음:', testMission);
+        Alert.alert('오류', '미션 위치 정보가 올바르지 않습니다.');
+        return;
+      }
       
       setCurrentMission(testMission);
       setShowMissionNotification(true);
       
       // 성공 메시지
       Alert.alert(
-        '미션 시뮬레이션 성공!', 
+        '미션 시뮬레이션 성공! 🎉', 
         `${testMission.location.name} 미션이 발견되었습니다!\n미션 알림을 확인해보세요.`
       );
       
     } catch (error) {
       console.error('[HomeScreen] 미션 시뮬레이션 실패:', error);
+      console.error('[HomeScreen] 에러 상세:', {
+        message: error?.message,
+        stack: error?.stack,
+        name: error?.name
+      });
       Alert.alert('오류', '미션 시뮬레이션 중 오류가 발생했습니다.');
     }
   };
@@ -246,8 +263,14 @@ export default function HomeScreen({ navigation }: any) {
   // 미션 상태 확인 (디버깅용)
   const checkMissionStatus = async () => {
     try {
+      console.log('[HomeScreen] 미션 상태 확인 시작');
+      
       const activeMissions = getActiveMissions();
       const completedMissions = getCompletedMissions();
+      
+      console.log('[HomeScreen] 활성 미션 개수:', activeMissions.length);
+      console.log('[HomeScreen] 완료된 미션 개수:', completedMissions.length);
+      console.log('[HomeScreen] 현재 위치:', currentLocation);
       
       let message = '🎯 미션 상태 확인\n\n';
       message += `📍 현재 위치: ${currentLocation ? `${currentLocation.lat.toFixed(4)}, ${currentLocation.lng.toFixed(4)}` : '설정되지 않음'}\n\n`;
@@ -260,6 +283,9 @@ export default function HomeScreen({ navigation }: any) {
           // 디버깅: 미션 객체 전체 구조 확인
           console.log(`[HomeScreen] 미션 ${index + 1} 전체 데이터:`, mission);
           console.log(`[HomeScreen] 미션 ${index + 1} location:`, mission.location);
+          console.log(`[HomeScreen] 미션 ${index + 1} location.name:`, mission.location?.name);
+          console.log(`[HomeScreen] 미션 ${index + 1} location.lat:`, mission.location?.lat);
+          console.log(`[HomeScreen] 미션 ${index + 1} location.lng:`, mission.location?.lng);
           
           const missionName = mission.location?.name || '이름 없음';
           const missionLat = mission.location?.lat || 0;
@@ -267,12 +293,20 @@ export default function HomeScreen({ navigation }: any) {
           
           message += `${index + 1}. ${missionName} (${missionLat.toFixed(4)}, ${missionLng.toFixed(4)})\n`;
         });
+      } else {
+        message += '📋 활성 미션이 없습니다.\n';
+        message += '💡 미션 시뮬레이션을 실행해보세요!\n';
       }
       
       Alert.alert('미션 상태', message);
       
     } catch (error) {
       console.error('[HomeScreen] 미션 상태 확인 실패:', error);
+      console.error('[HomeScreen] 에러 상세:', {
+        message: error?.message,
+        stack: error?.stack,
+        name: error?.name
+      });
       Alert.alert('오류', '미션 상태 확인 중 오류가 발생했습니다.');
     }
   };
@@ -289,6 +323,9 @@ export default function HomeScreen({ navigation }: any) {
         return;
       }
       
+      console.log('[HomeScreen] 토큰 확인 완료:', tokens.access ? '있음' : '없음');
+      console.log('[HomeScreen] API URL:', `${BACKEND_API.BASE_URL}/v1/spots/`);
+      
       // /v1/spots/ API 호출하여 전체 스팟 정보 가져오기 (인증 토큰 포함)
       const response = await fetch(`${BACKEND_API.BASE_URL}/v1/spots/`, {
         method: 'GET',
@@ -298,9 +335,20 @@ export default function HomeScreen({ navigation }: any) {
         },
       });
 
+      console.log('[HomeScreen] 스팟 API 응답 상태:', response.status, response.statusText);
+      console.log('[HomeScreen] 스팟 API 응답 헤더:', Object.fromEntries(response.headers.entries()));
+
       if (response.ok) {
         const data = await response.json();
         console.log('[HomeScreen] 전체 스팟 데이터:', data);
+        console.log('[HomeScreen] 스팟 데이터 타입:', typeof data);
+        console.log('[HomeScreen] 스팟 데이터 길이:', Array.isArray(data) ? data.length : '배열 아님');
+        
+        if (!Array.isArray(data)) {
+          console.error('[HomeScreen] 스팟 데이터가 배열이 아님:', data);
+          Alert.alert('오류', '스팟 데이터 형식이 올바르지 않습니다.');
+          return;
+        }
         
         // past_image_url이 있는 스팟들 필터링
         const spotsWithPastImage = data.filter((spot: any) => 
@@ -311,6 +359,9 @@ export default function HomeScreen({ navigation }: any) {
         const spotsWithoutPastImage = data.filter((spot: any) => 
           !spot.past_image_url || spot.past_image_url.trim() === ''
         );
+        
+        console.log('[HomeScreen] 과거사진 있는 스팟:', spotsWithPastImage.length);
+        console.log('[HomeScreen] 과거사진 없는 스팟:', spotsWithoutPastImage.length);
         
         let message = '🗺️ 스팟 정보 확인\n\n';
         message += `📊 전체 스팟: ${data.length}개\n`;
@@ -345,57 +396,18 @@ export default function HomeScreen({ navigation }: any) {
         Alert.alert('스팟 정보', message);
         
       } else {
-        console.error('[HomeScreen] 스팟 정보 가져오기 실패:', response.status);
-        Alert.alert('오류', '스팟 정보를 가져올 수 없습니다.');
+        console.error('[HomeScreen] 스팟 정보 가져오기 실패:', response.status, response.statusText);
+        Alert.alert('오류', `스팟 정보를 가져올 수 없습니다. (${response.status})`);
       }
       
     } catch (error) {
       console.error('[HomeScreen] 스팟 정보 확인 실패:', error);
+      console.error('[HomeScreen] 에러 상세:', {
+        message: error?.message,
+        stack: error?.stack,
+        name: error?.name
+      });
       Alert.alert('오류', '스팟 정보 확인 중 오류가 발생했습니다.');
-    }
-  };
-
-  // 백엔드 연결 테스트 (상세)
-  const testBackendConnection = async () => {
-    try {
-      console.log('[HomeScreen] 백엔드 연결 테스트 시작');
-      console.log('[HomeScreen] 테스트 URL:', `${BACKEND_API.BASE_URL}/v1/photos/`);
-      
-      const startTime = Date.now();
-      const response = await fetch(`${BACKEND_API.BASE_URL}/v1/photos/`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      const endTime = Date.now();
-      
-      console.log('[HomeScreen] 백엔드 연결 테스트 결과:', {
-        status: response.status,
-        statusText: response.statusText,
-        responseTime: `${endTime - startTime}ms`,
-        url: `${BACKEND_API.BASE_URL}/v1/photos/`,
-        headers: Object.fromEntries(response.headers.entries())
-      });
-      
-      if (response.ok) {
-        Alert.alert(
-          '백엔드 연결 성공! 🎉',
-          `상태: ${response.status}\n응답 시간: ${endTime - startTime}ms\nURL: ${BACKEND_API.BASE_URL}/v1/photos/`
-        );
-      } else {
-        Alert.alert(
-          '백엔드 연결 실패 ❌',
-          `상태: ${response.status} ${response.statusText}\n응답 시간: ${endTime - startTime}ms\nURL: ${BACKEND_API.BASE_URL}/v1/photos/`
-        );
-      }
-      
-    } catch (error) {
-      console.error('[HomeScreen] 백엔드 연결 테스트 실패:', error);
-      Alert.alert(
-        '백엔드 연결 실패 ❌',
-        `에러: ${error?.message || '알 수 없는 오류'}\nURL: ${BACKEND_API.BASE_URL}/v1/photos/`
-      );
     }
   };
 
@@ -734,15 +746,6 @@ export default function HomeScreen({ navigation }: any) {
            </TouchableOpacity>
            <TouchableOpacity style={styles.missionStatusBtn} onPress={checkMissionStatus}>
              <Text style={styles.missionStatusBtnText}>미션 상태 확인</Text>
-           </TouchableOpacity>
-           <TouchableOpacity style={styles.spotInfoBtn} onPress={checkSpotInfo}>
-             <Text style={styles.spotInfoBtnText}>스팟 정보 확인</Text>
-           </TouchableOpacity>
-           <TouchableOpacity style={styles.backendTestBtn} onPress={testBackendConnection}>
-             <Text style={styles.backendTestBtnText}>백엔드 연결 테스트</Text>
-           </TouchableOpacity>
-           <TouchableOpacity style={styles.simpleGetBtn} onPress={testSimpleGetRequest}>
-             <Text style={styles.simpleGetBtnText}>간단한 GET 요청</Text>
            </TouchableOpacity>
          </View>
        </View>

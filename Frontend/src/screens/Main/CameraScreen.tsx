@@ -43,6 +43,8 @@ const CameraScreen: React.FC<CameraScreenProps> = ({ route, navigation }) => {
   const [overlayOpacity, setOverlayOpacity] = useState(0.6);
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [currentPhoto, setCurrentPhoto] = useState<string | null>(null);
+  const [currentPhotoFileName, setCurrentPhotoFileName] = useState<string | null>(null);
+  const [currentPhotoMimeType, setCurrentPhotoMimeType] = useState<string | null>(null);
 
   useEffect(() => {
     requestCameraPermission();
@@ -162,6 +164,8 @@ const CameraScreen: React.FC<CameraScreenProps> = ({ route, navigation }) => {
           console.log('🔍 [CameraScreen] 전체 메타데이터 객체:', JSON.stringify(photoAsset, null, 2));
           
           setCurrentPhoto(photoUri);
+          setCurrentPhotoFileName(photoAsset.fileName || 'photo.jpg');
+          setCurrentPhotoMimeType(photoAsset.type || 'image/jpeg');
           setPhotoTaken(true);
           Alert.alert('사진 촬영 완료!', '과거와 현재가 합쳐진 사진이 촬영되었습니다.');
         }
@@ -175,6 +179,8 @@ const CameraScreen: React.FC<CameraScreenProps> = ({ route, navigation }) => {
   const handleRetakePhoto = () => {
     setPhotoTaken(false);
     setCurrentPhoto(null);
+    setCurrentPhotoFileName(null);
+    setCurrentPhotoMimeType(null);
   };
 
   const handleSaveToGallery = async () => {
@@ -335,35 +341,24 @@ const CameraScreen: React.FC<CameraScreenProps> = ({ route, navigation }) => {
         return;
       }
 
-      // FormData 사용 (ImageField 처리용)
-      const formData = new FormData();
-      const photoFile = {
-        uri: currentPhoto,
-        type: 'image/jpeg',
-        name: 'photo.jpg'
-      } as any;
-      
-      // FormData에 파일 추가
-      try {
-        formData.append('image_url', photoFile);
-        console.log('[CameraScreen] FormData에 파일 추가 성공');
-      } catch (formDataError) {
-        console.error('[CameraScreen] FormData 파일 추가 실패:', formDataError);
-        Alert.alert('오류', '사진 파일을 준비하는 중 오류가 발생했습니다.');
-        return;
-      }
-      
-      console.log('[CameraScreen] FormData 구성:', {
-        formDataType: typeof formData,
-        formDataConstructor: formData?.constructor?.name,
-        hasEntries: typeof formData?.entries === 'function',
-        formDataKeys: formData ? Object.keys(formData) : 'FormData 없음',
-        photoFile: photoFile
-      });
-
       // ✅ 수정 완료: 백엔드에서 가져온 실제 route_id 사용
       const spotId = mission.id; // mission.id는 실제로 spot_id
       
+      // 단순 JSON 방식: 사진 URI를 문자열로 전송
+      const requestData = {
+        image_url: currentPhoto, // 로컬 file:// URI를 그대로 문자열로 전송
+        route_id: routeId,
+        spot_id: spotId
+      };
+      
+      console.log('[CameraScreen] JSON 데이터 구성:', {
+        requestData: requestData,
+        imageUri: currentPhoto,
+        imageUriType: typeof currentPhoto,
+        imageUriLength: currentPhoto?.length
+      });
+      
+      // 백엔드 엔드포인트는 트레일링 슬래시 포함: '<int:route_id>/<int:spot_id>/'
       const apiUrl = `${BACKEND_API.BASE_URL}/v1/photos/${routeId}/${spotId}/`;
       console.log('[CameraScreen] API 요청 정보 (수정됨):', {
         url: apiUrl,
@@ -410,22 +405,34 @@ const CameraScreen: React.FC<CameraScreenProps> = ({ route, navigation }) => {
       });
 
       // 요청 헤더 확인
-      const headers = {
+      const headers: any = {
         'Authorization': `Bearer ${tokens.access}`,
-        // FormData 사용 시 Content-Type은 자동으로 설정됨
+        'Content-Type': 'application/json',
       };
       
       console.log('[CameraScreen] 요청 헤더:', headers);
       
+      // 연결 확인 (간단 GET)
+      try {
+        console.log('[CameraScreen] 서버 연결 확인 시작');
+        const ping = await fetch(`${BACKEND_API.BASE_URL}/v1/photos/`, {
+          method: 'GET',
+          headers: { 'Authorization': `Bearer ${tokens.access}` },
+        });
+        console.log('[CameraScreen] 서버 연결 확인 응답:', { status: ping.status, ok: ping.ok });
+      } catch (pingErr) {
+        console.error('[CameraScreen] 서버 연결 확인 실패:', pingErr);
+      }
+
       // 네트워크 요청 시작 시간 기록
       const startTime = Date.now();
       console.log('[CameraScreen] 네트워크 요청 시작:', new Date(startTime).toISOString());
-      console.log('[CameraScreen] 실제 요청할 URL:', `"${apiUrl}"`);
+      console.log('[CameraScreen] 실제 요청할 URL:', apiUrl);
       
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers,
-        body: formData,
+        body: JSON.stringify(requestData),
       });
 
       const endTime = Date.now();
@@ -487,23 +494,19 @@ const CameraScreen: React.FC<CameraScreenProps> = ({ route, navigation }) => {
       // 모든 에러에서 URL 정보 출력
       console.error('[CameraScreen] 에러 발생 시 URL 정보:', {
         'BACKEND_API.BASE_URL 값': `"${BACKEND_API.BASE_URL}"`,
-        'routeId 값 (백엔드에서 가져옴)': `"${routeId}"`,
-        'spotId 값 (mission.id)': `"${spotId}"`,
-        '전체 URL (백엔드 연동)': `"${BACKEND_API.BASE_URL}/v1/photos/${routeId}/${spotId}"`,
+        // routeId/spotId는 try 블록 내 지역변수이므로 여기서는 출력 생략
+        '전체 URL (백엔드 연동)': 'try 블록 로그 참고',
         'URL 유효성': {
           baseUrlEmpty: !BACKEND_API.BASE_URL,
           baseUrlType: typeof BACKEND_API.BASE_URL,
-          routeIdEmpty: !routeId,
-          routeIdType: typeof routeId,
-          spotIdEmpty: !spotId,
-          spotIdType: typeof spotId
+          // routeId/spotId 검증은 요청 직전에 이미 로그로 출력됨
         }
       });
       
               // 네트워크 관련 에러인지 확인
         if (error?.message?.includes('Network request failed')) {
           console.error('[CameraScreen] 네트워크 요청 실패 상세:', {
-            apiUrl: `${BACKEND_API.BASE_URL}/v1/photos/${routeId}/${spotId}`,
+            apiUrl: '요청 URL은 try 블록 상단 로그 참고',
             baseUrl: BACKEND_API.BASE_URL,
             networkState: '네트워크 연결 상태 확인 필요',
             errorDetails: {

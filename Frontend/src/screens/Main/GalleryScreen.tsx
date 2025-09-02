@@ -19,7 +19,7 @@ import { INCHEON_BLUE, INCHEON_BLUE_LIGHT, INCHEON_GRAY, TEXT_STYLES } from '../
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BACKEND_API } from '../../config/apiKeys';
 import authService from '../../services/authService';
-import { getCompletedMissions } from '../../data/missions';
+
 
 const { width, height } = Dimensions.get('window');
 
@@ -114,44 +114,11 @@ export default function GalleryScreen() {
         console.error('[GalleryScreen] 백엔드 갤러리 데이터 가져오기 실패:', response.status);
       }
 
-      // 2. 로컬에서 완료된 미션들 가져오기
-      const completedMissions = getCompletedMissions();
-      console.log('[GalleryScreen] 로컬 완료된 미션들:', completedMissions);
+      // 2. 백엔드 데이터만 사용
+      const allItems = backendItems;
+      console.log('[GalleryScreen] 갤러리 데이터:', allItems);
 
-      // 3. 로컬 완료된 미션들을 GalleryItem 형식으로 변환
-      const localItems: GalleryItem[] = completedMissions.map((mission: any) => {
-        console.log('[GalleryScreen] 로컬 미션 데이터:', mission);
-        console.log('[GalleryScreen] past_image_url:', mission.past_image_url);
-        
-        return {
-          id: mission.id + 10000, // 백엔드 ID와 중복 방지
-          title: mission.location.name || `장소 ${mission.id}`,
-          image_url: mission.past_image_url || '',
-          past_image_url: mission.past_image_url || '',
-          completed: true,
-          hasStamp: true,
-          stampUsed: false, // 로컬 미션은 아직 스탬프 사용 안됨
-          route_id: mission.route_id || 0,
-          spot_id: mission.id,
-        };
-      });
-
-      // 4. 백엔드와 로컬 데이터 합치기 (중복 제거)
-      const allItems = [...backendItems];
-      
-      // 로컬 아이템 중 백엔드에 없는 것만 추가
-      localItems.forEach(localItem => {
-        const existsInBackend = backendItems.some(backendItem => 
-          backendItem.spot_id === localItem.spot_id
-        );
-        if (!existsInBackend) {
-          allItems.push(localItem);
-        }
-      });
-
-      console.log('[GalleryScreen] 합쳐진 갤러리 데이터:', allItems);
-
-      // 5. 빈 슬롯 생성 (고유한 ID 보장)
+      // 3. 빈 슬롯 생성 (고유한 ID 보장)
       const remainingSlots = TOTAL_COURSE - allItems.length;
       const maxExistingId = Math.max(...allItems.map(item => item.id), 0);
       const emptySlots = Array(remainingSlots).fill(null).map((_, index) => ({
@@ -203,13 +170,30 @@ export default function GalleryScreen() {
           text: '사용',
           onPress: async () => {
             try {
-              // 로컬 미션인지 백엔드 미션인지 확인
-              const isLocalMission = selectedImage.id > 10000; // 로컬 미션은 10000 이상의 ID
+              const tokens = await authService.getTokens();
+              if (!tokens?.access) {
+                Alert.alert('오류', '로그인이 필요합니다.');
+                return;
+              }
+
+              console.log('[GalleryScreen] 스탬프 사용:', selectedImage);
+
+              const useStampUrl = `${BACKEND_API.BASE_URL}/v1/courses/use_stamp/`;
+              const useStampPayload = { id: selectedImage.id, is_used: true };
+              console.log('[Gallery] PATCH use_stamp URL:', useStampUrl);
+              console.log('[Gallery] PATCH use_stamp Payload:', useStampPayload);
               
-              if (isLocalMission) {
-                // 로컬 미션의 경우 로컬 상태만 업데이트
-                console.log('[GalleryScreen] 로컬 미션 스탬프 사용:', selectedImage);
-                
+              const response = await fetch(useStampUrl, {
+                method: 'PATCH',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${tokens.access}`,
+                },
+                body: JSON.stringify(useStampPayload),
+              });
+
+              if (response.ok) {
+                // 로컬 상태 업데이트
                 setGalleryData(prev => 
                   prev.map(item => 
                     item.id === selectedImage.id 
@@ -220,42 +204,9 @@ export default function GalleryScreen() {
                 setImageModalVisible(false);
                 Alert.alert('스탬프 사용 완료!', '스탬프가 사용되었습니다.');
               } else {
-                // 백엔드 미션의 경우 API 호출
-                const tokens = await authService.getTokens();
-                if (!tokens?.access) {
-                  Alert.alert('오류', '로그인이 필요합니다.');
-                  return;
-                }
-
-                console.log('[GalleryScreen] 백엔드 미션 스탬프 사용:', selectedImage);
-
-                const useStampUrl = `${BACKEND_API.BASE_URL}/v1/courses/use_stamp/`;
-                const useStampPayload = { id: selectedImage.id, is_used: true };
-                console.log('[Gallery] PATCH use_stamp URL:', useStampUrl);
-                console.log('[Gallery] PATCH use_stamp Payload:', useStampPayload);
-                const response = await fetch(useStampUrl, {
-                  method: 'PATCH',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${tokens.access}`,
-                  },
-                  body: JSON.stringify(useStampPayload),
-                });
-
-                if (response.ok) {
-                  // 로컬 상태 업데이트
-                  setGalleryData(prev => 
-                    prev.map(item => 
-                      item.id === selectedImage.id 
-                        ? { ...item, stampUsed: true }
-                        : item
-                    )
-                  );
-                  setImageModalVisible(false);
-                  Alert.alert('스탬프 사용 완료!', '스탬프가 사용되었습니다.');
-                } else {
-                  Alert.alert('오류', '스탬프 사용에 실패했습니다.');
-                }
+                const errorText = await response.text();
+                console.error('[GalleryScreen] 스탬프 사용 실패:', response.status, errorText);
+                Alert.alert('오류', '스탬프 사용에 실패했습니다.');
               }
             } catch (error) {
               console.error('[GalleryScreen] 스탬프 사용 에러:', error);

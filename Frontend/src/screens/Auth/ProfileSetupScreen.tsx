@@ -233,176 +233,98 @@ export default function ProfileSetupScreen({ navigation }: any) {
     navigation.navigate('MainTabs');
   };
 
-  // 백엔드 연결 테스트 함수
-  const testBackendConnection = async () => {
-    try {
-      console.log('[ProfileSetupScreen] 백엔드 연결 테스트 시작');
-      
-      const tokens = await authService.getTokens();
-      if (!tokens?.access) {
-        Alert.alert('연결 테스트 실패', '토큰이 없습니다.');
-        return;
-      }
 
-      const currentUser = await authService.getUser();
-      if (!currentUser?.id) {
-        Alert.alert('연결 테스트 실패', '사용자 정보가 없습니다.');
-        return;
-      }
-
-      // JWT 토큰에서 실제 사용자 ID 추출
-      let actualUserId = currentUser.id;
-      try {
-        const tokenParts = tokens.access.split('.');
-        if (tokenParts.length === 3) {
-          const payload = JSON.parse(atob(tokenParts[1]));
-          const jwtUserId = payload.user_id;
-          if (jwtUserId && jwtUserId !== currentUser.id) {
-            console.log('[ProfileSetupScreen] 연결 테스트 - JWT user_id 사용:', jwtUserId);
-            actualUserId = jwtUserId;
-          }
-        }
-      } catch (error) {
-        console.error('[ProfileSetupScreen] JWT 파싱 실패:', error);
-      }
-
-      console.log('[ProfileSetupScreen] 연결 테스트 - 사용할 user_id:', actualUserId);
-      console.log('[ProfileSetupScreen] 연결 테스트 - 토큰 정보:', {
-        accessTokenExists: !!tokens.access,
-        accessTokenLength: tokens.access?.length,
-        accessTokenPrefix: tokens.access?.slice(0, 20) + '...',
-        accessTokenSuffix: tokens.access?.slice(-20)
-      });
-
-      // ID 불일치 경고
-      if (actualUserId !== currentUser.id) {
-        console.warn('[ProfileSetupScreen] 연결 테스트 - ⚠️ 주의: JWT user_id와 currentUser.id가 다릅니다!');
-        console.warn('[ProfileSetupScreen] 연결 테스트 - JWT user_id:', actualUserId);
-        console.warn('[ProfileSetupScreen] 연결 테스트 - currentUser.id:', currentUser.id);
-      }
-
-      // GET 요청으로 연결 테스트 (실제 사용자 ID 사용)
-      const testUrl = `${BACKEND_API.BASE_URL}/v1/users/profile/${actualUserId}/`;
-      const testHeaders = {
-        'Authorization': `Bearer ${tokens.access}`,
-      };
-
-      console.log('[ProfileSetupScreen] 연결 테스트 요청:', {
-        url: testUrl,
-        method: 'GET',
-        headers: testHeaders
-      });
-
-      const response = await fetch(testUrl, {
-        method: 'GET',
-        headers: testHeaders,
-      });
-
-      console.log('[ProfileSetupScreen] 연결 테스트 응답:', {
-        status: response.status,
-        statusText: response.statusText,
-        ok: response.ok,
-        url: response.url
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        Alert.alert('연결 테스트 성공', `백엔드 연결이 정상입니다.\n사용자 ID: ${actualUserId}\n응답 상태: ${response.status}`);
-      } else {
-        // 에러 응답 상세 정보 확인
-        let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
-        try {
-          const errorData = await response.json();
-          errorMessage += `\n\n에러 상세: ${JSON.stringify(errorData, null, 2)}`;
-        } catch (parseError) {
-          const errorText = await response.text();
-          errorMessage += `\n\n응답 텍스트: ${errorText}`;
-        }
-        Alert.alert('연결 테스트 실패', errorMessage);
-      }
-    } catch (error) {
-      console.error('[ProfileSetupScreen] 연결 테스트 에러:', error);
-      Alert.alert('연결 테스트 에러', `네트워크 오류: ${error.message}`);
-    }
-  };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>
-        {isEditMode ? '프로필 편집' : '프로필 설정'}
-      </Text>
-      <Text style={styles.subtitle}>
-        {isEditMode 
-          ? '프로필 정보를 수정해주세요' 
-          : '여행을 위한 기본 정보를 입력해주세요'
-        }
-      </Text>
+      <View style={styles.header}>
+        <Text style={styles.title}>
+          {isEditMode ? '프로필 편집' : '프로필 설정'}
+        </Text>
+        <Text style={styles.subtitle}>
+          {isEditMode 
+            ? '프로필 정보를 수정해주세요' 
+            : '여행을 위한 기본 정보를 입력해주세요'
+          }
+        </Text>
+      </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* 닉네임 입력 */}
-        <View style={styles.inputSection}>
-          <Text style={styles.inputLabel}>닉네임 *</Text>
-          <TextInput
-            style={styles.textInput}
-            value={nickname}
-            onChangeText={setNickname}
-            placeholder="사용할 닉네임을 입력하세요"
-            maxLength={30}
-          />
-        </View>
+        <View style={styles.formContainer}>
+          {/* 닉네임 입력 */}
+          <View style={styles.inputSection}>
+            <Text style={styles.inputLabel}>닉네임 *</Text>
+            <View style={styles.inputWrapper}>
+              <Ionicons name="person-outline" size={20} color={INCHEON_GRAY} style={styles.inputIcon} />
+              <TextInput
+                style={styles.textInput}
+                value={nickname}
+                onChangeText={setNickname}
+                placeholder="사용할 닉네임을 입력하세요"
+                placeholderTextColor="#999"
+                maxLength={30}
+              />
+            </View>
+          </View>
 
-        {/* 나이 선택 */}
-        <View style={styles.inputSection}>
-          <Text style={styles.inputLabel}>나이대 *</Text>
-          <View style={styles.pickerContainer}>
-            <Picker
-              selectedValue={age}
-              onValueChange={(itemValue) => setAge(itemValue)}
-              style={styles.picker}
-            >
-              <Picker.Item label="나이대를 선택하세요" value="" />
-              {ageOptions.map((ageOption) => (
-                <Picker.Item key={ageOption} label={ageOption} value={ageOption} />
-              ))}
-            </Picker>
+          {/* 나이 선택 */}
+          <View style={styles.inputSection}>
+            <Text style={styles.inputLabel}>나이대 *</Text>
+            <View style={styles.inputWrapper}>
+              <Ionicons name="calendar-outline" size={20} color={INCHEON_GRAY} style={styles.inputIcon} />
+              <View style={styles.pickerContainer}>
+                <Picker
+                  selectedValue={age}
+                  onValueChange={(itemValue) => setAge(itemValue)}
+                  style={styles.picker}
+                  itemStyle={styles.pickerItem}
+                >
+                  <Picker.Item label="나이대를 선택하세요" value="" color="#999" style={{ fontSize: 14 }} />
+                  {ageOptions.map((ageOption) => (
+                    <Picker.Item key={ageOption} label={ageOption} value={ageOption} color="" />
+                  ))}
+                </Picker>
+              </View>
+            </View>
+          </View>
+
+          {/* 성별 선택 */}
+          <View style={styles.inputSection}>
+            <Text style={styles.inputLabel}>성별 *</Text>
+            <View style={styles.inputWrapper}>
+              <Ionicons name="male-female-outline" size={20} color={INCHEON_GRAY} style={styles.inputIcon} />
+              <View style={styles.pickerContainer}>
+                <Picker
+                  selectedValue={gender}
+                  onValueChange={(itemValue) => setGender(itemValue)}
+                  style={styles.picker}
+                  itemStyle={styles.pickerItem}
+                >
+                  <Picker.Item label="성별을 선택하세요" value="" color="#999" style={{ fontSize: 14, paddingVertical: 10 }} />
+                  {genderOptions.map((genderOption) => (
+                    <Picker.Item key={genderOption} label={genderOption} value={genderOption} color="" />
+                  ))}
+                </Picker>
+              </View>
+            </View>
+          </View>
+
+          {/* 안내 메시지 */}
+          <View style={styles.infoSection}>
+            <Ionicons name="information-circle" size={20} color={INCHEON_BLUE} />
+            <Text style={styles.infoText}>
+              프로필 정보는 여행 추천과 개인화 서비스에 활용됩니다.
+            </Text>
           </View>
         </View>
-
-        {/* 성별 선택 */}
-        <View style={styles.inputSection}>
-          <Text style={styles.inputLabel}>성별 *</Text>
-          <View style={styles.pickerContainer}>
-            <Picker
-              selectedValue={gender}
-              onValueChange={(itemValue) => setGender(itemValue)}
-              style={styles.picker}
-            >
-              <Picker.Item label="성별을 선택하세요" value="" />
-              {genderOptions.map((genderOption) => (
-                <Picker.Item key={genderOption} label={genderOption} value={genderOption} />
-              ))}
-            </Picker>
-          </View>
-        </View>
-
-
-        {/* 안내 메시지 */}
-        <View style={styles.infoSection}>
-          <Ionicons name="information-circle" size={20} color={INCHEON_BLUE} />
-          <Text style={styles.infoText}>
-            프로필 정보는 여행 추천과 개인화 서비스에 활용됩니다.
-          </Text>
-        </View>
-
-        {/* 백엔드 연결 테스트 버튼 */}
-        <TouchableOpacity style={styles.testButton} onPress={testBackendConnection}>
-          <Text style={styles.testButtonText}>백엔드 연결 테스트</Text>
-        </TouchableOpacity>
 
         {/* 버튼들 */}
         <View style={styles.buttonSection}>
           <TouchableOpacity
-            style={styles.completeButton}
+            style={[
+              styles.completeButton,
+              (!nickname.trim() || !age || !gender) && styles.disabledButton
+            ]}
             onPress={handleCompleteProfile}
             disabled={isLoading || !nickname.trim() || !age || !gender}
           >
@@ -418,9 +340,11 @@ export default function ProfileSetupScreen({ navigation }: any) {
             )}
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.skipButton} onPress={handleSkip}>
-            <Text style={styles.skipButtonText}>나중에 설정하기</Text>
-          </TouchableOpacity>
+          {!isEditMode && (
+            <TouchableOpacity style={styles.skipButton} onPress={handleSkip}>
+              <Text style={styles.skipButtonText}>나중에 설정하기</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </ScrollView>
     </View>
@@ -430,59 +354,96 @@ export default function ProfileSetupScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#f8f9fa',
+  },
+  header: {
     backgroundColor: '#fff',
-    padding: 24,
+    paddingTop: 60,
+    paddingBottom: 30,
+    paddingHorizontal: 24,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
   },
   title: {
     ...TEXT_STYLES.title,
-    marginTop: 40,
-    marginBottom: 10,
     color: '#333',
     textAlign: 'center',
+    marginBottom: 8,
   },
   subtitle: {
     ...TEXT_STYLES.heading,
     color: '#666',
-    marginBottom: 30,
     textAlign: 'center',
   },
   content: {
     flex: 1,
+    paddingHorizontal: 24,
+  },
+  formContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 24,
+    marginTop: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
   },
   inputSection: {
     marginBottom: 24,
   },
   inputLabel: {
     ...TEXT_STYLES.heading,
-    color: INCHEON_GRAY,
-    marginBottom: 8,
+    color: '#333',
+    marginBottom: 12,
+    fontWeight: '600',
+  },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#e9ecef',
+    borderRadius: 16,
+    backgroundColor: '#f8f9fa',
+    paddingHorizontal: 16,
+    paddingVertical: 4,
+  },
+  inputIcon: {
+    marginRight: 12,
   },
   textInput: {
-    borderWidth: 2,
-    borderColor: '#e0e0e0',
-    borderRadius: 12,
-    padding: 16,
+    flex: 1,
     ...TEXT_STYLES.body,
-    backgroundColor: '#f8f9fa',
+    paddingVertical: 16,
+    color: '#333',
   },
   pickerContainer: {
-    borderWidth: 2,
-    borderColor: '#e0e0e0',
+    flex: 1,
     borderRadius: 12,
-    backgroundColor: '#f8f9fa',
     overflow: 'hidden',
   },
   picker: {
     height: 50,
     fontFamily: 'NeoDunggeunmoPro-Regular',
   },
+  pickerItem: {
+    height: 50,
+    fontSize: 16,
+    fontFamily: 'NeoDunggeunmoPro-Regular',
+  },
   infoSection: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: INCHEON_BLUE_LIGHT,
+    backgroundColor: '#e3f2fd',
     padding: 16,
-    borderRadius: 12,
-    marginBottom: 32,
+    borderRadius: 16,
+    marginTop: 8,
   },
   infoText: {
     fontFamily: 'NeoDunggeunmoPro-Regular',
@@ -490,8 +451,10 @@ const styles = StyleSheet.create({
     color: INCHEON_BLUE,
     marginLeft: 8,
     flex: 1,
+    lineHeight: 20,
   },
   buttonSection: {
+    paddingVertical: 24,
     gap: 16,
   },
   completeButton: {
@@ -499,14 +462,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: INCHEON_BLUE,
-    borderRadius: 16,
-    paddingVertical: 16,
+    borderRadius: 20,
+    paddingVertical: 18,
     paddingHorizontal: 30,
+    shadowColor: INCHEON_BLUE,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  disabledButton: {
+    backgroundColor: '#ccc',
+    shadowOpacity: 0,
+    elevation: 0,
   },
   completeButtonText: {
     ...TEXT_STYLES.heading,
     color: '#fff',
     marginLeft: 10,
+    fontWeight: '600',
   },
   skipButton: {
     alignItems: 'center',
@@ -516,19 +490,5 @@ const styles = StyleSheet.create({
     ...TEXT_STYLES.body,
     color: INCHEON_GRAY,
     textDecorationLine: 'underline',
-  },
-  testButton: {
-    alignItems: 'center',
-    paddingVertical: 16,
-    backgroundColor: INCHEON_BLUE_LIGHT,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: INCHEON_BLUE,
-  },
-  testButtonText: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 16,
-    color: INCHEON_BLUE,
-    fontWeight: 'bold',
   },
 }); 

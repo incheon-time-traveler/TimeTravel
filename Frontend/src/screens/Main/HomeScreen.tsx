@@ -702,15 +702,12 @@ export default function HomeScreen({ navigation }: any) {
   const renderLoggedInHeader = () => (
     <View style={styles.loggedInHeader}>
       <View style={styles.userInfoSection}>
-        <View style={styles.userAvatar}>
-          <Text style={styles.userAvatarText}>
-            {userProfile?.nickname?.charAt(0) || userProfile?.username?.charAt(0) || 'U'}
-          </Text>
-        </View>
         <View style={styles.userGreeting}>
           <View style={styles.locationContainer}>
-            <Ionicons name="location" size={16} color={INCHEON_GRAY} />
-            <Text style={styles.userName}>{userProfile?.nickname || userProfile?.username || '사용자'}님 안녕하세요</Text>
+            <View style={styles.greetingContainer}>
+                <Ionicons name="location" size={16} color={INCHEON_GRAY} />
+                <Text style={styles.userName}>{userProfile?.nickname || userProfile?.username || '사용자'}님 안녕하세요</Text>
+            </View>
           </View>
           <Text style={styles.greetingText}>어디로 떠나볼까요?</Text>
         </View>
@@ -940,6 +937,7 @@ underline: {
     borderWidth: 1,
     borderColor: '#e0e0e0',
     marginRight: 16,
+    marginBottom: 32,
     padding: 16,
     alignItems: 'center',
     shadowColor: '#000',
@@ -1081,26 +1079,30 @@ underline: {
     shadowRadius: 8,
     elevation: 6,
   },
-  userAvatarText: {
-    ...TEXT_STYLES.title,
-    color: '#fff',
-  },
-  userGreeting: {
-    flex: 1,
-  },
+
+
   locationContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 6,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  greetingContainer: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center'
   },
   userName: {
-    ...TEXT_STYLES.heading,
-    color: INCHEON_GRAY,
+    ...TEXT_STYLES.subtitle,
+    textAlign: 'center',
     marginLeft: 6,
   },
   greetingText: {
     ...TEXT_STYLES.heading,
+    textAlign: 'center',
     color: INCHEON_GRAY,
+    marginBottom: 8,
   },
   continueCourseBtn: {
     backgroundColor: INCHEON_BLUE,

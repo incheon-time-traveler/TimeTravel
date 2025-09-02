@@ -105,7 +105,7 @@ export default function HomeScreen({ navigation }: any) {
       clearInterval(locationIntervalRef.current);
     }
     
-    // 60초마다 위치 기반 미션 감지 (10초 → 60초로 변경)
+    // 60초마다 위치 기반 미션 감지 (10초에서 60초로 변경)
     locationIntervalRef.current = setInterval(async () => {
       if (currentLocation && isLoggedIn) {
         try {

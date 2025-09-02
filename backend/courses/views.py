@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework import status
 from .models import Route, RouteSpot, UserRouteSpot
-from .serializers import RouteSerializer, RouteDetailSerializer, UserRouteSpotSerializer
+from .serializers import RouteSerializer, RouteDetailSerializer, UserRouteSpotSerializer, UserRouteSpotUpdateSerializer
 from .utils import generate_course, save_course
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.db.models import Count
@@ -262,17 +262,19 @@ def user_routes(request, route_id=None):
 # 잠금 해제
 @api_view(['PATCH'])
 @permission_classes([IsAuthenticated])
-def unlock_route_spot(request):
+def unlock_route_spot(request, route_spot_id):
     """
     유저 코스 잠금 해제 API
     프론트엔드에서 사용자가 이동하는 코스의 특정 스팟의 잠금을 해제합니다.
     """
     if request.method == "PATCH":
         user = request.user
-        serializer = UserRouteSpotUpdateSerializer(data=request.data, partial=True)
+        print("requset.data:", request.data)
+        user_route_spot = UserRouteSpot.objects.get(user_id=user, id=request.data['id'])
+        serializer = UserRouteSpotUpdateSerializer(user_route_spot, data=request.data, partial=True)
         if serializer.is_valid(raise_exception=True):
-            serializer.save(user_id=user.id)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 # 해금 장소 조회
@@ -445,8 +447,9 @@ def use_stamp(request):
     """
     if request.method == "PATCH":
         user = request.user
-        serializer = UserRouteSpotUpdateSerializer(data=request.data, partial=True)
+        user_route_spot = UserRouteSpot.objects.get(user_id=user, id=request.data['id'])
+        serializer = UserRouteSpotUpdateSerializer(user_route_spot, data=request.data, partial=True)
         if serializer.is_valid(raise_exception=True):
-            serializer.save(user_id=user.id)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

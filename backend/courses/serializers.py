@@ -21,4 +21,4 @@ class UserRouteSpotSerializer(serializers.ModelSerializer):
 class UserRouteSpotUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserRouteSpot
-        exclude = ['user_id']
+        exclude = ['user_id', 'route_spot_id']

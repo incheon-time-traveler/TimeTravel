@@ -6,7 +6,7 @@ import SocialLoginWebView from './SocialLoginWebView';
 import { INCHEON_BLUE_LIGHT, INCHEON_GRAY } from '../../styles/fonts';
 import { BACKEND_API } from '../../config/apiKeys';
 
-const LoginScreen = ({ navigation }: any) => {
+const LoginScreen = ({ navigation, showOnlyLogin = false }: any) => {
   const [showWebView, setShowWebView] = useState(false);
   const [loginProvider, setLoginProvider] = useState<'google' | 'kakao'>('google');
   const [loginUrl, setLoginUrl] = useState('');
@@ -20,21 +20,38 @@ const LoginScreen = ({ navigation }: any) => {
   // 로그인 상태 확인 함수
   const checkLoginStatus = async () => {
     try {
-      const tokens = await authService.getTokens();
-      const user = await authService.getUser();
+      // authService의 isLoggedIn 메서드로 정확한 로그인 상태 확인
+      const isUserLoggedIn = await authService.isLoggedIn();
+      console.log('[LoginScreen] checkLoginStatus - isLoggedIn:', isUserLoggedIn);
       
-      console.log('[LoginScreen] checkLoginStatus - tokens:', !!tokens, 'user:', !!user);
-      
-      if (tokens?.access && user?.id) {
-        // 로그인된 상태에서 프로필 완성 여부 확인
-        const isProfileComplete = await checkProfileCompletion(user.id);
+      if (isUserLoggedIn) {
+        const user = await authService.getUser();
+        console.log('[LoginScreen] 로그인된 사용자:', user?.id);
         
-        if (isProfileComplete) {
-          console.log('[LoginScreen] 프로필이 이미 완성됨 - MainTabs로 이동');
-          navigation.navigate('MainTabs');
+        if (user?.id) {
+          // showOnlyLogin이 true면 자동 네비게이션 하지 않음
+          if (showOnlyLogin) {
+            console.log('[LoginScreen] showOnlyLogin=true - 자동 네비게이션 스킵');
+            setIsLoggedIn(true);
+            setUserProfile(user);
+            return;
+          }
+          
+          // 로그인된 상태에서 프로필 완성 여부 확인
+          const isProfileComplete = await checkProfileCompletion(user.id);
+          
+          if (isProfileComplete) {
+            console.log('[LoginScreen] 프로필이 이미 완성됨 - MainTabs로 이동');
+            navigation.navigate('MainTabs');
+          } else {
+            console.log('[LoginScreen] 프로필 미완성 - ProfileSetup으로 이동');
+            navigation.navigate('ProfileSetup');
+          }
         } else {
-          console.log('[LoginScreen] 프로필 미완성 - ProfileSetup으로 이동');
-          navigation.navigate('ProfileSetup');
+          console.log('[LoginScreen] 사용자 정보 없음 - 로그아웃 처리');
+          await authService.logout();
+          setIsLoggedIn(false);
+          setUserProfile(null);
         }
       } else {
         console.log('[LoginScreen] User is not logged in');
@@ -79,6 +96,7 @@ const LoginScreen = ({ navigation }: any) => {
     try {
       const tokens = await authService.getTokens();
       if (!tokens?.access) {
+        console.log('[LoginScreen] checkProfileCompletion - 토큰 없음');
         return false;
       }
 
@@ -95,9 +113,15 @@ const LoginScreen = ({ navigation }: any) => {
         const isComplete = userData.nickname && userData.age && userData.gender;
         console.log('[LoginScreen] 프로필 완성 여부:', isComplete, userData);
         return isComplete;
+      } else if (response.status === 401) {
+        console.log('[LoginScreen] checkProfileCompletion - 토큰 만료 (401)');
+        // 토큰이 만료된 경우 로그아웃 처리
+        await authService.logout();
+        return false;
+      } else {
+        console.log('[LoginScreen] checkProfileCompletion - API 호출 실패:', response.status);
+        return false;
       }
-      
-      return false;
     } catch (error) {
       console.error('[LoginScreen] 프로필 완성 여부 확인 실패:', error);
       return false;
@@ -105,8 +129,10 @@ const LoginScreen = ({ navigation }: any) => {
   };
 
   useEffect(() => {
-    // 컴포넌트 마운트 시 로그인 상태 확인
-    checkLoginStatus();
+    // 컴포넌트 마운트 시 로그인 상태 확인 (showOnlyLogin이 false일 때만)
+    if (!showOnlyLogin) {
+      checkLoginStatus();
+    }
     
     const handleDeepLink = (event: { url: string }) => {
       const { url } = event;

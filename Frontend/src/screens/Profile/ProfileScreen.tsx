@@ -27,6 +27,17 @@ export default function ProfileScreen({ navigation, route }: any) {
       setIsLoading(true);
       console.log('[ProfileScreen] isLoading을 true로 설정');
       
+      // 먼저 authService의 isLoggedIn 메서드로 정확한 로그인 상태 확인
+      const isUserLoggedIn = await authService.isLoggedIn();
+      console.log('[ProfileScreen] authService.isLoggedIn() 결과:', isUserLoggedIn);
+      
+      if (!isUserLoggedIn) {
+        console.log('[ProfileScreen] 로그인되지 않음 - authService.isLoggedIn() false');
+        setIsLoggedIn(false);
+        setUserProfile(null);
+        return;
+      }
+
       const tokens = await authService.getTokens();
       console.log('[ProfileScreen] 토큰 가져오기 완료:', !!tokens?.access);
       if (!tokens?.access) {
@@ -122,12 +133,15 @@ export default function ProfileScreen({ navigation, route }: any) {
 
   const handleLogout = async () => {
     try {
-      await authService.logout();
-      console.log('[ProfileScreen] 로그아웃 완료');
+      console.log('[ProfileScreen] 로그아웃 시작');
       
       // 로그인 상태 즉시 false로 설정
       setIsLoggedIn(false);
       setUserProfile(null);
+      
+      // authService에서 로그아웃 처리
+      await authService.logout();
+      console.log('[ProfileScreen] 로그아웃 완료');
       
       // 로그인 화면 표시 (LoginScreen 컴포넌트가 자동으로 렌더링됨)
       console.log('[ProfileScreen] 로그인 화면 표시');
@@ -141,12 +155,20 @@ export default function ProfileScreen({ navigation, route }: any) {
   // AsyncStorage 완전 정리 함수
   const clearAllData = async () => {
     try {
-      await authService.logout();
+      console.log('[ProfileScreen] 데이터 정리 시작');
+      
+      // 로그인 상태 즉시 false로 설정
       setIsLoggedIn(false);
       setUserProfile(null);
+      
+      // authService에서 로그아웃 처리
+      await authService.logout();
+      
+      console.log('[ProfileScreen] 데이터 정리 완료');
       Alert.alert('데이터 정리 완료', '모든 로그인 정보가 삭제되었습니다.');
     } catch (error) {
       console.error('데이터 정리 실패:', error);
+      Alert.alert('오류', '데이터 정리 중 문제가 발생했습니다.');
     }
   };
 
@@ -171,14 +193,16 @@ export default function ProfileScreen({ navigation, route }: any) {
       console.log('[ProfileScreen] useFocusEffect 실행');
       // 로그인 상태를 다시 확인
       const checkLoginStatus = async () => {
-        const tokens = await authService.getTokens();
-        const user = await authService.getUser();
-        const isUserLoggedIn = !!(tokens?.access && user);
+        const isUserLoggedIn = await authService.isLoggedIn();
         console.log('[ProfileScreen] useFocusEffect에서 로그인 상태 확인:', isUserLoggedIn);
         
         if (isUserLoggedIn) {
           console.log('[ProfileScreen] 화면 포커스됨 - 프로필 새로고침');
           loadUserProfile();
+        } else {
+          console.log('[ProfileScreen] 로그인되지 않음 - 상태 초기화');
+          setIsLoggedIn(false);
+          setUserProfile(null);
         }
       };
       checkLoginStatus();
@@ -201,7 +225,7 @@ export default function ProfileScreen({ navigation, route }: any) {
 
   // 로그인되지 않은 경우 LoginScreen 표시
   if (!isLoggedIn || !userProfile) {
-    return <LoginScreen navigation={navigation} />;
+    return <LoginScreen navigation={navigation} showOnlyLogin={true} />;
   }
 
   return (

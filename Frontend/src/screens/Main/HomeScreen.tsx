@@ -5,6 +5,7 @@ import Geolocation from '@react-native-community/geolocation';
 import { INCHEON_BLUE, INCHEON_BLUE_LIGHT, INCHEON_GRAY, TEXT_STYLES } from '../../styles/fonts';
 import authService from '../../services/authService';
 import { BACKEND_API } from '../../config/apiKeys';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { 
   setCurrentLocation, 
   startLocationBasedMissionDetection, 
@@ -352,7 +353,173 @@ export default function HomeScreen({ navigation }: any) {
     }
   };
 
+  // 스팟 정보 확인 (디버깅용)
+  const checkSpotInfo = async () => {
+    try {
+      console.log('[HomeScreen] 스팟 정보 확인 시작');
+      
+      // 로그인 상태 확인 및 토큰 가져오기
+      const tokens = await authService.getTokens();
+      if (!tokens?.access) {
+        Alert.alert('오류', '로그인이 필요합니다.');
+        return;
+      }
+      
+      // /v1/spots/ API 호출하여 전체 스팟 정보 가져오기 (인증 토큰 포함)
+      const response = await fetch(`${BACKEND_API.BASE_URL}/v1/spots/`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${tokens.access}`,
+        },
+      });
 
+      if (response.ok) {
+        const data = await response.json();
+        console.log('[HomeScreen] 전체 스팟 데이터:', data);
+        
+        // past_image_url이 있는 스팟들 필터링
+        const spotsWithPastImage = data.filter((spot: any) => 
+          spot.past_image_url && spot.past_image_url.trim() !== ''
+        );
+        
+        // past_image_url이 없는 스팟들
+        const spotsWithoutPastImage = data.filter((spot: any) => 
+          !spot.past_image_url || spot.past_image_url.trim() === ''
+        );
+        
+        let message = '🗺️ 스팟 정보 확인\n\n';
+        message += `📊 전체 스팟: ${data.length}개\n`;
+        message += `🖼️ 과거사진 있는 스팟: ${spotsWithPastImage.length}개\n`;
+        message += `❌ 과거사진 없는 스팟: ${spotsWithoutPastImage.length}개\n\n`;
+        
+        if (spotsWithPastImage.length > 0) {
+          message += '🖼️ 과거사진 있는 스팟들:\n';
+          spotsWithPastImage.slice(0, 10).forEach((spot: any, index: number) => {
+            message += `${index + 1}. ${spot.name || spot.title || `스팟 ${spot.id}`}\n`;
+            message += `   📍 ${spot.address || '주소 없음'}\n`;
+            message += `   🖼️ ${spot.past_image_url?.substring(0, 50)}...\n\n`;
+          });
+          
+          if (spotsWithPastImage.length > 10) {
+            message += `... 외 ${spotsWithPastImage.length - 10}개 더\n\n`;
+          }
+        }
+        
+        if (spotsWithoutPastImage.length > 0) {
+          message += '❌ 과거사진 없는 스팟들 (샘플):\n';
+          spotsWithoutPastImage.slice(0, 5).forEach((spot: any, index: number) => {
+            message += `${index + 1}. ${spot.name || spot.title || `스팟 ${spot.id}`}\n`;
+            message += `   📍 ${spot.address || '주소 없음'}\n\n`;
+          });
+          
+          if (spotsWithoutPastImage.length > 5) {
+            message += `... 외 ${spotsWithoutPastImage.length - 5}개 더\n\n`;
+          }
+        }
+        
+        Alert.alert('스팟 정보', message);
+        
+      } else {
+        console.error('[HomeScreen] 스팟 정보 가져오기 실패:', response.status);
+        Alert.alert('오류', '스팟 정보를 가져올 수 없습니다.');
+      }
+      
+    } catch (error) {
+      console.error('[HomeScreen] 스팟 정보 확인 실패:', error);
+      Alert.alert('오류', '스팟 정보 확인 중 오류가 발생했습니다.');
+    }
+  };
+
+  // 백엔드 연결 테스트 (상세)
+  const testBackendConnection = async () => {
+    try {
+      console.log('[HomeScreen] 백엔드 연결 테스트 시작');
+      console.log('[HomeScreen] 테스트 URL:', `${BACKEND_API.BASE_URL}/v1/photos/`);
+      
+      const startTime = Date.now();
+      const response = await fetch(`${BACKEND_API.BASE_URL}/v1/photos/`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      const endTime = Date.now();
+      
+      console.log('[HomeScreen] 백엔드 연결 테스트 결과:', {
+        status: response.status,
+        statusText: response.statusText,
+        responseTime: `${endTime - startTime}ms`,
+        url: `${BACKEND_API.BASE_URL}/v1/photos/`,
+        headers: Object.fromEntries(response.headers.entries())
+      });
+      
+      if (response.ok) {
+        Alert.alert(
+          '백엔드 연결 성공! 🎉',
+          `상태: ${response.status}\n응답 시간: ${endTime - startTime}ms\nURL: ${BACKEND_API.BASE_URL}/v1/photos/`
+        );
+      } else {
+        Alert.alert(
+          '백엔드 연결 실패 ❌',
+          `상태: ${response.status} ${response.statusText}\n응답 시간: ${endTime - startTime}ms\nURL: ${BACKEND_API.BASE_URL}/v1/photos/`
+        );
+      }
+      
+    } catch (error) {
+      console.error('[HomeScreen] 백엔드 연결 테스트 실패:', error);
+      Alert.alert(
+        '백엔드 연결 실패 ❌',
+        `에러: ${error?.message || '알 수 없는 오류'}\nURL: ${BACKEND_API.BASE_URL}/v1/photos/`
+      );
+    }
+  };
+
+  // 간단한 GET 요청 테스트
+  const testSimpleGetRequest = async () => {
+    try {
+      console.log('[HomeScreen] 간단한 GET 요청 테스트 시작');
+      console.log('[HomeScreen] 테스트 URL:', `${BACKEND_API.BASE_URL}/v1/routes/`);
+      
+      const startTime = Date.now();
+      const response = await fetch(`${BACKEND_API.BASE_URL}/v1/routes/`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      const endTime = Date.now();
+      
+      console.log('[HomeScreen] 간단한 GET 요청 테스트 결과:', {
+        status: response.status,
+        statusText: response.statusText,
+        responseTime: `${endTime - startTime}ms`,
+        url: `${BACKEND_API.BASE_URL}/v1/routes/`,
+        headers: Object.fromEntries(response.headers.entries())
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('[HomeScreen] 응답 데이터:', data);
+        Alert.alert(
+          'GET 요청 성공! 🎉',
+          `상태: ${response.status}\n응답 시간: ${endTime - startTime}ms\n데이터 개수: ${Array.isArray(data) ? data.length : 'N/A'}`
+        );
+      } else {
+        Alert.alert(
+          'GET 요청 실패 ❌',
+          `상태: ${response.status} ${response.statusText}\n응답 시간: ${endTime - startTime}ms`
+        );
+      }
+      
+    } catch (error) {
+      console.error('[HomeScreen] 간단한 GET 요청 테스트 실패:', error);
+      Alert.alert(
+        'GET 요청 실패 ❌',
+        `에러: ${error?.message || '알 수 없는 오류'}`
+      );
+    }
+  };
 
   const checkLoginStatus = async () => {
     try {
@@ -610,14 +777,14 @@ export default function HomeScreen({ navigation }: any) {
               </Text>
             </TouchableOpacity>
             <View style={styles.spotStatus}>
-                             {index === 0 ? (
-                 <TouchableOpacity 
-                   style={styles.nextDestinationBtn}
-                   onPress={() => handleNextDestination(spot)}
-                 >
-                   <Text style={styles.nextDestinationText}>다음 목적지</Text>
-                 </TouchableOpacity>
-               ) : (
+              {index === 0 ? (
+                <TouchableOpacity
+                  style={styles.nextDestinationBtn}
+                  onPress={() => handleNextDestination(spot)}
+                >
+                  <Text style={styles.nextDestinationText}>다음 목적지</Text>
+                </TouchableOpacity>
+              ) : (
                 <View style={styles.lockedIcon}>
                   <Ionicons name="lock-closed" size={16} color="#FFD700" />
                 </View>
@@ -626,7 +793,7 @@ export default function HomeScreen({ navigation }: any) {
           </View>
         ))}
       </View>
-      
+
       <TouchableOpacity style={styles.continueBtn} onPress={handleContinueCourse}>
         <Text style={styles.continueBtnText}>코스 계속하기</Text>
       </TouchableOpacity>
@@ -651,6 +818,7 @@ export default function HomeScreen({ navigation }: any) {
         </View>
       </View>
 
+
              {hasOngoingCourse ? (
          <TouchableOpacity style={styles.continueCourseBtn} onPress={handleContinueCourse}>
            <Text style={styles.continueCourseBtnText}>아래 코스를 계속해서 진행해보세요</Text>
@@ -671,6 +839,15 @@ export default function HomeScreen({ navigation }: any) {
            <TouchableOpacity style={styles.missionStatusBtn} onPress={checkMissionStatus}>
              <Text style={styles.missionStatusBtnText}>미션 상태 확인</Text>
            </TouchableOpacity>
+           <TouchableOpacity style={styles.spotInfoBtn} onPress={checkSpotInfo}>
+             <Text style={styles.spotInfoBtnText}>스팟 정보 확인</Text>
+           </TouchableOpacity>
+           <TouchableOpacity style={styles.backendTestBtn} onPress={testBackendConnection}>
+             <Text style={styles.backendTestBtnText}>백엔드 연결 테스트</Text>
+           </TouchableOpacity>
+           <TouchableOpacity style={styles.simpleGetBtn} onPress={testSimpleGetRequest}>
+             <Text style={styles.simpleGetBtnText}>간단한 GET 요청</Text>
+           </TouchableOpacity>
          </View>
        </View>
     </View>
@@ -678,7 +855,7 @@ export default function HomeScreen({ navigation }: any) {
 
   // 로그인되지 않은 상태일 때 상단 섹션
   const renderLoggedOutHeader = () => (
-    <View style={styles.topSection}>
+    <View style={styles.loginSection}>
       <Text style={styles.topTitle}>어디로 떠나볼까요?</Text>
       <TouchableOpacity style={styles.loginBtn} onPress={handleLoginPress}>
         <Text style={styles.loginBtnText}>로그인으로 여행을 시작해보세요</Text>
@@ -687,13 +864,15 @@ export default function HomeScreen({ navigation }: any) {
   );
 
   return (
+  <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+
     <View style={styles.container}>
       <ScrollView contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
-        {isLoggedIn ? renderLoggedInHeader() : renderLoggedOutHeader()}
 
         {isLoggedIn && hasOngoingCourse ? (
           <>
-            <Text style={styles.sectionTitle}>진행중인 코스</Text>
+            <Text style={styles.sectionTitle}>진행 중인 코스</Text>
+            <View style={styles.underline} />
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.cardScroll}>
               {ongoingCourses.map(renderOngoingCourseCard)}
             </ScrollView>
@@ -701,111 +880,77 @@ export default function HomeScreen({ navigation }: any) {
         ) : (
           <>
             <Text style={styles.sectionTitle}>추천 코스</Text>
+            <View style={styles.underline} />
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.cardScroll}>
-                             {recommendedCourses.length > 0 ? (
-                 recommendedCourses.map((course) => (
-                   <TouchableOpacity 
-                     key={course.id} 
-                     style={styles.courseCard}
-                     onPress={() => handleRouteCardPress(course.id)}
-                     activeOpacity={0.7}
-                   >
-                     <View style={styles.imageBox}>
-                       <TouchableOpacity 
-                         style={styles.bookmarkIcon}
-                         onPress={(e) => {
-                           e.stopPropagation();
-                           Alert.alert('북마크', '이 루트를 북마크에 추가했습니다!');
-                         }}
-                       >
-                         <Ionicons name="bookmark-outline" size={20} color="#fff" />
-                       </TouchableOpacity>
-                       <View style={styles.priceIndicator}>
-                         <Text style={styles.priceText}>$~~~</Text>
-                       </View>
-                       <Ionicons name="image-outline" size={36} color="#bbb" />
-                     </View>
-                     <Text style={styles.courseTitle} numberOfLines={1}>{course.title}</Text>
-                     <View style={styles.locationContainer}>
-                       <Ionicons name="location-outline" size={14} color={INCHEON_GRAY} />
-                       <Text style={styles.locationText} numberOfLines={1}>{course.location || '위치 정보 없음'}</Text>
-                     </View>
-                     <TouchableOpacity style={styles.startBtn} disabled>
-                       <Text style={styles.startBtnText}>Start</Text>
-                     </TouchableOpacity>
-                   </TouchableOpacity>
-                 ))
-               ) : (
-                                 sampleCourses.map((course) => (
-                   <TouchableOpacity 
-                     key={course.id} 
-                     style={styles.courseCard}
-                     onPress={() => handleRouteCardPress(course.id)}
-                     activeOpacity={0.7}
-                   >
-                     <View style={styles.imageBox}>
-                       <TouchableOpacity 
-                         style={styles.bookmarkIcon}
-                         onPress={(e) => {
-                           e.stopPropagation();
-                           Alert.alert('북마크', '이 루트를 북마크에 추가했습니다!');
-                         }}
-                       >
-                         <Ionicons name="bookmark-outline" size={20} color="#fff" />
-                       </TouchableOpacity>
-                       <View style={styles.priceIndicator}>
-                         <Text style={styles.priceText}>$~~~</Text>
-                       </View>
-                       <Ionicons name="image-outline" size={36} color="#bbb" />
-                     </View>
-                     <Text style={styles.courseTitle} numberOfLines={1}>{course.title}</Text>
-                     <View style={styles.locationContainer}>
-                       <Ionicons name="location-outline" size={14} color={INCHEON_GRAY} />
-                       <Text style={styles.locationText} numberOfLines={1}>인천</Text>
-                     </View>
-                     <TouchableOpacity style={styles.startBtn} disabled>
-                       <Text style={styles.startBtnText}>Start</Text>
-                     </TouchableOpacity>
-                   </TouchableOpacity>
-                 ))
+              {recommendedCourses.length > 0 ? (
+                recommendedCourses.map((course) => (
+                  <TouchableOpacity
+                    key={course.id}
+                    style={styles.courseCard}
+                    onPress={() => handleRouteCardPress(course.id)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.imageBox}>
+                      <TouchableOpacity
+                        style={styles.bookmarkIcon}
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          // 알림창 문구 수정
+                          Alert.alert('북마크', '북마크에 추가하기 위해선 로그인이 필요해요.');
+                        }}
+                      >
+                        <Ionicons name="bookmark-outline" size={20} color="#fff" />
+                      </TouchableOpacity>
+                      <View style={styles.priceIndicator}>
+                        <Text style={styles.priceText}>$~~~</Text>
+                      </View>
+                      <Ionicons name="image-outline" size={36} color="#bbb" />
+                    </View>
+                    <Text style={styles.courseTitle} numberOfLines={1}>{course.title}</Text>
+                    <View style={styles.locationContainer}>
+                      <Ionicons name="location-outline" size={14} color={INCHEON_GRAY} />
+                      <Text style={styles.locationText} numberOfLines={1}>{course.location || '위치 정보 없음'}</Text>
+                    </View>
+                    <TouchableOpacity style={styles.startBtn} disabled>
+                      <Text style={styles.startBtnText}>시작하기</Text>
+                    </TouchableOpacity>
+                  </TouchableOpacity>
+                ))
+              ) : (sampleCourses.map((course) => (
+                  <TouchableOpacity
+                    key={course.id}
+                    style={styles.courseCard}
+                    onPress={() => handleRouteCardPress(course.id)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.imageBox}>
+                      <TouchableOpacity
+                        style={styles.bookmarkIcon}
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          Alert.alert('북마크', '북마크에 추가하기 위해선 로그인이 필요해요.');
+                        }}
+                      >
+                        <Ionicons name="bookmark-outline" size={20} color="#fff" />
+                      </TouchableOpacity>
+                      <View style={styles.priceIndicator}>
+                        <Text style={styles.priceText}>$~~~</Text>
+                      </View>
+                      <Ionicons name="image-outline" size={36} color="#bbb" />
+                    </View>
+                    <Text style={styles.courseTitle} numberOfLines={1}>{course.title}</Text>
+                    <View style={styles.locationContainer}>
+                      <Ionicons name="location-outline" size={14} color={INCHEON_GRAY} />
+                      <Text style={styles.locationText} numberOfLines={1}>인천</Text>
+                    </View>
+                    <TouchableOpacity style={styles.startBtn} disabled>
+                      <Text style={styles.startBtnText}>시작하기</Text>
+                    </TouchableOpacity>
+                  </TouchableOpacity>
+                ))
               )}
             </ScrollView>
-          </>
-        )}
-
-        {/* 방문 완료된 spot들 섹션 */}
-        {isLoggedIn && visitedSpots.length > 0 && (
-          <>
-            <Text style={styles.sectionTitle}>방문 완료된 장소들</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.cardScroll}>
-              {visitedSpots.map((visitedSpot) => (
-                <TouchableOpacity 
-                  key={visitedSpot.id} 
-                  style={styles.visitedSpotCard}
-                  onPress={() => handleViewSpotDetail(visitedSpot.spot_id)}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.visitedSpotImageBox}>
-                    {visitedSpot.past_photo_url ? (
-                      <Image
-                        source={{ uri: visitedSpot.past_photo_url }}
-                        style={styles.visitedSpotImage}
-                        resizeMode="cover"
-                      />
-                    ) : (
-                      <Ionicons name="image-outline" size={36} color="#bbb" />
-                    )}
-                    <View style={styles.visitedBadge}>
-                      <Text style={styles.visitedBadgeText}>✅</Text>
-                    </View>
-                  </View>
-                  <Text style={styles.visitedSpotTitle} numberOfLines={2}>
-                    {visitedSpot.spot_name || '알 수 없는 장소'}
-                  </Text>
-                  <Text style={styles.visitedSpotSubtitle}>방문 완료</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
+            {isLoggedIn ? renderLoggedInHeader() : renderLoggedOutHeader()}
           </>
         )}
       </ScrollView>
@@ -821,6 +966,8 @@ export default function HomeScreen({ navigation }: any) {
       
 
     </View>
+  </SafeAreaView>
+
   );
 }
 
@@ -836,32 +983,32 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     padding: 8,
   },
-  topSection: {
+  loginSection: {
     alignItems: 'center',
-    marginTop: 32,
+    marginTop: 70,
     marginBottom: 24,
   },
   topTitle: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 20,
-    color: INCHEON_GRAY,
+    ...TEXT_STYLES.heading,
     marginBottom: 16,
     textAlign: 'center',
   },
-  loginSection: {
-    flex:1,
-    justifyContent: 'center',
-    minHeight: 400,
-    alignItems: 'center',
-  },
+
   sectionTitle: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 16,
-    color: INCHEON_GRAY,
-    marginBottom: 12,
+    ...TEXT_STYLES.subtitle,
+    textAlign: 'center',
+    marginTop: 30,
+    marginBottom: 4,
     marginLeft: 8,
-    fontWeight: '600',
   },
+underline: {
+  height: 3,
+  backgroundColor: INCHEON_BLUE,
+  width: 120,
+  alignSelf: 'center',
+  marginBottom: 16,
+  borderRadius: 2,
+},
   loginTitle: {
     ...TEXT_STYLES.subtitle,
   },
@@ -925,15 +1072,12 @@ const styles = StyleSheet.create({
     borderColor: '#e0e0e0',
     borderWidth: 0.3,
     borderRadius: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 24,
-    marginTop: 4,
+    paddingVertical: 12,
+    paddingHorizontal: 32,
+    marginTop: 8,
   },
   startBtnText: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 14,
-    color: '#fff',
-    fontWeight: '600',
+      ...TEXT_STYLES.button,
   },
   // 진행중인 코스 카드 스타일
   ongoingCourseCard: {
@@ -956,15 +1100,13 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   ongoingCourseTitle: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 18,
+    ...TEXT_STYLES.heading,
     color: INCHEON_GRAY,
     fontWeight: '600',
     textAlign: 'center',
   },
   courseSubtitle: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 14,
+    ...TEXT_STYLES.body,
     color: INCHEON_GRAY,
     marginTop: 4,
   },
@@ -978,21 +1120,17 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   spotOrderGray: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 16,
+    ...TEXT_STYLES.body,
     color: INCHEON_GRAY,
-    fontWeight: '600',
     marginRight: 8,
   },
   spotTitleGray: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 15,
+    ...TEXT_STYLES.body,
     color: INCHEON_GRAY,
     flex: 1,
   },
   moreSpots: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 14,
+    ...TEXT_STYLES.small,
     color: INCHEON_GRAY,
     marginTop: 4,
   },
@@ -1012,10 +1150,8 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   continueBtnText: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 16,
+    ...TEXT_STYLES.button,
     color: '#fff',
-    fontWeight: '600',
   },
   // 로그인된 상태 스타일
   loggedInHeader: {
@@ -1051,10 +1187,8 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   userAvatarText: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 28,
+    ...TEXT_STYLES.title,
     color: '#fff',
-    fontWeight: 'bold',
   },
   userGreeting: {
     flex: 1,
@@ -1065,15 +1199,12 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   userName: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 18,
+    ...TEXT_STYLES.heading,
     color: INCHEON_GRAY,
     marginLeft: 6,
-    fontWeight: '600',
   },
   greetingText: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 16,
+    ...TEXT_STYLES.heading,
     color: INCHEON_GRAY,
   },
   continueCourseBtn: {
@@ -1092,10 +1223,8 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   continueCourseBtnText: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 16,
+    ...TEXT_STYLES.button,
     color: '#fff',
-    fontWeight: '600',
   },
   recommendCourseBtn: {
     backgroundColor: INCHEON_BLUE,
@@ -1113,10 +1242,8 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   recommendCourseBtnText: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 16,
+    ...TEXT_STYLES.button,
     color: '#fff',
-    fontWeight: '600',
   },
   spotsList: {
     width: '100%',
@@ -1132,24 +1259,19 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   spotOrder: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 16,
+    ...TEXT_STYLES.button,
     color: '#fff',
-    fontWeight: 'bold',
   },
   spotInfo: {
     flex: 1,
     marginRight: 12,
   },
   spotTitle: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 15,
+    ...TEXT_STYLES.heading,
     color: INCHEON_GRAY,
-    fontWeight: '600',
   },
   spotLocation: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 13,
+    ...TEXT_STYLES.small,
     color: INCHEON_GRAY,
     marginTop: 2,
   },
@@ -1164,10 +1286,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   nextDestinationText: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 14,
+    ...TEXT_STYLES.small,
     color: '#fff',
-    fontWeight: '600',
   },
   lockedIcon: {
     marginTop: 8,
@@ -1176,7 +1296,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 10,
     left: 10,
-    backgroundColor: 'rgba(0,0,0,0.5)',
     borderRadius: 10,
     padding: 5,
   },
@@ -1190,14 +1309,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   priceText: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 12,
+    ...TEXT_STYLES.small,
     color: '#fff',
     fontWeight: 'bold',
   },
   locationText: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 12,
+    ...TEXT_STYLES.small,
     color: INCHEON_GRAY,
     marginLeft: 4,
   },
@@ -1264,67 +1381,70 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
   },
-  
-  // 방문 완료된 spot 카드 스타일
-  visitedSpotCard: {
-    width: CARD_WIDTH * 0.8,
-    backgroundColor: '#f8f9fa',
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: '#4CAF50',
-    marginRight: 16,
-    padding: 16,
-    alignItems: 'center',
-    shadowColor: '#4CAF50',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+  spotInfoBtn: {
+    backgroundColor: '#9B59B6',
+    borderRadius: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    marginHorizontal: 8,
+    shadowColor: '#9B59B6',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 3,
   },
-  visitedSpotImageBox: {
-    width: '100%',
-    height: 100,
-    backgroundColor: '#e8f5e8',
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-    position: 'relative',
-  },
-  visitedSpotImage: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 12,
-  },
-  visitedBadge: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    backgroundColor: '#4CAF50',
-    borderRadius: 12,
-    width: 24,
-    height: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  visitedBadgeText: {
+  spotInfoBtnText: {
+    fontFamily: 'NeoDunggeunmoPro-Regular',
     fontSize: 12,
     color: '#fff',
-  },
-  visitedSpotTitle: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 14,
-    color: '#333',
     fontWeight: '600',
     textAlign: 'center',
-    marginBottom: 4,
   },
-  visitedSpotSubtitle: {
+  backendTestBtn: {
+    backgroundColor: '#2ECC71',
+    borderRadius: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    marginHorizontal: 8,
+    shadowColor: '#2ECC71',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  backendTestBtnText: {
     fontFamily: 'NeoDunggeunmoPro-Regular',
     fontSize: 12,
-    color: '#4CAF50',
-    fontWeight: '500',
+    color: '#fff',
+    fontWeight: '600',
     textAlign: 'center',
   },
-
+  simpleGetBtn: {
+    backgroundColor: '#3498DB',
+    borderRadius: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    marginHorizontal: 8,
+    shadowColor: '#3498DB',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  simpleGetBtnText: {
+    fontFamily: 'NeoDunggeunmoPro-Regular',
+    fontSize: 12,
+    color: '#fff',
+    fontWeight: '600',
+    textAlign: 'center',
+  },
 }); 

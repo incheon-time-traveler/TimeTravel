@@ -9,7 +9,7 @@ import {
   ActivityIndicator
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import { INCHEON_BLUE, INCHEON_BLUE_LIGHT, INCHEON_GRAY } from '../../styles/fonts';
+import { INCHEON_BLUE, INCHEON_BLUE_LIGHT, INCHEON_GRAY, TEXT_STYLES } from '../../styles/fonts';
 import { BACKEND_API } from '../../config/apiKeys';
 import authService from '../../services/authService';
 import { RouteProp, NavigationProp } from '@react-navigation/native';
@@ -150,11 +150,13 @@ export default function CourseDetailScreen({ navigation, route }: CourseDetailSc
         <View style={styles.summarySection}>
           <Text style={styles.summaryTitle}>🎯 코스 요약</Text>
           <View style={styles.summaryInfo}>
-            <Text style={styles.summaryText}>• 총 {courseData.total_spots}개 장소</Text>
-            <Text style={styles.summaryText}>• {courseData.mode}</Text>
-            {courseData.proposal && (
-              <Text style={styles.summaryText}>• {courseData.proposal}</Text>
-            )}
+            <Text style={styles.summaryText}>• 총 {courseData.total_spots}개 장소 {courseData.mode}</Text>
+            <Text style={styles.summaryText}>
+              • {courseData.mode === '엄격 모드'
+                  ? '모든 조건을 만족 하는 장소로 코스를 구성했습니다.'
+                  : '모든 조건을 만족 하는 경우가 없어 일부를 제외했습니다.'
+              }
+            </Text>
           </View>
         </View>
 
@@ -236,10 +238,7 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   headerTitle: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: INCHEON_GRAY,
+		...TEXT_STYLES.subtitle,
   },
   placeholder: {
     width: 40,
@@ -255,9 +254,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   summaryTitle: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 18,
-    fontWeight: 'bold',
+		...TEXT_STYLES.heading,
     color: INCHEON_BLUE,
     marginBottom: 12,
   },
@@ -265,17 +262,11 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   summaryText: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 14,
+		...TEXT_STYLES.body,
     color: INCHEON_GRAY,
   },
-  spotsSection: {
-    marginBottom: 20,
-  },
   sectionTitle: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 18,
-    fontWeight: 'bold',
+		...TEXT_STYLES.heading,
     color: INCHEON_GRAY,
     marginBottom: 16,
   },
@@ -301,18 +292,14 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   spotOrderText: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 16,
-    fontWeight: 'bold',
+    ...TEXT_STYLES.button,
     color: '#fff',
   },
   spotInfo: {
     flex: 1,
   },
   spotTitle: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 16,
-    fontWeight: 'bold',
+    ...TEXT_STYLES.button,
     color: INCHEON_GRAY,
     marginBottom: 8,
   },
@@ -320,9 +307,8 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   spotDetailText: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 12,
-    color: INCHEON_GRAY,
+    ...TEXT_STYLES.small,
+
   },
   missionBadge: {
     flexDirection: 'row',
@@ -334,10 +320,8 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   missionBadgeText: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 12,
+    ...TEXT_STYLES.button,
     color: '#fff',
-    fontWeight: 'bold',
   },
   startSection: {
     alignItems: 'center',
@@ -359,17 +343,15 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   startButtonText: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 18,
+    ...TEXT_STYLES.heading,
     color: '#fff',
-    fontWeight: 'bold',
     marginLeft: 10,
   },
   startDescription: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 14,
+    ...TEXT_STYLES.small,
     color: INCHEON_GRAY,
     textAlign: 'center',
     lineHeight: 20,
+    marginBottom: 50,
   },
 });

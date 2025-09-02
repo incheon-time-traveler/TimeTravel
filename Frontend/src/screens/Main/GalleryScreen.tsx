@@ -124,14 +124,14 @@ export default function GalleryScreen() {
                 return;
               }
 
-              const response = await fetch(`${BACKEND_API.BASE_URL}/v1/photos/${selectedImage.id}/`, {
+              const response = await fetch(`${BACKEND_API.BASE_URL}/v1/routes/use_stamp/${selectedImage.id}/`, {
                 method: 'PATCH',
                 headers: {
                   'Content-Type': 'application/json',
                   'Authorization': `Bearer ${tokens.access}`,
                 },
                 body: JSON.stringify({
-                  stamp_used: true
+                  is_used: true
                 }),
               });
 

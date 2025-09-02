@@ -66,7 +66,7 @@ export default function GalleryScreen() {
   const [foundCount, setFoundCount] = useState(0);
 
   const handleImagePress = (item: any) => {
-    if (item.completed && item.image) {
+    if (item.completed) {
       setSelectedImage(item);
       setImageModalVisible(true);
     }
@@ -118,7 +118,7 @@ export default function GalleryScreen() {
           hasStamp: false,
           stampUsed: false,
           route_id: 0,
-          spot_id: galleryItems.length + index + 1
+          spot_id: galleryItems.length + index + 1,
         }));
 
         setGalleryData(galleryItems.concat(emptySlots));
@@ -167,7 +167,7 @@ export default function GalleryScreen() {
                   'Authorization': `Bearer ${tokens.access}`,
                 },
                 body: JSON.stringify({
-                  stamp_used: true
+                  is_used: true
                 }),
               });
 

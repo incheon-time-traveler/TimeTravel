@@ -19,6 +19,7 @@ import { INCHEON_BLUE, INCHEON_BLUE_LIGHT, INCHEON_GRAY, TEXT_STYLES } from '../
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BACKEND_API } from '../../config/apiKeys';
 import authService from '../../services/authService';
+import { getCompletedMissions } from '../../data/missions';
 
 const { width, height } = Dimensions.get('window');
 
@@ -83,6 +84,7 @@ export default function GalleryScreen() {
         return;
       }
 
+      // 1. 백엔드에서 unlock_spots 데이터 가져오기
       const response = await fetch(`${BACKEND_API.BASE_URL}/v1/courses/unlock_spots/`, {
         method: 'GET',
         headers: {
@@ -91,42 +93,80 @@ export default function GalleryScreen() {
         },
       });
 
+      let backendItems: GalleryItem[] = [];
       if (response.ok) {
         const data = await response.json();
-        console.log('[GalleryScreen] 갤러리 데이터:', data);
+        console.log('[GalleryScreen] 백엔드 갤러리 데이터:', data);
         
-        // GalleryItem 형식으로 변환
-        const galleryItems: GalleryItem[] = data.map((item: any) => ({
+        // 백엔드 데이터를 GalleryItem 형식으로 변환
+        backendItems = data.map((item: any) => ({
           id: item.id,
-          title: item.spot_name || `장소 ${item.spot_id}`, // spot_name 사용
+          title: item.spot_name || `장소 ${item.spot_id}`,
           image_url: item.past_photo_url || '',
-          past_image_url: item.past_photo_url || '', // 과거 사진 URL
+          past_image_url: item.past_photo_url || '',
           completed: !!item.past_photo_url,
-          hasStamp: true, // 모든 완료된 미션에 스탬프 부여
-          stampUsed: item.is_used || false, // 백엔드 필드명에 맞춤
+          hasStamp: true,
+          stampUsed: item.is_used || false,
           route_id: item.route_id,
           spot_id: item.route_spot_id,
         }));
-        
-        // Create empty slots for remaining spots (up to 16)
-        const remainingSlots = TOTAL_COURSE - galleryItems.length;
-        const emptySlots = Array(remainingSlots).fill(null).map((_, index) => ({
-          id: galleryItems.length + index + 1,
-          title: `장소 ${galleryItems.length + index + 1}`,
-          image_url: '',
-          past_image_url: '',
-          completed: false,
-          hasStamp: false,
-          stampUsed: false,
-          route_id: 0,
-          spot_id: galleryItems.length + index + 1,
-        }));
-
-        setGalleryData(galleryItems.concat(emptySlots));
-        setFoundCount(galleryItems.filter(item => item.completed).length);
       } else {
-        console.error('[GalleryScreen] 갤러리 데이터 가져오기 실패:', response.status);
+        console.error('[GalleryScreen] 백엔드 갤러리 데이터 가져오기 실패:', response.status);
       }
+
+      // 2. 로컬에서 완료된 미션들 가져오기
+      const completedMissions = getCompletedMissions();
+      console.log('[GalleryScreen] 로컬 완료된 미션들:', completedMissions);
+
+      // 3. 로컬 완료된 미션들을 GalleryItem 형식으로 변환
+      const localItems: GalleryItem[] = completedMissions.map((mission: any) => {
+        console.log('[GalleryScreen] 로컬 미션 데이터:', mission);
+        console.log('[GalleryScreen] past_image_url:', mission.past_image_url);
+        
+        return {
+          id: mission.id + 10000, // 백엔드 ID와 중복 방지
+          title: mission.location.name || `장소 ${mission.id}`,
+          image_url: mission.past_image_url || '',
+          past_image_url: mission.past_image_url || '',
+          completed: true,
+          hasStamp: true,
+          stampUsed: false, // 로컬 미션은 아직 스탬프 사용 안됨
+          route_id: mission.route_id || 0,
+          spot_id: mission.id,
+        };
+      });
+
+      // 4. 백엔드와 로컬 데이터 합치기 (중복 제거)
+      const allItems = [...backendItems];
+      
+      // 로컬 아이템 중 백엔드에 없는 것만 추가
+      localItems.forEach(localItem => {
+        const existsInBackend = backendItems.some(backendItem => 
+          backendItem.spot_id === localItem.spot_id
+        );
+        if (!existsInBackend) {
+          allItems.push(localItem);
+        }
+      });
+
+      console.log('[GalleryScreen] 합쳐진 갤러리 데이터:', allItems);
+
+      // 5. 빈 슬롯 생성
+      const remainingSlots = TOTAL_COURSE - allItems.length;
+      const emptySlots = Array(remainingSlots).fill(null).map((_, index) => ({
+        id: allItems.length + index + 1,
+        title: `장소 ${allItems.length + index + 1}`,
+        image_url: '',
+        past_image_url: '',
+        completed: false,
+        hasStamp: false,
+        stampUsed: false,
+        route_id: 0,
+        spot_id: allItems.length + index + 1,
+      }));
+
+      setGalleryData(allItems.concat(emptySlots));
+      setFoundCount(allItems.filter(item => item.completed).length);
     } catch (error) {
       console.error('[GalleryScreen] 갤러리 데이터 가져오기 에러:', error);
     } finally {
@@ -162,26 +202,13 @@ export default function GalleryScreen() {
           text: '사용',
           onPress: async () => {
             try {
-              // 스탬프 사용 API 호출
-              const tokens = await authService.getTokens();
-              if (!tokens?.access) {
-                Alert.alert('오류', '로그인이 필요합니다.');
-                return;
-              }
-
-              const response = await fetch(`${BACKEND_API.BASE_URL}/v1/routes/use_stamp/${selectedImage.id}/`, {
-                method: 'PATCH',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${tokens.access}`,
-                },
-                body: JSON.stringify({
-                  is_used: true
-                }),
-              });
-
-              if (response.ok) {
-                // 로컬 상태 업데이트
+              // 로컬 미션인지 백엔드 미션인지 확인
+              const isLocalMission = selectedImage.id > 10000; // 로컬 미션은 10000 이상의 ID
+              
+              if (isLocalMission) {
+                // 로컬 미션의 경우 로컬 상태만 업데이트
+                console.log('[GalleryScreen] 로컬 미션 스탬프 사용:', selectedImage);
+                
                 setGalleryData(prev => 
                   prev.map(item => 
                     item.id === selectedImage.id 
@@ -192,7 +219,42 @@ export default function GalleryScreen() {
                 setImageModalVisible(false);
                 Alert.alert('스탬프 사용 완료!', '스탬프가 사용되었습니다.');
               } else {
-                Alert.alert('오류', '스탬프 사용에 실패했습니다.');
+                // 백엔드 미션의 경우 API 호출
+                const tokens = await authService.getTokens();
+                if (!tokens?.access) {
+                  Alert.alert('오류', '로그인이 필요합니다.');
+                  return;
+                }
+
+                console.log('[GalleryScreen] 백엔드 미션 스탬프 사용:', selectedImage);
+
+                const useStampUrl = `${BACKEND_API.BASE_URL}/v1/courses/use_stamp/`;
+                const useStampPayload = { id: selectedImage.id, is_used: true };
+                console.log('[Gallery] PATCH use_stamp URL:', useStampUrl);
+                console.log('[Gallery] PATCH use_stamp Payload:', useStampPayload);
+                const response = await fetch(useStampUrl, {
+                  method: 'PATCH',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${tokens.access}`,
+                  },
+                  body: JSON.stringify(useStampPayload),
+                });
+
+                if (response.ok) {
+                  // 로컬 상태 업데이트
+                  setGalleryData(prev => 
+                    prev.map(item => 
+                      item.id === selectedImage.id 
+                        ? { ...item, stampUsed: true }
+                        : item
+                    )
+                  );
+                  setImageModalVisible(false);
+                  Alert.alert('스탬프 사용 완료!', '스탬프가 사용되었습니다.');
+                } else {
+                  Alert.alert('오류', '스탬프 사용에 실패했습니다.');
+                }
               }
             } catch (error) {
               console.error('[GalleryScreen] 스탬프 사용 에러:', error);
@@ -206,7 +268,7 @@ export default function GalleryScreen() {
   };
 
   const renderStamp = () => {
-    if (!selectedImage?.hasStamp) {
+    if (!selectedImage?.hasStamp || selectedImage.stampUsed) {
       return null;
     }
 
@@ -217,14 +279,12 @@ export default function GalleryScreen() {
           style={styles.modalStampImage}
           resizeMode="contain"
         />
-        {!selectedImage.stampUsed && (
-          <TouchableOpacity
-            style={styles.useStampButton}
-            onPress={handleStampPress}
-          >
-            <Text style={styles.useStampButtonText}>스탬프 사용하기</Text>
-          </TouchableOpacity>
-        )}
+        <TouchableOpacity
+          style={styles.useStampButton}
+          onPress={handleStampPress}
+        >
+          <Text style={styles.useStampButtonText}>스탬프 사용하기</Text>
+        </TouchableOpacity>
       </View>
     );
   };
@@ -249,6 +309,8 @@ export default function GalleryScreen() {
                       source={{ uri: item.past_image_url || 'https://via.placeholder.com/300' }} 
                       style={styles.photo} 
                       resizeMode="cover"
+                      onLoad={() => console.log('[GalleryScreen] 이미지 로드 성공:', item.title, item.past_image_url)}
+                      onError={(error) => console.log('[GalleryScreen] 이미지 로드 실패:', item.title, item.past_image_url, error)}
                     />
                     {!item.completed && (
                       <View style={styles.lockedOverlay}>
@@ -256,18 +318,16 @@ export default function GalleryScreen() {
                         <Text style={styles.lockedText}>잠금</Text>
                       </View>
                     )}
-                    {item.completed && item.hasStamp && (
+                    {item.completed && item.hasStamp && !item.stampUsed && (
                       <View style={styles.stampOverlay}>
                         <Image 
                           source={STAMP_IMAGES[item.title] || require('../../assets/stamps/jaemulpo.png')} 
                           style={styles.stampImage} 
                           resizeMode="contain"
                         />
-                        {!item.stampUsed && (
-                          <View style={styles.stampBadge}>
-                            <Ionicons name="checkmark-circle" size={16} color="white" />
-                          </View>
-                        )}
+                        <View style={styles.stampBadge}>
+                          <Ionicons name="checkmark-circle" size={16} color="white" />
+                        </View>
                       </View>
                     )}
                   </View>
@@ -308,6 +368,8 @@ export default function GalleryScreen() {
                     source={{ uri: selectedImage?.image_url || 'https://via.placeholder.com/300' }}
                     style={styles.modalImage}
                     resizeMode="contain"
+                    onLoad={() => console.log('[GalleryScreen] 모달 이미지 로드 성공:', selectedImage?.title, selectedImage?.image_url)}
+                    onError={(error) => console.log('[GalleryScreen] 모달 이미지 로드 실패:', selectedImage?.title, selectedImage?.image_url, error)}
                   />
 
                   {renderStamp()}

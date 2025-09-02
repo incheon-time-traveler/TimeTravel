@@ -876,6 +876,29 @@ export default function HomeScreen({ navigation }: any) {
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.cardScroll}>
               {ongoingCourses.map(renderOngoingCourseCard)}
             </ScrollView>
+            {/* 진행중인 코스가 있어도 미션 테스트 버튼 표시 */}
+            {isLoggedIn && (
+              <View style={styles.missionTestSection}>
+                <Text style={styles.missionTestTitle}>🧪 미션 테스트 (에뮬레이터용)</Text>
+                <View style={styles.missionTestButtons}>
+                  <TouchableOpacity style={styles.missionTestBtn} onPress={simulateMission}>
+                    <Text style={styles.missionTestBtnText}>미션 시뮬레이션</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.missionStatusBtn} onPress={checkMissionStatus}>
+                    <Text style={styles.missionStatusBtnText}>미션 상태 확인</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.spotInfoBtn} onPress={checkSpotInfo}>
+                    <Text style={styles.spotInfoBtnText}>스팟 정보 확인</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.backendTestBtn} onPress={testBackendConnection}>
+                    <Text style={styles.backendTestBtnText}>백엔드 연결 테스트</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.simpleGetBtn} onPress={testSimpleGetRequest}>
+                    <Text style={styles.simpleGetBtnText}>간단한 GET 요청</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
           </>
         ) : (
           <>

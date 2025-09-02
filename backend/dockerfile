@@ -6,8 +6,16 @@ ENV PYTHONUNBUFFERED 1
 
 WORKDIR /app
 
+# COPY requirements.txt .
+# RUN pip install --upgrade pip && pip install -r requirements.txt
+
+# 의존성 설치 (Djnago 기본본)
 COPY requirements.txt .
-RUN pip install --upgrade pip && pip install -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+# AI 기능 필요할 때만 다음 두 줄 사용
+# COPY requirements-ai.txt .
+# RUN pip install --no-cache-dir -r requirements-ai.txt
 
 COPY . .
 

@@ -3,15 +3,11 @@ import { INCHEON_BLUE_LIGHT, INCHEON_GRAY } from '../../styles/fonts';
 
 const SignupScreen = ({ navigation }: any) => {
   const handleGoogleSignup = () => {
-    // 실제 구현 전까지는 바로 ProfileSetupScreen으로 이동
-    navigation.navigate('ProfileSetup');
-    // Alert.alert('구글 회원가입', '구글 회원가입 기능이 준비 중입니다.');
+    signInWithGoogle();
   };
 
   const handleKakaoSignup = () => {
-    // 실제 구현 전까지는 바로 ProfileSetupScreen으로 이동
-    navigation.navigate('ProfileSetup');
-    // Alert.alert('카카오 회원가입', '카카오 회원가입 기능이 준비 중입니다.');
+    signInWithKakao();
   };
 
   const handleLoginPress = () => {
@@ -48,9 +44,7 @@ const SignupScreen = ({ navigation }: any) => {
         </TouchableOpacity>
       </View>
 
-      <Text style={styles.note}>
-        * 소셜 회원가입 기능은 현재 개발 중입니다.
-      </Text>
+      
     </View>
   );
 };

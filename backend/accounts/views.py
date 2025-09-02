@@ -4,7 +4,7 @@ from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from dotenv import load_dotenv
 import os
@@ -26,6 +26,7 @@ except Exception:
 # OAuth
 # 구글 로그인 요청 보내기
 @api_view(['GET', 'POST'])
+@permission_classes([AllowAny])
 def google_login(request):
     # TODO: 아래 하드코딩 값들은 환경변수(.env)로 이동해야 합니다.
     client_id = os.getenv("GOOGLE_CLIENT_ID")
@@ -61,6 +62,7 @@ def generate_tokens_for_user(user):
 
 # 구글 응답 처리하기
 @api_view(['GET', 'POST'])
+@permission_classes([AllowAny])
 def google_callback(request):
     User = get_user_model()
     # Debug diagnostics for incoming callback
@@ -129,6 +131,7 @@ def google_callback(request):
 
 # 카카오 로그인
 @api_view(['GET'])
+@permission_classes([AllowAny])
 def kakao_login(request):
     # TODO: 아래 하드코딩 값들은 환경변수(.env)로 이동해야 합니다.
     client_id = os.getenv("KAKAO_REST_API_KEY", "REPLACE_WITH_KAKAO_REST_API_KEY")
@@ -147,8 +150,9 @@ def kakao_login(request):
 
     return redirect(kakao_auth_url)
 
-@api_view(['GET', 'POST'])
 # 카카오 응답 처리하기
+@api_view(['GET', 'POST'])
+@permission_classes([AllowAny])
 def kakao_callback(request):
     code = request.GET.get("code")
     if not code:
@@ -224,6 +228,13 @@ def logout(request):
 @permission_classes([IsAuthenticated])
 def profile(request, user_id):
     try:
+        # JWT 토큰 디버깅 정보 추가
+        print(f"[DEBUG] Profile view called - user_id: {user_id}")
+        print(f"[DEBUG] request.user.id: {request.user.id}")
+        print(f"[DEBUG] request.user.username: {request.user.username}")
+        print(f"[DEBUG] request.user.email: {request.user.email}")
+        print(f"[DEBUG] request.auth: {request.auth}")
+        
         user = get_object_or_404(get_user_model(), pk=user_id)
         
         if request.method == 'GET':
@@ -232,7 +243,9 @@ def profile(request, user_id):
             
         elif request.method == 'PUT':
             # 자신의 프로필만 수정할 수 있도록 체크
+            print(f"[DEBUG] PUT request - request.user.id: {request.user.id}, user_id: {user_id}")
             if request.user.id != user_id:
+                print(f"[DEBUG] 403 Error - User ID mismatch: {request.user.id} != {user_id}")
                 return Response({'error': '자신의 프로필만 수정할 수 있습니다.'}, status=403)
             serializer = UserProfileUpdateSerializer(user, data=request.data, partial=True)
             if serializer.is_valid():
@@ -241,6 +254,7 @@ def profile(request, user_id):
             return Response(serializer.errors, status=400)
             
     except Exception as e:
+        print(f"[DEBUG] Profile view error: {str(e)}")
         return Response({'error': str(e)}, status=500)
 
 @api_view(['DELETE'])
@@ -260,4 +274,85 @@ class CookieTokenRefreshView(TokenRefreshView):
         print('쿠키:', request.COOKIES)  # ✅ 확인용
         request.data['refresh'] = request.COOKIES.get('refresh_token')
         return super().post(request, *args, **kwargs)
+
+
+# 인증 성공 페이지 (React Native 앱에서 토큰을 받기 위한 페이지)
+@api_view(['GET'])
+def auth_success(request):
+    """
+    React Native 앱에서 OAuth 로그인 성공 후 토큰을 받기 위한 페이지
+    """
+    access_token = request.GET.get('access')
+    
+    if not access_token:
+        return Response({"error": "No access token provided"}, status=400)
+    
+    # 간단한 HTML 페이지 반환 (토큰을 JavaScript로 추출할 수 있도록)
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>로그인 성공</title>
+        <meta charset="utf-8">
+        <style>
+            body {{
+                font-family: Arial, sans-serif;
+                text-align: center;
+                padding: 50px;
+                background-color: #f5f5f5;
+            }}
+            .success-box {{
+                background: white;
+                padding: 30px;
+                border-radius: 10px;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                max-width: 400px;
+                margin: 0 auto;
+            }}
+            .success-icon {{
+                color: #4CAF50;
+                font-size: 48px;
+                margin-bottom: 20px;
+            }}
+            h1 {{
+                color: #333;
+                margin-bottom: 20px;
+            }}
+            p {{
+                color: #666;
+                line-height: 1.6;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="success-box">
+            <div class="success-icon">✅</div>
+            <h1>로그인 성공!</h1>
+            <p>TimeTravel 앱으로 돌아가세요.</p>
+            <p>자동으로 메인 화면으로 이동됩니다.</p>
+        </div>
+        
+        <script>
+            // React Native 앱으로 토큰 전달
+            if (window.ReactNativeWebView) {{
+                window.ReactNativeWebView.postMessage(JSON.stringify({{
+                    type: 'LOGIN_SUCCESS',
+                    accessToken: '{access_token}'
+                }}));
+            }}
+            
+            // 3초 후 자동으로 앱으로 돌아가기
+            setTimeout(() => {{
+                if (window.ReactNativeWebView) {{
+                    window.ReactNativeWebView.postMessage(JSON.stringify({{
+                        type: 'AUTO_RETURN'
+                    }}));
+                }}
+            }}, 3000);
+        </script>
+    </body>
+    </html>
+    """
+    
+    return Response(html_content, content_type='text/html')
 

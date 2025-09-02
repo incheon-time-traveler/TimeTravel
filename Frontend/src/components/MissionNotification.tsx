@@ -17,6 +17,7 @@ interface MissionNotificationProps {
   mission: Mission | null;
   onClose: () => void;
   onStartMission: (mission: Mission) => void;
+  onCompleteVisit: (mission: Mission) => void;
 }
 
 const MissionNotification: React.FC<MissionNotificationProps> = ({
@@ -24,6 +25,7 @@ const MissionNotification: React.FC<MissionNotificationProps> = ({
   mission,
   onClose,
   onStartMission,
+  onCompleteVisit,
 }) => {
   const handleStartMission = () => {
     if (mission) {
@@ -31,7 +33,16 @@ const MissionNotification: React.FC<MissionNotificationProps> = ({
     }
   };
 
+  const handleCompleteVisit = () => {
+    if (mission) {
+      onCompleteVisit(mission);
+    }
+  };
+
   if (!mission) return null;
+
+  // past_image_url이 있는지 확인
+  const hasMission = mission.historicalPhotos && mission.historicalPhotos.length > 0;
 
   return (
     <Modal
@@ -43,21 +54,35 @@ const MissionNotification: React.FC<MissionNotificationProps> = ({
       <View style={styles.overlay}>
         <View style={styles.notificationContainer}>
           <View style={styles.header}>
-            <Text style={styles.title}>🎯 미션 장소에 도착했습니다!</Text>
+            <Text style={styles.title}>
+              {hasMission ? '🎯 미션 장소에 도착했습니다!' : '📍 목적지에 도착했습니다!'}
+            </Text>
             <Text style={styles.subtitle}>{mission.location.name}</Text>
           </View>
           
           <View style={styles.content}>
             <Text style={styles.description}>
-              이곳의 과거 모습을 확인하고 역사를 탐험해보세요!
+              {hasMission 
+                ? '이곳의 과거 모습을 확인하고 역사를 탐험해보세요!'
+                : '이곳을 방문하고 다음 장소로 이동하세요!'
+              }
             </Text>
             
-            <TouchableOpacity
-              style={styles.startButton}
-              onPress={handleStartMission}
-            >
-              <Text style={styles.startButtonText}>미션 시작!</Text>
-            </TouchableOpacity>
+            {hasMission ? (
+              <TouchableOpacity
+                style={styles.startButton}
+                onPress={handleStartMission}
+              >
+                <Text style={styles.startButtonText}>미션 시작!</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={styles.startButton}
+                onPress={handleCompleteVisit}
+              >
+                <Text style={styles.startButtonText}>방문 완료</Text>
+              </TouchableOpacity>
+            )}
             
             <TouchableOpacity
               style={styles.cancelButton}

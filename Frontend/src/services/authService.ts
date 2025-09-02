@@ -50,8 +50,14 @@ class AuthService {
       const access = await AsyncStorage.getItem('access_token');
       const refresh = await AsyncStorage.getItem('refresh_token');
       
-      if (access && refresh) {
-        return { access, refresh };
+      console.log('[authService.getTokens] access 존재:', !!access, 'refresh 존재:', !!refresh);
+      
+      // access 토큰이 있으면 로그인 상태로 간주 (refresh 토큰은 선택사항)
+      if (access) {
+        return { 
+          access, 
+          refresh: refresh || '' // refresh 토큰이 없으면 빈 문자열
+        };
       }
       return null;
     } catch (error) {
@@ -63,7 +69,9 @@ class AuthService {
   // 액세스 토큰만 가져오기
   async getAccessToken(): Promise<string | null> {
     try {
-      return await AsyncStorage.getItem('access_token');
+      const access = await AsyncStorage.getItem('access_token');
+      console.log('[authService.getAccessToken] access 존재:', !!access);
+      return access;
     } catch (error) {
       console.error('액세스 토큰 가져오기 오류:', error);
       return null;
@@ -74,6 +82,7 @@ class AuthService {
   async saveUser(user: User): Promise<void> {
     try {
       await AsyncStorage.setItem('user', JSON.stringify(user));
+      console.log('[authService.saveUser] 사용자 정보 저장 완료:', user.nickname);
     } catch (error) {
       console.error('사용자 정보 저장 오류:', error);
       throw error;
@@ -84,8 +93,11 @@ class AuthService {
   async getUser(): Promise<User | null> {
     try {
       const userStr = await AsyncStorage.getItem('user');
+      console.log('[authService.getUser] user 문자열 존재:', !!userStr);
       if (userStr) {
-        return JSON.parse(userStr);
+        const user = JSON.parse(userStr);
+        console.log('[authService.getUser] 사용자 정보 파싱 완료:', user.nickname);
+        return user;
       }
       return null;
     } catch (error) {
@@ -97,9 +109,15 @@ class AuthService {
   // 로그인 상태 확인
   async isLoggedIn(): Promise<boolean> {
     try {
-      const tokens = await this.getTokens();
-      return tokens !== null;
+      const accessToken = await this.getAccessToken();
+      const user = await this.getUser();
+      
+      console.log('[authService.isLoggedIn] accessToken 존재:', !!accessToken, 'user 존재:', !!user);
+      
+      // access 토큰과 사용자 정보가 모두 있어야 로그인 상태로 간주
+      return !!(accessToken && user);
     } catch (error) {
+      console.error('[authService.isLoggedIn] 오류:', error);
       return false;
     }
   }

@@ -49,7 +49,7 @@ def get_user_info(access_token):
         return None, None, None
     email = userinfo.get("email")
     name = userinfo.get("name")
-    nickname = ""
+    nickname = name  # 구글 사용자의 경우 name을 nickname으로 사용
     if not email:
         print("[get_user_info] missing email in userinfo", userinfo)
         return None, None, None
@@ -65,6 +65,6 @@ def get_kakao_user_info(access_token):
     kakao_account = user_info.get("kakao_account", {})
     email = kakao_account.get("email", f"{kakao_id}@kakao.com")
     name = kakao_account.get("profile", {}).get("nickname", "kakao_user")
-    nickname = ""
+    nickname = name  # 카카오 사용자의 경우도 name을 nickname으로 사용
     
     return email, name, nickname

@@ -23,6 +23,7 @@ export interface Mission {
   historicalPhotos: HistoricalPhoto[];
   completed: boolean;
   selectedPhotoId?: number;
+  routeId?: number; // 코스 ID 추가
 }
 
 export interface MissionNotification {

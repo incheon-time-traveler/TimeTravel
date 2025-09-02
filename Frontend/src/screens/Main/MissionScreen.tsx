@@ -161,7 +161,7 @@ export default function MissionScreen({ route, navigation }: MissionScreenProps)
   };
 
   // 답안 선택
-  const selectAnswer = (imageId: number) => {
+  const selectAnswer = async (imageId: number) => {
     if (gameCompleted) return;
     
     setSelectedAnswer(imageId);
@@ -170,14 +170,18 @@ export default function MissionScreen({ route, navigation }: MissionScreenProps)
     
     if (isCorrect) {
       // 미션 완료 처리
-      completeMission(mission.id);
+      const success = await completeMission(mission.id);
       
-      // 카메라 화면으로 이동 (과거 사진 정보와 함께)
-      navigation.navigate('Camera', {
-        mission: mission,
-        selectedPhotoId: imageId,
-        selectedPhoto: correctAnswer
-      });
+      if (success) {
+        // 갤러리 화면으로 이동 (탭 네비게이터로 이동)
+        navigation.navigate('MainTabs', { screen: 'Gallery' });
+      } else {
+        Alert.alert(
+          '오류',
+          '미션 완료 처리에 실패했습니다. 다시 시도해주세요.',
+          [{ text: '확인' }]
+        );
+      }
     } else {
       Alert.alert(
         '❌ 틀렸습니다',

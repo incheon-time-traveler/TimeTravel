@@ -111,7 +111,7 @@ export const fetchRouteDetail = async (routeId: number): Promise<RouteData | nul
 };
 
 // 스팟 데이터를 미션으로 변환
-const convertSpotToMission = (spot: any): Mission => {
+const convertSpotToMission = (spot: any, routeId?: number): Mission => {
   // 전체 스팟에서 가져온 데이터 구조 사용
   const spotName = spot.name || spot.title || `스팟 ${spot.id}`;
   const spotLat = spot.lat || spot.latitude;
@@ -126,7 +126,8 @@ const convertSpotToMission = (spot: any): Mission => {
     lat: spotLat,
     lng: spotLng,
     address: spotAddress,
-    past_image_url: spotPastImageUrl
+    past_image_url: spotPastImageUrl,
+    routeId: routeId
   });
   
   const mission = {
@@ -149,6 +150,7 @@ const convertSpotToMission = (spot: any): Mission => {
       location: spotAddress,
     }] : [],
     completed: false,
+    routeId: routeId, // routeId 추가
   };
   
   // 디버깅: 생성된 미션 객체 확인
@@ -157,7 +159,7 @@ const convertSpotToMission = (spot: any): Mission => {
   return mission;
 };
 
-// 사용자의 진행중인 코스에서 미션 생성
+// 사용자의 진행중인 코스에서 미션 생성 (past_image_url 유무에 관계없이)
 export const createMissionsFromUserCourse = async (authToken?: string): Promise<Mission[]> => {
   try {
     const userCourse = await fetchUserActiveCourse(authToken);
@@ -187,7 +189,7 @@ export const createMissionsFromUserCourse = async (authToken?: string): Promise<
     if (cachedSpots.length > 0 && (now - lastFetchTime) < CACHE_DURATION) {
       console.log('[missions] 캐시된 스팟 정보 사용 (캐시 시간:', Math.round((now - lastFetchTime) / 1000), '초)');
     } else {
-      // 전체 스팟 목록에서 past_image_url이 있는 스팟들 가져오기
+      // 전체 스팟 목록 가져오기
       const allSpotsResponse = await fetch(`${BACKEND_API.BASE_URL}/v1/spots/`, {
         method: 'GET',
         headers: {
@@ -211,7 +213,7 @@ export const createMissionsFromUserCourse = async (authToken?: string): Promise<
       }
     }
     
-    // 다음 목적지의 상세 정보 찾기 (past_image_url 포함)
+    // 다음 목적지의 상세 정보 찾기
     const nextDestinationDetail = cachedSpots.find((spot: any) => spot.id === nextDestination.id);
     
     if (!nextDestinationDetail) {
@@ -219,20 +221,15 @@ export const createMissionsFromUserCourse = async (authToken?: string): Promise<
       return [];
     }
     
-    // 다음 목적지에 past_image_url이 있는지 확인
-    if (!nextDestinationDetail.past_image_url || nextDestinationDetail.past_image_url.trim() === '') {
-      console.log('[missions] 다음 목적지에 과거사진이 없습니다.');
-      return [];
-    }
-    
-    console.log('[missions] 미션 가능한 다음 목적지:', {
+    console.log('[missions] 다음 목적지 상세 정보:', {
       id: nextDestinationDetail.id,
       name: nextDestinationDetail.name || nextDestinationDetail.title,
-      past_image_url: nextDestinationDetail.past_image_url
+      past_image_url: nextDestinationDetail.past_image_url,
+      has_mission: !!(nextDestinationDetail.past_image_url && nextDestinationDetail.past_image_url.trim() !== '')
     });
     
-    // 다음 목적지만 미션으로 변환
-    const mission = convertSpotToMission(nextDestinationDetail);
+    // past_image_url 유무에 관계없이 미션으로 변환 (routeId 포함)
+    const mission = convertSpotToMission(nextDestinationDetail, userCourse.id);
     
     // activeMissions 업데이트 (다음 목적지 하나만)
     activeMissions = [mission];
@@ -275,14 +272,165 @@ export const findMissionByLocation = (lat: number, lng: number): Mission | null 
 };
 
 // 미션 완료 처리
-export const completeMission = (missionId: number) => {
-  const missionIndex = activeMissions.findIndex(m => m.id === missionId);
-  if (missionIndex !== -1) {
-    const completedMission = { ...activeMissions[missionIndex], completed: true };
-    completedMissions.push(completedMission);
-    activeMissions.splice(missionIndex, 1);
+export const completeMission = async (missionId: number, authToken?: string) => {
+  try {
+    const token = authToken || await getAuthToken();
     
-    console.log(`[missions] 미션 완료: ${completedMission.location.name}`);
+    if (!token) {
+      console.error('[missions] 인증 토큰이 없습니다.');
+      return false;
+    }
+
+    console.log('[missions] 미션 완료 시작, missionId(spot.id):', missionId);
+
+    // 1. 사용자의 UserRouteSpot 정보를 가져와서 해당하는 UserRouteSpot의 id를 찾기
+    const userRoutesResponse = await fetch(`${BACKEND_API.BASE_URL}/v1/courses/user_routes/`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!userRoutesResponse.ok) {
+      console.error('[missions] 사용자 코스 정보 가져오기 실패:', userRoutesResponse.status);
+      return false;
+    }
+
+    const userRoutesData = await userRoutesResponse.json();
+    console.log('[missions] 사용자 코스 데이터:', userRoutesData);
+
+    // 2. missionId(spot.id)와 일치하는 spot이 있는 코스 찾기
+    let targetRouteId = null;
+    for (const course of userRoutesData) {
+      const spot = course.spots.find((s: any) => s.id === missionId);
+      if (spot) {
+        targetRouteId = course.route_id;
+        break;
+      }
+    }
+
+    if (!targetRouteId) {
+      console.error('[missions] 해당 spot이 포함된 코스를 찾을 수 없습니다.');
+      return false;
+    }
+
+    console.log('[missions] 찾은 Route ID:', targetRouteId);
+
+    // 3. 특정 코스의 UserRouteSpot 정보 가져오기
+    const specificRouteResponse = await fetch(`${BACKEND_API.BASE_URL}/v1/courses/${targetRouteId}/users/`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!specificRouteResponse.ok) {
+      console.error('[missions] 특정 코스 정보 가져오기 실패:', specificRouteResponse.status);
+      return false;
+    }
+
+    const specificRouteData = await specificRouteResponse.json();
+    console.log('[missions] 특정 코스 데이터:', specificRouteData);
+    console.log('[missions] UserRouteSpot 목록:', specificRouteData.map((urs: any) => ({ id: urs.id, route_spot_id: urs.route_spot_id })));
+
+    // 4. Route 상세 정보를 가져와서 Spot ID와 RouteSpot ID 매핑
+    const routeDetailResponse = await fetch(`${BACKEND_API.BASE_URL}/v1/routes/${targetRouteId}/`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!routeDetailResponse.ok) {
+      console.error('[missions] 루트 상세 정보 가져오기 실패:', routeDetailResponse.status);
+      return false;
+    }
+
+    const routeDetailData = await routeDetailResponse.json();
+    console.log('[missions] 루트 상세 데이터:', routeDetailData);
+
+    // 5. missionId(spot.id)와 일치하는 RouteSpot 찾기
+    const routeSpot = routeDetailData.spots.find((rs: any) => rs.id === missionId);
+    if (!routeSpot) {
+      console.error('[missions] 해당 spot의 RouteSpot을 찾을 수 없습니다.');
+      console.error('[missions] 사용 가능한 spots:', routeDetailData.spots.map((rs: any) => ({ id: rs.id, title: rs.title })));
+      return false;
+    }
+
+    console.log('[missions] 찾은 RouteSpot ID:', routeSpot.id);
+
+    // 6. UserRouteSpot에서 해당 RouteSpot ID와 일치하는 것 찾기
+    let userRouteSpot = specificRouteData.find((urs: any) => urs.route_spot_id === routeSpot.id);
+    console.log('[missions] 매칭 시도 - routeSpot.id:', routeSpot.id, 'vs UserRouteSpot.route_spot_id들:', specificRouteData.map((urs: any) => urs.route_spot_id));
+    
+    // 매칭 실패 시: 아직 방문하지 않은 첫 번째 UserRouteSpot을 선택 (unlock_at == null)
+    if (!userRouteSpot) {
+      const fallback = specificRouteData.find((urs: any) => !urs.unlock_at);
+      if (fallback) {
+        console.warn('[missions] 직접 매핑 실패 → 첫 방문지 fallback 사용:', { id: fallback.id, route_spot_id: fallback.route_spot_id });
+        userRouteSpot = fallback;
+      }
+    }
+
+    if (!userRouteSpot) {
+      console.error('[missions] 해당 spot의 UserRouteSpot을 찾을 수 없습니다.');
+      return false;
+    }
+
+    console.log('[missions] 찾은 UserRouteSpot ID:', userRouteSpot.id);
+
+    // 7. unlock_route_spot API 호출 로그
+    const unlockUrl = `${BACKEND_API.BASE_URL}/v1/courses/unlock_route_spot/${userRouteSpot.route_spot_id}/`;
+    const unlockPayload = { id: userRouteSpot.id, unlock_at: new Date().toISOString() };
+    console.log('[missions] PATCH unlock_route_spot URL:', unlockUrl);
+    console.log('[missions] PATCH unlock_route_spot Payload:', unlockPayload);
+    const response = await fetch(unlockUrl, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify(unlockPayload),
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      console.log('[missions] 미션 완료 백엔드 처리 성공:', data);
+      
+      // 로컬 상태 업데이트
+      const missionIndex = activeMissions.findIndex(m => m.id === missionId);
+      if (missionIndex !== -1) {
+        const mission = activeMissions[missionIndex];
+        
+        // 캐시된 스팟 정보에서 past_image_url 찾기
+        const spotDetail = cachedSpots.find((spot: any) => spot.id === missionId);
+        const pastImageUrl = spotDetail?.past_image_url || '';
+        
+        console.log('[missions] 미션 완료 - past_image_url:', pastImageUrl);
+        
+        const completedMission = { 
+          ...mission, 
+          completed: true,
+          past_image_url: pastImageUrl
+        };
+        completedMissions.push(completedMission);
+        activeMissions.splice(missionIndex, 1);
+        
+        console.log(`[missions] 미션 완료: ${completedMission.location.name}`);
+      }
+      
+      return true;
+    } else {
+      let errText = '';
+      try { errText = await response.text(); } catch (_) {}
+      console.error('[missions] 미션 완료 백엔드 처리 실패:', response.status, errText);
+      return false;
+    }
+  } catch (error) {
+    console.error('[missions] 미션 완료 처리 오류:', error);
+    return false;
   }
 };
 
@@ -415,5 +563,105 @@ export const refreshMissionData = async () => {
   } catch (error) {
     console.error('[missions] 미션 데이터 새로고침 실패:', error);
     return [];
+  }
+};
+
+// 스팟 방문 완료 처리 (기존 use_stamp API 활용)
+export const completeSpotVisit = async (userRouteSpotId: number, authToken?: string): Promise<any> => {
+  try {
+    const token = authToken || await getAuthToken();
+    
+    if (!token) {
+      console.error('[missions] 인증 토큰이 없습니다.');
+      return null;
+    }
+
+    const response = await fetch(`${BACKEND_API.BASE_URL}/v1/courses/use_stamp/`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        id: userRouteSpotId,
+        is_used: true
+      }),
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      console.log('[missions] 스팟 방문 완료 처리 성공:', data);
+      return data;
+    } else {
+      console.error('[missions] 스팟 방문 완료 처리 실패:', response.status);
+      return null;
+    }
+  } catch (error) {
+    console.error('[missions] 스팟 방문 완료 처리 오류:', error);
+    return null;
+  }
+};
+
+// 방문 완료된 spot들 조회 (기존 unlock_spots API 활용)
+export const getVisitedSpots = async (authToken?: string): Promise<any[]> => {
+  try {
+    const token = authToken || await getAuthToken();
+    
+    if (!token) {
+      console.error('[missions] 인증 토큰이 없습니다.');
+      return [];
+    }
+
+    const response = await fetch(`${BACKEND_API.BASE_URL}/v1/courses/unlock_spots/`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      console.log('[missions] 방문 완료된 spot들 조회 성공:', data);
+      return data;
+    } else {
+      console.error('[missions] 방문 완료된 spot들 조회 실패:', response.status);
+      return [];
+    }
+  } catch (error) {
+    console.error('[missions] 방문 완료된 spot들 조회 오류:', error);
+    return [];
+  }
+};
+
+// 스팟 상세 정보 가져오기
+export const getSpotDetail = async (spotId: number, authToken?: string): Promise<any> => {
+  try {
+    const token = authToken || await getAuthToken();
+    
+    if (!token) {
+      console.error('[missions] 인증 토큰이 없습니다.');
+      return null;
+    }
+
+    const response = await fetch(`${BACKEND_API.BASE_URL}/v1/spots/${spotId}/`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      console.log('[missions] 스팟 상세 정보 가져오기 성공:', data);
+      return data;
+    } else {
+      console.error('[missions] 스팟 상세 정보 가져오기 실패:', response.status);
+      return null;
+    }
+  } catch (error) {
+    console.error('[missions] 스팟 상세 정보 가져오기 오류:', error);
+    return null;
   }
 }; 

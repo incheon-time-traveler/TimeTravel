@@ -268,10 +268,12 @@ def unlock_route_spot(request, route_spot_id):
     프론트엔드에서 사용자가 이동하는 코스의 특정 스팟의 잠금을 해제합니다.
     """
     if request.method == "PATCH":
-        request.data['route_spot_id'] = route_spot_id
-        serializer = UserRouteSpotUpdateSerializer(data=request.data, partial=True)
+        user = request.user
+        print("requset.data:", request.data)
+        user_route_spot = UserRouteSpot.objects.get(user_id=user, id=request.data['id'])
+        serializer = UserRouteSpotUpdateSerializer(user_route_spot, data=request.data, partial=True)
         if serializer.is_valid(raise_exception=True):
-            serializer.save(user_id=request.user)
+            serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -444,8 +446,10 @@ def use_stamp(request):
     프론트엔드에서 사용자가 스탬프를 사용합니다.
     """
     if request.method == "PATCH":
-        serializer = UserRouteSpotUpdateSerializer(data=request.data, partial=True)
+        user = request.user
+        user_route_spot = UserRouteSpot.objects.get(user_id=user, id=request.data['id'])
+        serializer = UserRouteSpotUpdateSerializer(user_route_spot, data=request.data, partial=True)
         if serializer.is_valid(raise_exception=True):
-            serializer.save(user_id=request.user)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

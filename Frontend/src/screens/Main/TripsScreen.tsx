@@ -219,7 +219,10 @@ const TripsScreen: React.FC = () => {
             left: 0;
             right: 0;
             bottom: 0;
-            background: ${backgroundImage ? `url('${backgroundImage}')` : '#f8f9fa'};
+            background: ${backgroundImage ? 
+              `linear-gradient(to bottom, transparent 0%, transparent 40%, rgba(255, 255, 255, 0.4) 70%, rgba(255, 255, 255, 0.9) 100%), url('${backgroundImage}')` : 
+              '#f8f9fa'
+            };
             background-size: 100% 100%;
             background-position: center;
             background-repeat: no-repeat;
@@ -466,7 +469,7 @@ const TripsScreen: React.FC = () => {
                      style={styles.nextDestinationButton}
                      activeOpacity={0.8}
                    >
-                     <Text style={styles.nextDestinationButtonText}>다음 목적지</Text>
+                     <Text style={styles.nextDestinationButtonText}>출발하기</Text>
                    </TouchableOpacity>
                  </View>
               ) : (
@@ -767,7 +770,7 @@ const styles = StyleSheet.create({
   },
   nextDestinationButtonText: {
     color: '#fff',
-    fontSize: 12,
+    fontSize: 13,
     fontFamily: 'NeoDunggeunmoPro-Regular',
   },
   lockedCard: {

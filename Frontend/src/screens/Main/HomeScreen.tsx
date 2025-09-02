@@ -793,6 +793,7 @@ export default function HomeScreen({ navigation }: any) {
                         style={styles.bookmarkIcon}
                         onPress={(e) => {
                           e.stopPropagation();
+                          // 알림창 문구 수정
                           Alert.alert('북마크', '북마크에 추가하기 위해선 로그인이 필요해요.');
                         }}
                       >

@@ -13,5 +13,5 @@ urlpatterns = [
     path('unlock_route_spot/<int:route_spot_id>/', views.unlock_route_spot, name='unlock-route-spot'),
     path('user_routes/', views.user_routes, name='user-routes-list'),  # 사용자 코스 목록 조회
     path('unlock_spots/', views.unlock_spots, name='unlock-spots'), # 사용자 해금 장소 조회
-    path('use_stamp/<int:route_spot_id>/', views.use_stamp, name='use-stamp'),
+    path('use_stamp/', views.use_stamp, name='use-stamp'),
 ]

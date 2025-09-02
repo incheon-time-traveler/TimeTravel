@@ -211,12 +211,16 @@ export default function CourseRecommendationScreen({ navigation }: any) {
             // 성공적인 코스 생성
             if (data.success && data.course_spots) {
               const totalSpots = data.total_spots || data.course_spots.length;
-              const mode = data.mode || '일반 모드';
+              const mode = '모든 조건을 반영해' || '모든 조건을 만족하는 경우가 없어 일부를 제외했습니다.';
               
               Alert.alert(
                 '코스 생성 완료! 🎉',
-                `${totalSpots}개의 장소로 구성된 ${mode}가 생성되었습니다!\n\n${data.proposal || ''}`,
+                `${mode} ${totalSpots}개의 장소로 구성된 코스가 생성되었습니다!`,
                 [
+                  {
+                    text: '다시 만들기',
+                    style: 'cancel'
+                  },
                   {
                     text: '코스 보기',
                     onPress: () => {
@@ -224,10 +228,6 @@ export default function CourseRecommendationScreen({ navigation }: any) {
                       console.log('[CourseRecommendationScreen] 생성된 코스:', data.course_spots);
                       navigation.navigate('CourseDetail', { courseData: data });
                     }
-                  },
-                  {
-                    text: '다시 만들기',
-                    style: 'cancel'
                   }
                 ]
               );
@@ -618,9 +618,7 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   headerTitle: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 20,
-    fontWeight: 'bold',
+    ...TEXT_STYLES.subtitle,
     color: INCHEON_GRAY,
   },
   placeholder: {

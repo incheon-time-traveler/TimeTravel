@@ -29,6 +29,7 @@ class UserRouteSpot(models.Model):
     route_spot_id = models.ForeignKey(RouteSpot, null=False, on_delete=models.CASCADE, related_name='userroutespots')
     order = models.IntegerField(null=False)
     unlock_at = models.DateTimeField(null=True)
+    is_used = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:

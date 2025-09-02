@@ -434,3 +434,19 @@ def get_mission_proposal(request):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
+#스탬프 사용(임시)
+@api_view(['PATCH'])
+@permission_classes([IsAuthenticated])
+def use_stamp(request):
+    """
+    스탬프 사용 API
+    사진저장이 안되어 임시로 UserRouteSpot의 is_used를 True로 변경
+    프론트엔드에서 사용자가 스탬프를 사용합니다.
+    """
+    if request.method == "PATCH":
+        user = request.user
+        serializer = UserRouteSpotUpdateSerializer(data=request.data, partial=True)
+        if serializer.is_valid(raise_exception=True):
+            serializer.save(user_id=user.id)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

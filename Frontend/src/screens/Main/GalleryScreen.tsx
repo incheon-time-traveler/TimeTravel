@@ -11,6 +11,7 @@ import {
   Alert,
   ActivityIndicator
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import CheckIcon from '../../components/ui/CheckIcon';
 import PixelLockIcon from '../../components/ui/PixelLockIcon';
@@ -82,7 +83,7 @@ export default function GalleryScreen() {
         return;
       }
 
-      const response = await fetch(`${BACKEND_API.BASE_URL}/v1/routes/unlock_spots/`, {
+      const response = await fetch(`${BACKEND_API.BASE_URL}/v1/courses/unlock_spots/`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -97,9 +98,9 @@ export default function GalleryScreen() {
         // GalleryItem 형식으로 변환
         const galleryItems: GalleryItem[] = data.map((item: any) => ({
           id: item.id,
-          title: `${item.spot_name}` || `${item.spot_id}`, // spot_name이 없으므로 spot_id 사용
+          title: item.spot_name || `장소 ${item.spot_id}`, // spot_name 사용
           image_url: item.past_photo_url || '',
-          past_image_url: item.past_photo_url || '', // past_image_url은 별도로 저장되지 않음
+          past_image_url: item.past_photo_url || '', // 과거 사진 URL
           completed: !!item.past_photo_url,
           hasStamp: true, // 모든 완료된 미션에 스탬프 부여
           stampUsed: item.is_used || false, // 백엔드 필드명에 맞춤
@@ -137,6 +138,14 @@ export default function GalleryScreen() {
   useEffect(() => {
     fetchGalleryData();
   }, []);
+
+  // 화면이 포커스될 때마다 갤러리 데이터 새로고침
+  useFocusEffect(
+    React.useCallback(() => {
+      console.log('[GalleryScreen] 화면 포커스됨 - 갤러리 데이터 새로고침');
+      fetchGalleryData();
+    }, [])
+  );
 
   const handleStampPress = () => {
     if (!selectedImage) return;

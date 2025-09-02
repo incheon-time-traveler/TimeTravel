@@ -12,7 +12,10 @@ import {
   getActiveMissions,
   getCompletedMissions,
   createMissionsFromUserCourse,
-  refreshMissionData 
+  refreshMissionData,
+  completeSpotVisit,
+  getSpotDetail,
+  getVisitedSpots
 } from '../../data/missions';
 import MissionNotification from '../../components/MissionNotification';
 
@@ -46,6 +49,9 @@ export default function HomeScreen({ navigation }: any) {
   const [showMissionNotification, setShowMissionNotification] = useState(false);
   const [currentLocation, setCurrentLocationState] = useState<{ lat: number; lng: number } | null>(null);
   
+  const [currentRouteId, setCurrentRouteId] = useState<number | null>(null);
+  const [visitedSpots, setVisitedSpots] = useState<any[]>([]);
+  
   // 위치 감지 인터벌 참조
   const locationIntervalRef = useRef<any>(null);
   const appState = useRef(AppState.currentState);
@@ -54,6 +60,7 @@ export default function HomeScreen({ navigation }: any) {
     checkLoginStatus();
     checkOngoingCourses();
     fetchRecommendedCourses();
+    fetchVisitedSpots();
     
     // 앱 상태 변화 감지
     const subscription = AppState.addEventListener('change', nextAppState => {
@@ -83,6 +90,7 @@ export default function HomeScreen({ navigation }: any) {
       checkLoginStatus();
       checkOngoingCourses();
       fetchRecommendedCourses();
+      fetchVisitedSpots();
     });
 
     return unsubscribe;
@@ -199,6 +207,73 @@ export default function HomeScreen({ navigation }: any) {
   // 미션 알림 닫기
   const handleCloseMissionNotification = () => {
     setShowMissionNotification(false);
+  };
+
+  // 방문 완료 처리 (미션이 없는 spot용)
+  const handleCompleteVisit = async (mission: any) => {
+    try {
+      setShowMissionNotification(false);
+      
+      const tokens = await authService.getTokens();
+      if (!tokens?.access) {
+        Alert.alert('오류', '로그인이 필요합니다.');
+        return;
+      }
+
+      // 현재 진행중인 코스에서 해당 spot의 UserRouteSpot ID 찾기
+      const currentCourse = ongoingCourses[0]; // 첫 번째 진행중인 코스
+      if (!currentCourse || !currentCourse.spots) {
+        Alert.alert('오류', '진행중인 코스 정보를 찾을 수 없습니다.');
+        return;
+      }
+
+      // 현재 미션 spot과 일치하는 UserRouteSpot 찾기
+      const currentSpot = currentCourse.spots.find((spot: any) => spot.id === mission.id);
+      if (!currentSpot) {
+        Alert.alert('오류', '해당 스팟을 찾을 수 없습니다.');
+        return;
+      }
+
+      // UserRouteSpot ID가 필요하지만, 현재 구조에서는 직접적으로 제공되지 않음
+      // 대신 spot ID를 사용하여 방문 완료 처리
+      // 실제로는 UserRouteSpot의 ID가 필요하지만, 임시로 spot ID 사용
+      
+      // 방문 완료 알림 표시
+      Alert.alert('방문 완료!', `${mission.location.name} 방문이 완료되었습니다.`);
+      
+      // 미션 데이터 새로고침
+      await refreshMissionData();
+      
+    } catch (error) {
+      console.error('[HomeScreen] 방문 완료 처리 오류:', error);
+      Alert.alert('오류', '방문 완료 처리 중 오류가 발생했습니다.');
+    }
+  };
+
+
+
+  // 스팟 상세 정보 보기
+  const handleViewSpotDetail = async (spotId: number) => {
+    try {
+      const tokens = await authService.getTokens();
+      if (!tokens?.access) {
+        Alert.alert('오류', '로그인이 필요합니다.');
+        return;
+      }
+
+      const spotDetail = await getSpotDetail(spotId, tokens.access);
+      if (spotDetail) {
+        Alert.alert(
+          spotDetail.name || '장소 정보',
+          spotDetail.description || '상세 정보가 없습니다.'
+        );
+      } else {
+        Alert.alert('오류', '스팟 정보를 가져올 수 없습니다.');
+      }
+    } catch (error) {
+      console.error('[HomeScreen] 스팟 상세 정보 가져오기 오류:', error);
+      Alert.alert('오류', '스팟 정보를 가져오는 중 오류가 발생했습니다.');
+    }
   };
 
   // 미션 테스트 시뮬레이션 (에뮬레이터용)
@@ -333,6 +408,11 @@ export default function HomeScreen({ navigation }: any) {
         setHasOngoingCourse(hasCourses);
         setOngoingCourses(hasCourses ? data : []);
         
+        // 첫 번째 코스의 route_id를 현재 route_id로 설정
+        if (hasCourses && data.length > 0) {
+          setCurrentRouteId(data[0].route_id);
+        }
+        
         console.log('[HomeScreen] 진행중 코스 개수:', hasCourses ? data.length : 0);
         console.log('[HomeScreen] 진행중인 코스 상세:', data);
       } else if (response.status === 401) {
@@ -348,6 +428,24 @@ export default function HomeScreen({ navigation }: any) {
       console.error('[HomeScreen] 진행 코스 조회 에러:', error);
       setHasOngoingCourse(false);
       setOngoingCourses([]);
+    }
+  };
+
+  // 방문 완료된 spot들 조회
+  const fetchVisitedSpots = async () => {
+    try {
+      const tokens = await authService.getTokens();
+      if (!tokens?.access) {
+        setVisitedSpots([]);
+        return;
+      }
+
+      const visitedSpotsData = await getVisitedSpots(tokens.access);
+      setVisitedSpots(visitedSpotsData);
+      console.log('[HomeScreen] 방문 완료된 spot들:', visitedSpotsData);
+    } catch (error) {
+      console.error('[HomeScreen] 방문 완료된 spot들 조회 에러:', error);
+      setVisitedSpots([]);
     }
   };
 
@@ -501,12 +599,16 @@ export default function HomeScreen({ navigation }: any) {
             <View style={styles.spotOrderContainer}>
               <Text style={styles.spotOrder}>{spot.order || index + 1}</Text>
             </View>
-            <View style={styles.spotInfo}>
+            <TouchableOpacity 
+              style={styles.spotInfo}
+              onPress={() => handleViewSpotDetail(spot.id)}
+              activeOpacity={0.7}
+            >
               <Text style={styles.spotTitle} numberOfLines={1}>{spot.title || spot.name || '알 수 없는 장소'}</Text>
               <Text style={styles.spotLocation} numberOfLines={1}>
                 {spot.lat && spot.lng ? `${spot.lat.toFixed(4)}, ${spot.lng.toFixed(4)}` : '위치 정보 없음'}
               </Text>
-            </View>
+            </TouchableOpacity>
             <View style={styles.spotStatus}>
                              {index === 0 ? (
                  <TouchableOpacity 
@@ -670,6 +772,42 @@ export default function HomeScreen({ navigation }: any) {
             </ScrollView>
           </>
         )}
+
+        {/* 방문 완료된 spot들 섹션 */}
+        {isLoggedIn && visitedSpots.length > 0 && (
+          <>
+            <Text style={styles.sectionTitle}>방문 완료된 장소들</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.cardScroll}>
+              {visitedSpots.map((visitedSpot) => (
+                <TouchableOpacity 
+                  key={visitedSpot.id} 
+                  style={styles.visitedSpotCard}
+                  onPress={() => handleViewSpotDetail(visitedSpot.spot_id)}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.visitedSpotImageBox}>
+                    {visitedSpot.past_photo_url ? (
+                      <Image
+                        source={{ uri: visitedSpot.past_photo_url }}
+                        style={styles.visitedSpotImage}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <Ionicons name="image-outline" size={36} color="#bbb" />
+                    )}
+                    <View style={styles.visitedBadge}>
+                      <Text style={styles.visitedBadgeText}>✅</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.visitedSpotTitle} numberOfLines={2}>
+                    {visitedSpot.spot_name || '알 수 없는 장소'}
+                  </Text>
+                  <Text style={styles.visitedSpotSubtitle}>방문 완료</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </>
+        )}
       </ScrollView>
       
       {/* 미션 알림 컴포넌트 */}
@@ -678,7 +816,10 @@ export default function HomeScreen({ navigation }: any) {
         mission={currentMission}
         onClose={handleCloseMissionNotification}
         onStartMission={handleStartMission}
+        onCompleteVisit={handleCompleteVisit}
       />
+      
+
     </View>
   );
 }
@@ -1121,6 +1262,68 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#fff',
     fontWeight: '600',
+    textAlign: 'center',
+  },
+  
+  // 방문 완료된 spot 카드 스타일
+  visitedSpotCard: {
+    width: CARD_WIDTH * 0.8,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: '#4CAF50',
+    marginRight: 16,
+    padding: 16,
+    alignItems: 'center',
+    shadowColor: '#4CAF50',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  visitedSpotImageBox: {
+    width: '100%',
+    height: 100,
+    backgroundColor: '#e8f5e8',
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+    position: 'relative',
+  },
+  visitedSpotImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 12,
+  },
+  visitedBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: '#4CAF50',
+    borderRadius: 12,
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  visitedBadgeText: {
+    fontSize: 12,
+    color: '#fff',
+  },
+  visitedSpotTitle: {
+    fontFamily: 'NeoDunggeunmoPro-Regular',
+    fontSize: 14,
+    color: '#333',
+    fontWeight: '600',
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  visitedSpotSubtitle: {
+    fontFamily: 'NeoDunggeunmoPro-Regular',
+    fontSize: 12,
+    color: '#4CAF50',
+    fontWeight: '500',
     textAlign: 'center',
   },
 

@@ -11,6 +11,8 @@ import {
 } from 'react-native';
 import { Mission, HistoricalPhoto } from '../types/mission';
 import { INCHEON_BLUE, INCHEON_GRAY } from '../styles/fonts';
+import { BACKEND_API } from '../config/apiKeys';
+import authService from '../services/authService';
 
 interface HistoricalPhotoSelectorProps {
   visible: boolean;
@@ -31,7 +33,7 @@ const HistoricalPhotoSelector: React.FC<HistoricalPhotoSelectorProps> = ({
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
   const [showFeedback, setShowFeedback] = useState(false);
 
-  const handlePhotoSelect = (photoId: number) => {
+  const handlePhotoSelect = async (photoId: number) => {
     setSelectedPhotoId(photoId);
     
     // 정답은 항상 첫 번째 사진 (photoId === 1)
@@ -40,15 +42,58 @@ const HistoricalPhotoSelector: React.FC<HistoricalPhotoSelectorProps> = ({
     setShowFeedback(true);
     
     // 2초 후 피드백 숨기고 결과 처리
-    setTimeout(() => {
+    setTimeout(async () => {
       setShowFeedback(false);
       if (correct) {
-        // 정답인 경우 - 카메라 화면으로 이동
+        // 정답인 경우 - 미션 완료 처리 후 갤러리로 이동
         if (mission && navigation) {
-          navigation.navigate('Camera', {
-            mission: mission,
-            selectedPhotoId: photoId
-          });
+          try {
+            // 미션 완료 처리 (use_stamp API 호출)
+            const tokens = await authService.getTokens();
+            if (tokens?.access) {
+              // 현재 진행중인 코스에서 해당 spot의 UserRouteSpot ID 찾기
+              const userCourseResponse = await fetch(`${BACKEND_API.BASE_URL}/v1/courses/user_routes/`, {
+                method: 'GET',
+                headers: {
+                  'Authorization': `Bearer ${tokens.access}`,
+                },
+              });
+
+              if (userCourseResponse.ok) {
+                const userCourses = await userCourseResponse.json();
+                if (userCourses.length > 0) {
+                  const currentCourse = userCourses[0];
+                  const currentSpot = currentCourse.spots.find((spot: any) => spot.id === mission.id);
+                  
+                  if (currentSpot) {
+                    // use_stamp API 호출하여 미션 완료 처리
+                    const stampResponse = await fetch(`${BACKEND_API.BASE_URL}/v1/courses/use_stamp/`, {
+                      method: 'PATCH',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${tokens.access}`,
+                      },
+                      body: JSON.stringify({
+                        id: currentSpot.user_route_spot_id, // UserRouteSpot ID
+                        is_used: true
+                      }),
+                    });
+
+                    if (stampResponse.ok) {
+                      console.log('[HistoricalPhotoSelector] 미션 완료 처리 성공');
+                    } else {
+                      console.error('[HistoricalPhotoSelector] 미션 완료 처리 실패:', stampResponse.status);
+                    }
+                  }
+                }
+              }
+            }
+          } catch (error) {
+            console.error('[HistoricalPhotoSelector] 미션 완료 처리 오류:', error);
+          }
+
+          console.log('[HistoricalPhotoSelector] 미션 완료! 갤러리로 이동');
+          navigation.navigate('Gallery');
           onClose(); // 모달 닫기
         }
       } else {

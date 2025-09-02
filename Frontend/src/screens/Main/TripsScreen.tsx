@@ -23,6 +23,10 @@ import { BACKEND_API } from '../../config/apiKeys';
 // 대동여지도 이미지 import
 const daedongyeojidoImage = require('../../assets/images/대동여지도.jpg');
 
+// 자물쇠 이미지 import
+const lockedIcon = require('../../assets/icons/locked.png');
+const unlockedIcon = require('../../assets/icons/unlocked.png');
+
 const { width } = Dimensions.get('window');
 
 const TABS = [
@@ -62,6 +66,7 @@ const TripsScreen: React.FC = () => {
         return;
       }
 
+      // 사용자 코스 데이터 가져오기
       const response = await fetch(`${BACKEND_API.BASE_URL}/v1/courses/user_routes/`, {
         method: 'GET',
         headers: {
@@ -73,6 +78,20 @@ const TripsScreen: React.FC = () => {
         const data = await response.json();
         console.log('[TripsScreen] 사용자 코스 데이터:', data);
         
+        // spots API에서 first_image 데이터 가져오기
+        const spotsResponse = await fetch(`${BACKEND_API.BASE_URL}/v1/spots/`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${tokens.access}`,
+          },
+        });
+
+        let spotsData: any[] = [];
+        if (spotsResponse.ok) {
+          spotsData = await spotsResponse.json();
+          console.log('[TripsScreen] spots 데이터:', spotsData);
+        }
+        
         // 진행중인 코스와 완료된 코스 분리
         const inProgress: any[] = [];
         const completed: any[] = [];
@@ -81,17 +100,30 @@ const TripsScreen: React.FC = () => {
           const completedSpots = course.spots.filter((spot: any) => spot.completed_at);
           const totalSpots = course.spots.length;
           
+          // spots 데이터에서 first_image 매핑
+          const spotsWithImages = course.spots.map((spot: any) => {
+            const spotData = spotsData.find((s: any) => s.id === spot.id);
+            return {
+              ...spot,
+              first_image: spotData?.first_image || null
+            };
+          });
+          
           if (completedSpots.length === totalSpots) {
             // 모든 스팟이 완료된 경우
             completed.push({
               ...course,
+              spots: spotsWithImages,
               completedDate: completedSpots[completedSpots.length - 1]?.completed_at?.split('T')[0] || '2024.01.01',
               totalPhotos: totalSpots,
               photos: Array(totalSpots).fill(require('../../assets/icons/대불호텔.jpg'))
             });
           } else {
             // 진행중인 코스
-            inProgress.push(course);
+            inProgress.push({
+              ...course,
+              spots: spotsWithImages
+            });
           }
         });
         
@@ -112,170 +144,209 @@ const TripsScreen: React.FC = () => {
     }
   };
 
-  // 인천 정적 지도에 핀을 표시하는 HTML 생성 함수
+  // 핀들을 일렬로 나열하는 HTML 생성 함수
   const generateStaticMapHTML = (spots: any[]) => {
     // spot 데이터를 JavaScript 배열로 변환
     const spotsData = spots.map(spot => ({
       title: spot.title,
-      lat: spot.lat,
-      lng: spot.lng,
-      completed: spot.completed_at ? true : false
+      completed: spot.completed_at ? true : false,
+      first_image: spot.first_image
     }));
     
-    // WebView에서 접근 가능한 로컬 자산의 절대 URI로 변환
-    const resolved = Image.resolveAssetSource(daedongyeojidoImage);
-    const daedongyeojidoUri = resolved?.uri || '';
+    // 현재 진행중인 spot (첫 번째 미완료 spot) 찾기
+    const currentSpot = spotsData.find(spot => !spot.completed);
+    const backgroundImage = currentSpot?.first_image ? currentSpot.first_image.replace('http://', 'https://') : '';
+    
+    console.log('[TripsScreen] spotsData:', spotsData);
+    console.log('[TripsScreen] currentSpot:', currentSpot);
+    console.log('[TripsScreen] backgroundImage:', backgroundImage);
+    
+
+    
+    // 자물쇠 이미지 URI 변환
+    const lockedResolved = Image.resolveAssetSource(lockedIcon);
+    const unlockedResolved = Image.resolveAssetSource(unlockedIcon);
+    const lockedUri = lockedResolved?.uri || '';
+    const unlockedUri = unlockedResolved?.uri || '';
         
-        return `
-          <!DOCTYPE html>
-          <html>
-          <head>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>지도</title>
-            <style>
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>코스 진행</title>
+        <script>
+          window.addEventListener('load', function() {
+            if (window.ReactNativeWebView) {
+              window.ReactNativeWebView.postMessage('WebView loaded successfully');
+              window.ReactNativeWebView.postMessage('Background image URL: ${backgroundImage}');
+            }
+            if ('${backgroundImage}') {
+              const img = new Image();
+              img.onload = function() {
+                if (window.ReactNativeWebView) {
+                  window.ReactNativeWebView.postMessage('Background image loaded successfully');
+                }
+              };
+              img.onerror = function() {
+                if (window.ReactNativeWebView) {
+                  window.ReactNativeWebView.postMessage('Background image failed to load');
+                }
+              };
+              img.src = '${backgroundImage}';
+            }
+          });
+        </script>
+        <style>
           body { 
-            margin: 0; 
-            padding: 0; 
+            margin: 0;
+            padding: 0;
             font-family: Arial, sans-serif;
             background: #f8f9fa;
             height: 100vh;
             overflow: hidden;
-          }
-          .map-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
             position: relative;
-            width: 100%;
-            height: 100%;
-            background: #fff;
-            border-radius: 8px;
-            overflow: hidden;
           }
-          .map-content {
-            position: relative;
-            width: 100%;
-            height: 100%;
-          }
-          .map-image {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
-            position: relative;
-            background-image: url('${daedongyeojidoUri}');
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
-            background-color: #f8f9fa;
-          }
-          .map-overlay {
+          body::before {
+            content: '';
             position: absolute;
             top: 0;
             left: 0;
+            right: 0;
+            bottom: 0;
+            background: ${backgroundImage ? `url('${backgroundImage}')` : '#f8f9fa'};
+            background-size: 100% 100%;
+            background-position: center;
+            background-repeat: no-repeat;
+            filter: blur(1px) brightness(0.7);
+            z-index: 0;
+          }
+          body::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(248, 249, 250, 0.3);
+            z-index: 1;
+          }
+          .pins-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            position: relative;
             width: 100%;
-            height: 100%;
-            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="%23e0e0e0" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
-            opacity: 0.3;
+            height: 90px;
+            padding: 0;
+            box-sizing: border-box;
+            top: 25%;
+            z-index: 20;
+          }
+          .connection-line {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: repeating-linear-gradient(
+              to right,
+              #2196f3 0px,
+              #2196f3 8px,
+              transparent 8px,
+              transparent 16px
+            );
+            z-index: 1;
+          }
+          .pin-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            z-index: 20;
+            flex: 1;
+            min-width: 0;
           }
           .pin {
-            position: absolute;
-            width: 20px;
-            height: 20px;
+            width: 32px;
+            height: 32px;
             border-radius: 50% 50% 50% 0;
             transform: rotate(-45deg);
-            transition: all 0.3s ease;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.4);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 10px;
-            font-weight: bold;
-            color: white;
-            z-index: 10;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
             border: 2px solid white;
+            position: relative;
           }
           .pin.completed {
-            background: #4caf50;
+            background: #9e9e9e;
           }
           .pin.next {
-            background: #ff9800;
+            background:rgb(253, 228, 191);
+            border: 3px solid #ff9800;
             animation: pulse 2s infinite;
-            z-index: 999;
           }
           .pin.waiting {
-            background: #2196f3;
+            background:rgb(201, 218, 248);
+            border: 3px solid #2196f3;
           }
-          .pin::after {
-            content: attr(data-number);
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%) rotate(45deg);
-            font-size: 8px;
+          .pin-icon {
+            width: 14px;
+            height: 14px;
+            object-fit: contain;
+            transform: rotate(45deg);
+          }
+          .pin-label {
+            margin-top: 10px;
+            font-size: 10px;
             font-weight: bold;
-            text-shadow: 1px 1px 1px rgba(0,0,0,0.5);
+            color: #333;
+            text-align: center;
+            max-width: 60px;
+            line-height: 1.2;
           }
           @keyframes pulse {
             0% { box-shadow: 0 0 0 0 rgba(255, 152, 0, 0.7); }
             70% { box-shadow: 0 0 0 10px rgba(255, 152, 0, 0); }
             100% { box-shadow: 0 0 0 0 rgba(255, 152, 0, 0); }
           }
-            </style>
-          </head>
-          <body>
-        <div class="map-container" id="mapContainer">
-          <div class="map-content" id="mapContent">
-            <div class="map-overlay"></div>
-            <div class="map-image"></div>
+        </style>
+      </head>
+      <body>
+        <div class="pins-container">
+          <div class="connection-line"></div>
+          ${spotsData.map((spot, index) => {
+            let pinClass = 'waiting';
+            let iconSrc = lockedUri;
             
-            ${spotsData.map((spot, index) => {
-              // 실제 좌표를 화면 위치로 변환하는 함수 (대동여지도 비율에 맞춤)
-              function latLngToScreenPosition(lat, lng) {
-                // 대동여지도에서 인천 지역의 좌표 범위 (실제 지도 비율에 맞춤)
-                // 대동여지도는 세로가 긴 형태이므로 비율 조정
-                const minLat = 37.25;
-                const maxLat = 37.65;
-                const minLng = 126.35;
-                const maxLng = 126.85;
-                
-                // 좌표를 0-100 범위로 정규화
-                const x = ((lng - minLng) / (maxLng - minLng)) * 100;
-                const y = ((maxLat - lat) / (maxLat - minLat)) * 100;
-                
-                // 대동여지도의 세로 긴 형태에 맞춰 y축 조정 (세로가 더 길므로)
-                const adjustedY = y * 0.8 + 10; // 세로 비율 조정
-                
-                // 화면 경계 내로 제한 (5-95% 범위)
-                return {
-                  x: Math.max(5, Math.min(95, x)),
-                  y: Math.max(5, Math.min(95, adjustedY))
-                };
-              }
-              
-              // 실제 spot 좌표를 사용해서 위치 계산
-              const pos = latLngToScreenPosition(spot.lat, spot.lng);
-              
-              let pinClass = 'waiting';
-              
-              if (spot.completed) {
-                pinClass = 'completed';
-              } else if (index === spotsData.findIndex(s => !s.completed)) {
-                pinClass = 'next';
-              }
-              
-      return `
-                <div class="pin ${pinClass}" 
-                     style="left: ${pos.x}%; top: ${pos.y}%;" 
-                     data-number="${index + 1}">
+            if (spot.completed) {
+              pinClass = 'completed';
+              iconSrc = unlockedUri;
+            } else if (index === spotsData.findIndex(s => !s.completed)) {
+              pinClass = 'next';
+              iconSrc = lockedUri;
+            }
+            
+            return `
+              <div class="pin-item">
+                <div class="pin ${pinClass}">
+                  <img src="${iconSrc}" class="pin-icon" alt="pin" />
                 </div>
-              `;
-            }).join('')}
-          </div>
+                <div class="pin-label">${spot.title}</div>
+              </div>
+            `;
+          }).join('')}
         </div>
-          </script>
-        </body>
-        </html>
-      `;
-    };
+      </body>
+      </html>
+    `;
+  };
 
   const renderProgressTab = () => {
     // 진행중인 코스가 없으면 빈 화면 표시
@@ -319,6 +390,8 @@ const TripsScreen: React.FC = () => {
           </Text>
         </View>
 
+
+
         {/* 지도 영역 - 인천 정적 지도 with 핀 */}
         <View style={styles.mapBox}>
           <WebView
@@ -338,6 +411,8 @@ const TripsScreen: React.FC = () => {
             incognito={false}
             androidLayerType="hardware"
             originWhitelist={['*']}
+            allowsArbitraryLoads={true}
+            allowsArbitraryLoadsInWebContent={true}
             onLoadStart={() => {
               console.log('[TripsScreen] 카카오맵 로딩 시작');
             }}
@@ -354,6 +429,9 @@ const TripsScreen: React.FC = () => {
             }}
             onMessage={(event) => {
               console.log('[TripsScreen] WebView 메시지:', event.nativeEvent.data);
+            }}
+            onConsoleMessage={(event) => {
+              console.log('[TripsScreen] WebView Console:', event.nativeEvent.message);
             }}
           />
         </View>
@@ -645,13 +723,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   mapBox: {
-    borderWidth: 2,
-    borderColor: '#e0e0e0',
-    backgroundColor: '#fff',
+    borderWidth: 5,
+    borderColor: INCHEON_BLUE_LIGHT,
     marginBottom: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 18,
+    borderRadius: 10,
     overflow: 'hidden',
   },
   mapImg: {
@@ -659,6 +734,7 @@ const styles = StyleSheet.create({
     height: 180,
     borderRadius: 0,
   },
+
   cardContainer: {
     marginTop: 16
   },

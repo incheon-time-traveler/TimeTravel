@@ -172,12 +172,8 @@ export default function MissionScreen({ route, navigation }: MissionScreenProps)
       // 미션 완료 처리
       completeMission(mission.id);
       
-      // 카메라 화면으로 이동 (과거 사진 정보와 함께)
-      navigation.navigate('Camera', {
-        mission: mission,
-        selectedPhotoId: imageId,
-        selectedPhoto: correctAnswer
-      });
+      // 갤러리 화면으로 이동
+      navigation.navigate('Gallery');
     } else {
       Alert.alert(
         '❌ 틀렸습니다',

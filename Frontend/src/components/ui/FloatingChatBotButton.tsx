@@ -1,6 +1,6 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, ViewStyle } from 'react-native';
-import { INCHEON_BLUE, INCHEON_GRAY } from '../../styles/fonts';
+import { INCHEON_BLUE, INCHEON_GRAY, TEXT_STYLES } from '../../styles/fonts';
 
 interface Props {
   onPress?: () => void;
@@ -15,21 +15,21 @@ const FloatingChatBotButton: React.FC<Props> = ({ onPress, style }) => (
   >
     <Text style={styles.fabText}>
         AI
-        </Text>
-        <Text style={styles.fabText2}>
+    </Text>
+    <Text style={styles.fabText2}>
         Chat Bot
-        </Text>
+    </Text>
   </TouchableOpacity>
 );
 
 const styles = StyleSheet.create({
   fab: {
     position: 'absolute',
-    right: 24,
+    left: 24,
     bottom: 100,
     width: 60,
     height: 60,
-    borderRadius: 28,
+    borderRadius: 50,
     backgroundColor: 'rgba(0,102,204,0.6)', // 인천블루 반투명
     justifyContent: 'center',
     alignItems: 'center',
@@ -40,10 +40,9 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   fabText: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
+    ...TEXT_STYLES.title,
     textAlign: 'center',
     color: '#fff',
-    fontSize: 30,
     marginTop: 2,
   },
   fabText2: {

@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import { INCHEON_BLUE, INCHEON_BLUE_LIGHT, INCHEON_GRAY } from '../../styles/fonts';
+import { INCHEON_BLUE, INCHEON_BLUE_LIGHT, INCHEON_GRAY, TEXT_STYLES } from '../../styles/fonts';
 import { authService } from '../../services/authService';
 import { BACKEND_API } from '../../config/apiKeys';
 
@@ -434,16 +434,14 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   title: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 28,
+    ...TEXT_STYLES.title,
     marginTop: 40,
     marginBottom: 10,
     color: '#333',
     textAlign: 'center',
   },
   subtitle: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 14,
+    ...TEXT_STYLES.heading,
     color: '#666',
     marginBottom: 30,
     textAlign: 'center',
@@ -455,9 +453,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   inputLabel: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 16,
-    fontWeight: 'bold',
+    ...TEXT_STYLES.heading,
     color: INCHEON_GRAY,
     marginBottom: 8,
   },
@@ -466,8 +462,7 @@ const styles = StyleSheet.create({
     borderColor: '#e0e0e0',
     borderRadius: 12,
     padding: 16,
-    fontSize: 16,
-    fontFamily: 'NeoDunggeunmoPro-Regular',
+    ...TEXT_STYLES.body,
     backgroundColor: '#f8f9fa',
   },
   pickerContainer: {
@@ -509,10 +504,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 30,
   },
   completeButtonText: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 18,
+    ...TEXT_STYLES.heading,
     color: '#fff',
-    fontWeight: 'bold',
     marginLeft: 10,
   },
   skipButton: {
@@ -520,8 +513,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
   },
   skipButtonText: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 16,
+    ...TEXT_STYLES.body,
     color: INCHEON_GRAY,
     textDecorationLine: 'underline',
   },

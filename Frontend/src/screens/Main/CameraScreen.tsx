@@ -43,6 +43,8 @@ const CameraScreen: React.FC<CameraScreenProps> = ({ route, navigation }) => {
   const [overlayOpacity, setOverlayOpacity] = useState(0.6);
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [currentPhoto, setCurrentPhoto] = useState<string | null>(null);
+  const [currentPhotoFileName, setCurrentPhotoFileName] = useState<string | null>(null);
+  const [currentPhotoMimeType, setCurrentPhotoMimeType] = useState<string | null>(null);
 
   useEffect(() => {
     requestCameraPermission();
@@ -120,9 +122,50 @@ const CameraScreen: React.FC<CameraScreenProps> = ({ route, navigation }) => {
       }
       
       if (response.assets && response.assets[0]) {
-        const photoUri = response.assets[0].uri;
+        const photoAsset = response.assets[0];
+        const photoUri = photoAsset.uri;
+        
         if (photoUri) {
+          // 🖼️ 사진 메타데이터 상세 로그 출력
+          console.log('📸 [CameraScreen] 사진 촬영 완료! 상세 메타데이터:');
+          console.log('📊 사진 기본 정보:', {
+            uri: photoUri,
+            type: photoAsset.type,
+            fileName: photoAsset.fileName,
+            fileSize: photoAsset.fileSize,
+            width: photoAsset.width,
+            height: photoAsset.height,
+            timestamp: photoAsset.timestamp,
+            duration: photoAsset.duration,
+            bitrate: photoAsset.bitrate,
+          });
+          
+          // 📏 사진 사이즈 정보 강조
+          console.log('📏 [CameraScreen] 🎯 사진 사이즈 정보 (중요!):', {
+            width: photoAsset.width || '알 수 없음',
+            height: photoAsset.height || '알 수 없음',
+            aspectRatio: photoAsset.width && photoAsset.height ? 
+              (photoAsset.width / photoAsset.height).toFixed(2) : '알 수 없음',
+            megapixels: photoAsset.width && photoAsset.height ? 
+              ((photoAsset.width * photoAsset.height) / 1000000).toFixed(2) : '알 수 없음',
+            orientation: photoAsset.width && photoAsset.height ? 
+              (photoAsset.width > photoAsset.height ? '가로' : '세로') : '알 수 없음'
+          });
+          
+          // 💾 파일 정보
+          console.log('💾 [CameraScreen] 파일 정보:', {
+            fileSize: photoAsset.fileSize ? `${(photoAsset.fileSize / 1024 / 1024).toFixed(2)} MB` : '알 수 없음',
+            fileSizeBytes: photoAsset.fileSize || '알 수 없음',
+            mimeType: photoAsset.type || '알 수 없음',
+            fileName: photoAsset.fileName || '알 수 없음'
+          });
+          
+          // 🔍 전체 메타데이터 객체 출력
+          console.log('🔍 [CameraScreen] 전체 메타데이터 객체:', JSON.stringify(photoAsset, null, 2));
+          
           setCurrentPhoto(photoUri);
+          setCurrentPhotoFileName(photoAsset.fileName || 'photo.jpg');
+          setCurrentPhotoMimeType(photoAsset.type || 'image/jpeg');
           setPhotoTaken(true);
           Alert.alert('사진 촬영 완료!', '과거와 현재가 합쳐진 사진이 촬영되었습니다.');
         }
@@ -136,6 +179,8 @@ const CameraScreen: React.FC<CameraScreenProps> = ({ route, navigation }) => {
   const handleRetakePhoto = () => {
     setPhotoTaken(false);
     setCurrentPhoto(null);
+    setCurrentPhotoFileName(null);
+    setCurrentPhotoMimeType(null);
   };
 
   const handleSaveToGallery = async () => {
@@ -163,10 +208,72 @@ const CameraScreen: React.FC<CameraScreenProps> = ({ route, navigation }) => {
       console.log('[CameraScreen] 사진 정보:', {
         photoUri: currentPhoto,
         photoType: typeof currentPhoto,
-        photoLength: currentPhoto?.length
+        photoLength: currentPhoto?.length,
+        // 🖼️ 추가된 상세 사진 정보
+        fileName: currentPhoto?.split('/').pop() || '알 수 없음',
+        fileExtension: currentPhoto?.split('.').pop() || '알 수 없음',
+        cachePath: currentPhoto?.includes('/cache/') ? '캐시 경로' : '다른 경로',
+        // 📏 파일 경로 분석
+        pathInfo: {
+          isFileUri: currentPhoto?.startsWith('file://'),
+          isCacheFile: currentPhoto?.includes('rn_image_picker_lib_temp'),
+          isJpgFile: currentPhoto?.endsWith('.jpg'),
+          isPngFile: currentPhoto?.endsWith('.png'),
+        }
       });
-
-
+      
+      // 🖼️ 추가: Image.getSize로 실제 이미지 크기 가져오기
+      if (currentPhoto) {
+        console.log('📏 [CameraScreen] 이미지 크기 정보 가져오기 시작...');
+        
+        // Image.getSize를 Promise로 감싸기
+        const getImageSize = (uri: string): Promise<{width: number, height: number}> => {
+          return new Promise((resolve, reject) => {
+            Image.getSize(uri, (width, height) => {
+              resolve({ width, height });
+            }, (error) => {
+              reject(error);
+            });
+          });
+        };
+        
+        try {
+          const { width, height } = await getImageSize(currentPhoto);
+          console.log('📏 [CameraScreen] 🎯 실제 이미지 크기 정보:', {
+            width: width,
+            height: height,
+            aspectRatio: (width / height).toFixed(2),
+            megapixels: ((width * height) / 1000000).toFixed(2),
+            orientation: width > height ? '가로' : '세로',
+            totalPixels: width * height
+          });
+        } catch (error) {
+          console.log('📏 [CameraScreen] 이미지 크기 가져오기 실패:', error);
+        }
+      }
+      
+      // 🔍 추가: 파일 시스템에서 파일 정보 가져오기 시도
+      try {
+        const { stat } = require('react-native-fs');
+        if (currentPhoto && currentPhoto.startsWith('file://')) {
+          const filePath = currentPhoto.replace('file://', '');
+          stat(filePath).then((fileStats: any) => {
+            console.log('📁 [CameraScreen] 파일 시스템 정보:', {
+              size: fileStats.size ? `${(fileStats.size / 1024 / 1024).toFixed(2)} MB` : '알 수 없음',
+              sizeBytes: fileStats.size || '알 수 없음',
+              lastModified: fileStats.lastModified ? new Date(fileStats.lastModified).toISOString() : '알 수 없음',
+              isFile: fileStats.isFile,
+              isDirectory: fileStats.isDirectory,
+              path: filePath
+            });
+          }).catch((fsError: any) => {
+            console.log('📁 [CameraScreen] 파일 시스템 정보 가져오기 실패:', fsError);
+          });
+        }
+      } catch (fsError) {
+        console.log('📁 [CameraScreen] react-native-fs 모듈 없음, 파일 시스템 정보 생략');
+      }
+      
       // 백엔드에서 사용자의 현재 진행 중인 코스 정보 가져오기
       console.log('[CameraScreen] 사용자 코스 정보 가져오기 시작 (올바른 엔드포인트: /v1/routes/user_routes/)');
       let routeId = null;
@@ -234,35 +341,24 @@ const CameraScreen: React.FC<CameraScreenProps> = ({ route, navigation }) => {
         return;
       }
 
-      // FormData 사용 (ImageField 처리용)
-      const formData = new FormData();
-      const photoFile = {
-        uri: currentPhoto,
-        type: 'image/jpeg',
-        name: 'photo.jpg'
-      } as any;
-      
-      // FormData에 파일 추가
-      try {
-        formData.append('image_url', photoFile);
-        console.log('[CameraScreen] FormData에 파일 추가 성공');
-      } catch (formDataError) {
-        console.error('[CameraScreen] FormData 파일 추가 실패:', formDataError);
-        Alert.alert('오류', '사진 파일을 준비하는 중 오류가 발생했습니다.');
-        return;
-      }
-      
-      console.log('[CameraScreen] FormData 구성:', {
-        formDataType: typeof formData,
-        formDataConstructor: formData?.constructor?.name,
-        hasEntries: typeof formData?.entries === 'function',
-        formDataKeys: formData ? Object.keys(formData) : 'FormData 없음',
-        photoFile: photoFile
-      });
-
       // ✅ 수정 완료: 백엔드에서 가져온 실제 route_id 사용
       const spotId = mission.id; // mission.id는 실제로 spot_id
       
+      // 단순 JSON 방식: 사진 URI를 문자열로 전송
+      const requestData = {
+        image_url: currentPhoto, // 로컬 file:// URI를 그대로 문자열로 전송
+        route_id: routeId,
+        spot_id: spotId
+      };
+      
+      console.log('[CameraScreen] JSON 데이터 구성:', {
+        requestData: requestData,
+        imageUri: currentPhoto,
+        imageUriType: typeof currentPhoto,
+        imageUriLength: currentPhoto?.length
+      });
+      
+      // 백엔드 엔드포인트는 트레일링 슬래시 포함: '<int:route_id>/<int:spot_id>/'
       const apiUrl = `${BACKEND_API.BASE_URL}/v1/photos/${routeId}/${spotId}/`;
       console.log('[CameraScreen] API 요청 정보 (수정됨):', {
         url: apiUrl,
@@ -309,22 +405,34 @@ const CameraScreen: React.FC<CameraScreenProps> = ({ route, navigation }) => {
       });
 
       // 요청 헤더 확인
-      const headers = {
+      const headers: any = {
         'Authorization': `Bearer ${tokens.access}`,
-        // FormData 사용 시 Content-Type은 자동으로 설정됨
+        'Content-Type': 'application/json',
       };
       
       console.log('[CameraScreen] 요청 헤더:', headers);
       
+      // 연결 확인 (간단 GET)
+      try {
+        console.log('[CameraScreen] 서버 연결 확인 시작');
+        const ping = await fetch(`${BACKEND_API.BASE_URL}/v1/photos/`, {
+          method: 'GET',
+          headers: { 'Authorization': `Bearer ${tokens.access}` },
+        });
+        console.log('[CameraScreen] 서버 연결 확인 응답:', { status: ping.status, ok: ping.ok });
+      } catch (pingErr) {
+        console.error('[CameraScreen] 서버 연결 확인 실패:', pingErr);
+      }
+
       // 네트워크 요청 시작 시간 기록
       const startTime = Date.now();
       console.log('[CameraScreen] 네트워크 요청 시작:', new Date(startTime).toISOString());
-      console.log('[CameraScreen] 실제 요청할 URL:', `"${apiUrl}"`);
+      console.log('[CameraScreen] 실제 요청할 URL:', apiUrl);
       
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers,
-        body: formData,
+        body: JSON.stringify(requestData),
       });
 
       const endTime = Date.now();
@@ -386,23 +494,19 @@ const CameraScreen: React.FC<CameraScreenProps> = ({ route, navigation }) => {
       // 모든 에러에서 URL 정보 출력
       console.error('[CameraScreen] 에러 발생 시 URL 정보:', {
         'BACKEND_API.BASE_URL 값': `"${BACKEND_API.BASE_URL}"`,
-        'routeId 값 (백엔드에서 가져옴)': `"${routeId}"`,
-        'spotId 값 (mission.id)': `"${spotId}"`,
-        '전체 URL (백엔드 연동)': `"${BACKEND_API.BASE_URL}/v1/photos/${routeId}/${spotId}"`,
+        // routeId/spotId는 try 블록 내 지역변수이므로 여기서는 출력 생략
+        '전체 URL (백엔드 연동)': 'try 블록 로그 참고',
         'URL 유효성': {
           baseUrlEmpty: !BACKEND_API.BASE_URL,
           baseUrlType: typeof BACKEND_API.BASE_URL,
-          routeIdEmpty: !routeId,
-          routeIdType: typeof routeId,
-          spotIdEmpty: !spotId,
-          spotIdType: typeof spotId
+          // routeId/spotId 검증은 요청 직전에 이미 로그로 출력됨
         }
       });
       
               // 네트워크 관련 에러인지 확인
         if (error?.message?.includes('Network request failed')) {
           console.error('[CameraScreen] 네트워크 요청 실패 상세:', {
-            apiUrl: `${BACKEND_API.BASE_URL}/v1/photos/${routeId}/${spotId}`,
+            apiUrl: '요청 URL은 try 블록 상단 로그 참고',
             baseUrl: BACKEND_API.BASE_URL,
             networkState: '네트워크 연결 상태 확인 필요',
             errorDetails: {

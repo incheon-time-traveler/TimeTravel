@@ -34,7 +34,29 @@ interface GalleryItem {
   spot_id: number;
 }
 
-const TOTAL_COURSE = 52; // 전체 코스 수 (API에서 가져올 수 있음)
+
+// 스탬프 이미지 매핑
+const STAMP_IMAGES: { [key: string]: any } = {
+  '강화백련사': require('../../assets/stamps/baekreon.png'),
+  '부평도호부청사': require('../../assets/stamps/bupyeong_dohobu.png'),
+  '부평향교': require('../../assets/stamps/bupyeong_hyanggyo.png'),
+  '대불호텔전시관': require('../../assets/stamps/daebul.png'),
+  '인천답동성당': require('../../assets/stamps/dapdong_cathedral.png'),
+  '대한성공회강화성당': require('../../assets/stamps/ganghwa_cathedral.png'),
+  '홍예문': require('../../assets/stamps/hongyemun.png'),
+  '일본우선주식회사인천지점': require('../../assets/stamps/incheon_corporation.png'),
+  '인천도호부관아': require('../../assets/stamps/incheon_dohobu.png'),
+  '인천우체국': require('../../assets/stamps/incheon_post_office.png'),
+  '제물포구락부': require('../../assets/stamps/jaemulpo.png'),
+  '인천내동성공회성당': require('../../assets/stamps/naedong_cathedral.png'),
+  '논현포대': require('../../assets/stamps/nonhyun.png'),
+  '팔미도등대': require('../../assets/stamps/palmido.png'),
+  '연미정정': require('../../assets/stamps/yeonmijung.png'),
+  '용동큰우물': require('../../assets/stamps/yongdong_great_well.png'),
+  // 다른 장소들도 필요에 따라 추가
+};
+
+const TOTAL_COURSE = 16; // 전체 코스 수 (API에서 가져올 수 있음)
 
 export default function GalleryScreen() {
   const [selectedImage, setSelectedImage] = useState<GalleryItem | null>(null);
@@ -44,7 +66,7 @@ export default function GalleryScreen() {
   const [foundCount, setFoundCount] = useState(0);
 
   const handleImagePress = (item: any) => {
-    if (item.completed && item.image) {
+    if (item.completed) {
       setSelectedImage(item);
       setImageModalVisible(true);
     }
@@ -60,7 +82,7 @@ export default function GalleryScreen() {
         return;
       }
 
-      const response = await fetch(`${BACKEND_API.BASE_URL}/v1/photos/`, {
+      const response = await fetch(`${BACKEND_API.BASE_URL}/v1/routes/unlock_spots/`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -75,17 +97,31 @@ export default function GalleryScreen() {
         // GalleryItem 형식으로 변환
         const galleryItems: GalleryItem[] = data.map((item: any) => ({
           id: item.id,
-          title: `스팟 ${item.spot_id}`, // spot_name이 없으므로 spot_id 사용
-          image_url: item.image_url || '',
-          past_image_url: '', // past_image_url은 별도로 저장되지 않음
-          completed: !!item.image_url,
+          title: `${item.spot_name}` || `${item.spot_id}`, // spot_name이 없으므로 spot_id 사용
+          image_url: item.past_photo_url || '',
+          past_image_url: item.past_photo_url || '', // past_image_url은 별도로 저장되지 않음
+          completed: !!item.past_photo_url,
           hasStamp: true, // 모든 완료된 미션에 스탬프 부여
           stampUsed: item.is_used || false, // 백엔드 필드명에 맞춤
           route_id: item.route_id,
-          spot_id: item.spot_id
+          spot_id: item.route_spot_id,
         }));
         
-        setGalleryData(galleryItems);
+        // Create empty slots for remaining spots (up to 16)
+        const remainingSlots = TOTAL_COURSE - galleryItems.length;
+        const emptySlots = Array(remainingSlots).fill(null).map((_, index) => ({
+          id: galleryItems.length + index + 1,
+          title: `장소 ${galleryItems.length + index + 1}`,
+          image_url: '',
+          past_image_url: '',
+          completed: false,
+          hasStamp: false,
+          stampUsed: false,
+          route_id: 0,
+          spot_id: galleryItems.length + index + 1,
+        }));
+
+        setGalleryData(galleryItems.concat(emptySlots));
         setFoundCount(galleryItems.filter(item => item.completed).length);
       } else {
         console.error('[GalleryScreen] 갤러리 데이터 가져오기 실패:', response.status);
@@ -124,14 +160,14 @@ export default function GalleryScreen() {
                 return;
               }
 
-              const response = await fetch(`${BACKEND_API.BASE_URL}/v1/photos/${selectedImage.id}/`, {
+              const response = await fetch(`${BACKEND_API.BASE_URL}/v1/routes/use_stamp/${selectedImage.id}/`, {
                 method: 'PATCH',
                 headers: {
                   'Content-Type': 'application/json',
                   'Authorization': `Bearer ${tokens.access}`,
                 },
                 body: JSON.stringify({
-                  stamp_used: true
+                  is_used: true
                 }),
               });
 
@@ -165,28 +201,22 @@ export default function GalleryScreen() {
       return null;
     }
 
-    if (selectedImage?.stampUsed) {
-      // 사용 완료된 스탬프
-      return (
-        <View style={styles.stampContainer}>
-          <View style={[styles.stamp, styles.stampUsed]}>
-            <Text style={[styles.stampText, styles.stampUsedText]}>사용완료</Text>
-          </View>
-        </View>
-      );
-    }
-
-    // 사용 가능한 스탬프
     return (
-      <TouchableOpacity
-        style={styles.stampContainer}
-        onPress={handleStampPress}
-        activeOpacity={0.8}
-      >
-        <View style={styles.stamp}>
-          <Text style={styles.stampText}>대불호텔</Text>
-        </View>
-      </TouchableOpacity>
+      <View style={styles.modalStampContainer}>
+        <Image 
+          source={STAMP_IMAGES[selectedImage.title] || require('../../assets/stamps/jaemulpo.png')}
+          style={styles.modalStampImage}
+          resizeMode="contain"
+        />
+        {!selectedImage.stampUsed && (
+          <TouchableOpacity
+            style={styles.useStampButton}
+            onPress={handleStampPress}
+          >
+            <Text style={styles.useStampButtonText}>스탬프 사용하기</Text>
+          </TouchableOpacity>
+        )}
+      </View>
     );
   };
 
@@ -205,29 +235,33 @@ export default function GalleryScreen() {
                   onPress={() => handleImagePress(item)}
                   activeOpacity={0.8}
                 >
-                  {item.completed && item.image_url ? (
-                    <View style={styles.imageContainer}>
-                      <Image
-                        source={{ uri: item.image_url }}
-                        style={styles.photo}
-                        resizeMode="cover"
-                      />
-                      {item.hasStamp && (
-                        <View style={styles.stampOverlay}>
-                          <View style={[styles.stamp, item.stampUsed && styles.stampUsed]}>
-                            <Text style={[styles.stampText, item.stampUsed && styles.stampUsedText]}>
-                              {item.stampUsed ? '사용완료' : '대불호텔'}
-                            </Text>
-
+                  <View style={styles.imageContainer}>
+                    <Image 
+                      source={{ uri: item.past_image_url || 'https://via.placeholder.com/300' }} 
+                      style={styles.photo} 
+                      resizeMode="cover"
+                    />
+                    {!item.completed && (
+                      <View style={styles.lockedOverlay}>
+                        <Ionicons name="lock-closed" size={24} color="white" />
+                        <Text style={styles.lockedText}>잠금</Text>
+                      </View>
+                    )}
+                    {item.completed && item.hasStamp && (
+                      <View style={styles.stampOverlay}>
+                        <Image 
+                          source={STAMP_IMAGES[item.title] || require('../../assets/stamps/jaemulpo.png')} 
+                          style={styles.stampImage} 
+                          resizeMode="contain"
+                        />
+                        {!item.stampUsed && (
+                          <View style={styles.stampBadge}>
+                            <Ionicons name="checkmark-circle" size={16} color="white" />
                           </View>
-                        </View>
-                      )}
-                    </View>
-                  ) : (
-                    <View style={styles.lockedBox}>
-                      <Ionicons name="image-outline" size={32} color="#bbb" />
-                    </View>
-                  )}
+                        )}
+                      </View>
+                    )}
+                  </View>
                   <View style={styles.cardFooter}>
                     <Text style={styles.missionTitle} numberOfLines={1}>{item.title}</Text>
                       {item.completed ? (
@@ -262,7 +296,7 @@ export default function GalleryScreen() {
 
                 <View style={styles.imageModalContainer}>
                   <Image
-                    source={{ uri: selectedImage?.image_url }}
+                    source={{ uri: selectedImage?.image_url || 'https://via.placeholder.com/300' }}
                     style={styles.modalImage}
                     resizeMode="contain"
                   />
@@ -338,14 +372,19 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 12,
     borderTopRightRadius: 12,
   },
-  lockedBox: {
-    width: '100%',
-    height: CARD_SIZE,
-    backgroundColor: INCHEON_BLUE_LIGHT,
-    alignItems: 'center',
+  lockedOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     justifyContent: 'center',
+    alignItems: 'center',
     borderTopLeftRadius: 12,
     borderTopRightRadius: 12,
+  },
+  lockedText: {
+    color: 'white',
+    marginTop: 8,
+    fontWeight: '600',
+    fontSize: 14,
   },
   cardFooter: {
     width: '100%',
@@ -390,40 +429,53 @@ const styles = StyleSheet.create({
   // 스탬프 스타일
   stampOverlay: {
     position: 'absolute',
-    top: 10,
-    right: 10,
+    top: 8,
+    right: 8,
+    width: 40,
+    height: 40,
+    zIndex: 2,
   },
-  stampContainer: {
+  stampImage: {
+    width: '100%',
+    height: '100%',
+  },
+  stampBadge: {
     position: 'absolute',
-    top: 20,
-    right: 20,
-    zIndex: 10,
-  },
-  stamp: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    top: -5,
+    right: -5,
     backgroundColor: '#FF4444',
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  // 모달 내 스탬프 스타일
+  modalStampContainer: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    alignItems: 'center',
+  },
+  modalStampImage: {
+    width: 100,
+    height: 100,
+    marginBottom: 10,
+  },
+  useStampButton: {
+    backgroundColor: INCHEON_BLUE,
+    padding: 10,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 3,
-    borderColor: '#fff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
+    minWidth: 120,
   },
-  stampUsed: {
-    backgroundColor: INCHEON_GRAY, // 회색으로 변경
-  },
-  stampText: {
-    ...TEXT_STYLES.button,
-    color: '#fff',
-    textAlign: 'center',
-  },
-  stampUsedText: {
-    fontSize: 12, // 텍스트가 길어서 폰트 크기 조정
+  useStampButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 14,
   },
 
   // 모달 스타일

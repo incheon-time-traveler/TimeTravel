@@ -32,14 +32,15 @@ const MapScreen: React.FC = () => {
     let url = '';
 
     if (params?.destination) {
+      const destName = encodeURIComponent(params.destination);
       if (params.destinationLat && params.destinationLng) {
-        // 좌표가 있는 경우: 현재위치에서 목적지까지
-        url = `https://map.kakao.com/link/route/현재위치,${params.destinationLat},${params.destinationLng}`;
-        console.log('[MapScreen] 좌표 기반 길찾기 URL:', url);
+        // 좌표가 있는 경우: WebView에서 직접 지도 표시
+        url = `https://map.kakao.com/link/map/${destName},${params.destinationLat},${params.destinationLng}`;
+        console.log('[MapScreen] 목적지 지도 링크(URL):', url);
       } else {
-        // 좌표가 없는 경우: 검색어로 길찾기
-        url = `https://map.kakao.com/link/route/현재위치,${encodeURIComponent(params.destination)}`;
-        console.log('[MapScreen] 검색어 기반 길찾기 URL:', url);
+        // 좌표가 없으면 검색 결과 지도로 표시
+        url = `https://map.kakao.com/link/map/${destName}`;
+        console.log('[MapScreen] 검색 지도 링크(URL):', url);
       }
     } else {
       // 기본 인천 지도

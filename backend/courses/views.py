@@ -7,6 +7,7 @@ from .serializers import RouteSerializer, RouteDetailSerializer, UserRouteSpotSe
 from .utils import generate_course, save_course
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.db.models import Count
+from spots.models import Spot
 
 # Create your views here.
 """
@@ -274,6 +275,27 @@ def unlock_route_spot(request):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+# 해금 장소 조회
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def unlock_spots(request):
+    """
+    유저 해금 장소 조회 API
+    유저의 UserRouteSpot 테이블에서 해금 장소를 조회합니다.
+    해금 기준 : unlock_at이 null이 아닌 장소
+    """
+    if request.method == "GET":
+        user = request.user
+        user_route_spots = UserRouteSpot.objects.filter(user_id=user.id, unlock_at__isnull=False)
+        serializer = UserRouteSpotSerializer(user_route_spots, many=True)
+        for spot in serializer.data:
+            spot_id = RouteSpot.objects.get(id=spot['route_spot_id'])
+            past_photo_url = Spot.objects.get(id=spot_id.spot_id.id).past_image_url
+            spot['past_photo_url'] = past_photo_url
+            spot['spot_name'] = spot_id.spot_id.name
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    else:
+        return Response({'error': 'GET 메서드만 지원됩니다.'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 @api_view(['POST'])
 @permission_classes([AllowAny])

@@ -437,7 +437,7 @@ def get_mission_proposal(request):
 #스탬프 사용(임시)
 @api_view(['PATCH'])
 @permission_classes([IsAuthenticated])
-def use_stamp(request):
+def use_stamp(request, user_route_spot_id):
     """
     스탬프 사용 API
     사진저장이 안되어 임시로 UserRouteSpot의 is_used를 True로 변경

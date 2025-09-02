@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework import status
 from .models import Route, RouteSpot, UserRouteSpot
-from .serializers import RouteSerializer, RouteDetailSerializer, UserRouteSpotSerializer
+from .serializers import RouteSerializer, RouteDetailSerializer, UserRouteSpotSerializer, UserRouteSpotUpdateSerializer
 from .utils import generate_course, save_course
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.db.models import Count

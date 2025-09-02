@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import { INCHEON_BLUE, INCHEON_BLUE_LIGHT, INCHEON_GRAY } from '../../styles/fonts';
+import { INCHEON_BLUE, INCHEON_BLUE_LIGHT, INCHEON_GRAY, TEXT_STYLES } from '../../styles/fonts';
 import { BACKEND_API } from '../../config/apiKeys';
 import authService from '../../services/authService';
 
@@ -366,7 +366,7 @@ export default function CourseRecommendationScreen({ navigation }: any) {
         <View style={styles.infoSection}>
           <Text style={styles.infoTitle}>나만의 여행 코스를 만들어보세요! 🗺️</Text>
           <Text style={styles.infoSubtitle}>
-            선호도와 위치를 알려주시면 인천 지역의 최적의 여행 코스를 추천해드려요
+            최소 한 개 이상의 질문에 답변하면 최적의 여행 코스를 추천해드려요
           </Text>
         </View>
 
@@ -517,6 +517,18 @@ export default function CourseRecommendationScreen({ navigation }: any) {
         {/* 미션 설정 */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>📸 과거 사진 촬영 미션</Text>
+            <Text style={styles.regionSubtext}>
+              {missionAccepted
+                // missionAccepted가 true일 때
+                ? (missionProposal && (
+                    <View style={styles.missionProposal}>
+                      <Text style={styles.missionProposalText}>{missionProposal}</Text>
+                    </View>
+                  ))
+                // missionAccepted가 false일 때
+                : '과거를 숨기고 있는 장소들을 제외하고 코스를 구성해요'
+              }
+            </Text>
           <View style={styles.missionContainer}>
             <View style={styles.missionToggle}>
               <Text style={styles.missionText}>미션 포함하기</Text>
@@ -528,17 +540,19 @@ export default function CourseRecommendationScreen({ navigation }: any) {
               />
             </View>
 
-            {missionAccepted && missionProposal && (
-              <View style={styles.missionProposal}>
-                <Text style={styles.missionProposalText}>{missionProposal}</Text>
-              </View>
-            )}
+
           </View>
         </View>
 
         {/* 지역 이동 설정 */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>🌍 지역 이동 허용</Text>
+            <Text style={styles.regionSubtext}>
+              {moveToOtherRegion
+                ? '강화군, 영종도, 내륙 등 모든 지역을 포함할 수 있어요'
+                : '현재 위치 주변 지역의 장소만으로 코스를 구성해요'
+              }
+            </Text>
           <View style={styles.regionToggle}>
             <Text style={styles.regionText}>다른 지역으로 이동 허용</Text>
             <Switch
@@ -548,12 +562,7 @@ export default function CourseRecommendationScreen({ navigation }: any) {
               thumbColor={moveToOtherRegion ? INCHEON_BLUE : '#f4f3f4'}
             />
           </View>
-          <Text style={styles.regionSubtext}>
-            {moveToOtherRegion
-              ? '강화군, 영종도, 내륙 등 모든 지역의 장소를 포함할 수 있어요'
-              : '현재 위치 주변 지역의 장소만으로 코스를 구성해요'
-            }
-          </Text>
+
         </View>
 
         {/* 코스 생성 버튼 */}
@@ -627,44 +636,28 @@ const styles = StyleSheet.create({
     backgroundColor: INCHEON_BLUE_LIGHT,
   },
   infoTitle: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 18,
-    fontWeight: 'bold',
+    ...TEXT_STYLES.heading,
     color: INCHEON_BLUE,
     marginBottom: 8,
     textAlign: 'center',
   },
   infoSubtitle: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 14,
+    ...TEXT_STYLES.body,
     color: INCHEON_GRAY,
     textAlign: 'center',
   },
   section: {
     backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 20,
+    padding: 16,
     marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
   },
   sectionTitle: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 16,
-    fontWeight: 'bold',
+    ...TEXT_STYLES.heading,
     color: INCHEON_GRAY,
     marginBottom: 8,
   },
   sectionSubtitle: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 14,
-    color: INCHEON_GRAY,
+    ...TEXT_STYLES.small,
     marginBottom: 16,
   },
   preferencesGrid: {
@@ -687,11 +680,11 @@ const styles = StyleSheet.create({
     borderWidth: 2,
   },
   preferenceText: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 14,
+    ...TEXT_STYLES.small,
     color: INCHEON_GRAY,
   },
   selectedPreferenceText: {
+    ...TEXT_STYLES.small,
     color: INCHEON_BLUE,
     fontWeight: 'bold',
   },
@@ -699,6 +692,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     marginTop: 10,
+    gap: 8,
   },
   placeCountButton: {
     backgroundColor: '#f5f5f5',
@@ -714,9 +708,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
   },
   placeCountText: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 14,
-    color: INCHEON_GRAY,
+    ...TEXT_STYLES.small,
   },
   selectedPlaceCountText: {
     color: INCHEON_BLUE,
@@ -735,8 +727,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   missionText: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 14,
+    ...TEXT_STYLES.small,
     color: INCHEON_GRAY,
   },
   missionProposal: {
@@ -746,9 +737,9 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   missionProposalText: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 14,
+    ...TEXT_STYLES.small,
     color: INCHEON_BLUE,
+    padding: 8,
     textAlign: 'center',
   },
   regionToggle: {
@@ -760,19 +751,15 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   regionText: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 14,
-    color: INCHEON_GRAY,
+    ...TEXT_STYLES.body,
   },
   regionSubtext: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 12,
-    color: INCHEON_GRAY,
-    marginTop: 5,
+    ...TEXT_STYLES.small,
+    marginVertical: 5,
     textAlign: 'center',
   },
   generateSection: {
-    marginTop: 20,
+    marginBottom: 52,
     alignItems: 'center',
   },
   generateButton: {
@@ -786,20 +773,17 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   generateButtonDisabled: {
+    ...TEXT_STYLES.button,
     backgroundColor: INCHEON_GRAY,
     opacity: 0.7,
   },
   generateButtonText: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 16,
+    ...TEXT_STYLES.button,
     color: '#fff',
-    fontWeight: 'bold',
     marginLeft: 10,
   },
   warningText: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 12,
-    color: INCHEON_GRAY,
+    ...TEXT_STYLES.small,
     marginTop: 10,
     textAlign: 'center',
   },
@@ -811,8 +795,7 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   locationText: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 14,
+    ...TEXT_STYLES.small,
     color: INCHEON_GRAY,
     marginLeft: 10,
   },
@@ -820,9 +803,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   preferenceStepTitle: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 16,
-    fontWeight: 'bold',
+    ...TEXT_STYLES.button,
     color: INCHEON_BLUE,
     marginBottom: 10,
     paddingLeft: 5,

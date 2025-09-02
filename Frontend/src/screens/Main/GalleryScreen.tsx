@@ -151,10 +151,11 @@ export default function GalleryScreen() {
 
       console.log('[GalleryScreen] 합쳐진 갤러리 데이터:', allItems);
 
-      // 5. 빈 슬롯 생성
+      // 5. 빈 슬롯 생성 (고유한 ID 보장)
       const remainingSlots = TOTAL_COURSE - allItems.length;
+      const maxExistingId = Math.max(...allItems.map(item => item.id), 0);
       const emptySlots = Array(remainingSlots).fill(null).map((_, index) => ({
-        id: allItems.length + index + 1,
+        id: maxExistingId + index + 1000, // 기존 ID와 겹치지 않도록 큰 수 사용
         title: `장소 ${allItems.length + index + 1}`,
         image_url: '',
         past_image_url: '',

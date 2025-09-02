@@ -138,6 +138,68 @@ export default function ProfileScreen({ navigation, route }: any) {
     }
   };
 
+  const handleDeleteAccount = async () => {
+    if (!userProfile?.id) {
+      Alert.alert('오류', '사용자 정보를 찾을 수 없습니다.');
+      return;
+    }
+
+    Alert.alert(
+      '회원 탈퇴',
+      '정말로 회원 탈퇴를 하시겠습니까?\n\n탈퇴 시 모든 데이터가 삭제되며 복구할 수 없습니다.',
+      [
+        {
+          text: '취소',
+          style: 'cancel',
+        },
+        {
+          text: '탈퇴',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const tokens = await authService.getTokens();
+              if (!tokens?.access) {
+                Alert.alert('오류', '로그인이 필요합니다.');
+                return;
+              }
+
+              console.log('[ProfileScreen] 회원 탈퇴 시작:', userProfile.id);
+              
+              const response = await fetch(`${BACKEND_API.BASE_URL}/v1/users/profile/${userProfile.id}/delete/`, {
+                method: 'DELETE',
+                headers: {
+                  'Authorization': `Bearer ${tokens.access}`,
+                },
+              });
+
+              if (response.ok) {
+                console.log('[ProfileScreen] 회원 탈퇴 성공');
+                
+                // 로컬 데이터 완전 정리
+                await authService.logout();
+                setIsLoggedIn(false);
+                setUserProfile(null);
+                
+                Alert.alert(
+                  '회원 탈퇴 완료',
+                  '회원 탈퇴가 완료되었습니다.\n이용해 주셔서 감사합니다.',
+                  [{ text: '확인' }]
+                );
+              } else {
+                const errorText = await response.text();
+                console.error('[ProfileScreen] 회원 탈퇴 실패:', response.status, errorText);
+                Alert.alert('오류', '회원 탈퇴 중 문제가 발생했습니다.');
+              }
+            } catch (error) {
+              console.error('[ProfileScreen] 회원 탈퇴 오류:', error);
+              Alert.alert('오류', '회원 탈퇴 중 오류가 발생했습니다.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   // AsyncStorage 완전 정리 함수
   const clearAllData = async () => {
     try {
@@ -273,6 +335,11 @@ export default function ProfileScreen({ navigation, route }: any) {
           <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
             <Ionicons name="log-out-outline" size={24} color="#ff6b6b" />
             <Text style={styles.logoutButtonText}>로그아웃</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.deleteAccountButton} onPress={handleDeleteAccount}>
+            <Ionicons name="person-remove-outline" size={24} color="#dc3545" />
+            <Text style={styles.deleteAccountButtonText}>회원 탈퇴</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -426,6 +493,24 @@ const styles = StyleSheet.create({
     fontFamily: 'NeoDunggeunmoPro-Regular',
     fontSize: 16,
     color: '#ff6b6b',
+    marginLeft: 12,
+    fontWeight: 'bold',
+  },
+  deleteAccountButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff5f5',
+    borderRadius: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderWidth: 2,
+    borderColor: '#dc3545',
+    marginTop: 8,
+  },
+  deleteAccountButtonText: {
+    fontFamily: 'NeoDunggeunmoPro-Regular',
+    fontSize: 16,
+    color: '#dc3545',
     marginLeft: 12,
     fontWeight: 'bold',
   },

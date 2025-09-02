@@ -6,9 +6,9 @@ import { INCHEON_BLUE, INCHEON_BLUE_LIGHT, INCHEON_GRAY, TEXT_STYLES } from '../
 import authService from '../../services/authService';
 import { BACKEND_API } from '../../config/apiKeys';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { 
-  setCurrentLocation, 
-  startLocationBasedMissionDetection, 
+import {
+  setCurrentLocation,
+  startLocationBasedMissionDetection,
   findMissionByLocation,
   getActiveMissions,
   getCompletedMissions,
@@ -44,15 +44,15 @@ export default function HomeScreen({ navigation }: any) {
   const [hasOngoingCourse, setHasOngoingCourse] = useState(false);
   const [ongoingCourses, setOngoingCourses] = useState<any[]>([]);
   const [recommendedCourses, setRecommendedCourses] = useState<any[]>([]);
-  
+
   // 미션 관련 상태
   const [currentMission, setCurrentMission] = useState<any>(null);
   const [showMissionNotification, setShowMissionNotification] = useState(false);
   const [currentLocation, setCurrentLocationState] = useState<{ lat: number; lng: number } | null>(null);
-  
+
   const [currentRouteId, setCurrentRouteId] = useState<number | null>(null);
   const [visitedSpots, setVisitedSpots] = useState<any[]>([]);
-  
+
   // 위치 감지 인터벌 참조
   const locationIntervalRef = useRef<any>(null);
   const appState = useRef(AppState.currentState);
@@ -62,7 +62,7 @@ export default function HomeScreen({ navigation }: any) {
     checkOngoingCourses();
     fetchRecommendedCourses();
     fetchVisitedSpots();
-    
+
     // 앱 상태 변화 감지
     const subscription = AppState.addEventListener('change', nextAppState => {
       if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
@@ -112,7 +112,7 @@ export default function HomeScreen({ navigation }: any) {
     if (locationIntervalRef.current) {
       clearInterval(locationIntervalRef.current);
     }
-    
+
     // 60초마다 위치 기반 미션 감지 (10초에서 60초로 변경)
     locationIntervalRef.current = setInterval(async () => {
       if (currentLocation && isLoggedIn) {
@@ -128,7 +128,7 @@ export default function HomeScreen({ navigation }: any) {
         }
       }
     }, 60000); // 60초마다 (10초 → 60초)
-    
+
     console.log('[HomeScreen] 위치 기반 미션 감지 시작 (60초 간격)');
   };
 
@@ -149,10 +149,10 @@ export default function HomeScreen({ navigation }: any) {
         (position: any) => {
           const { latitude, longitude } = position.coords;
           console.log(`[HomeScreen] GPS 위치 획득: ${latitude}, ${longitude}`);
-          
+
           setCurrentLocationState({ lat: latitude, lng: longitude });
           setCurrentLocation(latitude, longitude); // missions.ts에 위치 설정
-          
+
           // 로그인된 상태이고 위치가 설정되면 미션 감지 시작
           if (isLoggedIn) {
             startLocationDetection();
@@ -160,15 +160,15 @@ export default function HomeScreen({ navigation }: any) {
         },
         (error: any) => {
           console.error('[HomeScreen] GPS 위치 획득 실패:', error);
-          
+
           // GPS 실패시 기본 위치 설정 (인천 근처)
           const defaultLat = 37.4563;
           const defaultLng = 126.7052;
           console.log(`[HomeScreen] 기본 위치 설정: ${defaultLat}, ${defaultLng}`);
-          
+
           setCurrentLocationState({ lat: defaultLat, lng: defaultLng });
           setCurrentLocation(defaultLat, defaultLng);
-          
+
           // GPS 실패 시에는 미션 감지를 시작하지 않음 (무한 루프 방지)
           // if (isLoggedIn) {
           //   startLocationDetection();
@@ -182,13 +182,13 @@ export default function HomeScreen({ navigation }: any) {
       );
     } catch (error) {
       console.error('[HomeScreen] 위치 서비스 초기화 실패:', error);
-      
+
       // 위치 서비스 실패시 기본 위치 설정
       const defaultLat = 37.4563;
       const defaultLng = 126.7052;
       setCurrentLocationState({ lat: defaultLat, lng: defaultLng });
       setCurrentLocation(defaultLat, defaultLng);
-      
+
       // 위치 서비스 실패 시에도 미션 감지를 시작하지 않음 (무한 루프 방지)
       // if (isLoggedIn) {
       //   startLocationDetection();
@@ -200,7 +200,7 @@ export default function HomeScreen({ navigation }: any) {
   const handleStartMission = (mission: any) => {
     setShowMissionNotification(false);
     console.log('[HomeScreen] 미션 시작:', mission.location.name);
-    
+
     // MissionScreen으로 이동
     navigation.navigate('Mission', { mission });
   };
@@ -214,7 +214,7 @@ export default function HomeScreen({ navigation }: any) {
   const handleCompleteVisit = async (mission: any) => {
     try {
       setShowMissionNotification(false);
-      
+
       const tokens = await authService.getTokens();
       if (!tokens?.access) {
         Alert.alert('오류', '로그인이 필요합니다.');
@@ -238,13 +238,13 @@ export default function HomeScreen({ navigation }: any) {
       // UserRouteSpot ID가 필요하지만, 현재 구조에서는 직접적으로 제공되지 않음
       // 대신 spot ID를 사용하여 방문 완료 처리
       // 실제로는 UserRouteSpot의 ID가 필요하지만, 임시로 spot ID 사용
-      
+
       // 방문 완료 알림 표시
       Alert.alert('방문 완료!', `${mission.location.name} 방문이 완료되었습니다.`);
-      
+
       // 미션 데이터 새로고침
       await refreshMissionData();
-      
+
     } catch (error) {
       console.error('[HomeScreen] 방문 완료 처리 오류:', error);
       Alert.alert('오류', '방문 완료 처리 중 오류가 발생했습니다.');
@@ -281,20 +281,20 @@ export default function HomeScreen({ navigation }: any) {
   const simulateMission = async () => {
     try {
       console.log('[HomeScreen] 미션 시뮬레이션 시작');
-      
+
       // 현재 토큰 가져오기
       const tokens = await authService.getTokens();
       if (!tokens?.access) {
         Alert.alert('오류', '로그인이 필요합니다.');
         return;
       }
-      
+
       // 먼저 사용자의 진행중인 코스에서 미션 생성 (토큰 전달)
       const missions = await createMissionsFromUserCourse(tokens.access);
-      
+
       if (missions.length === 0) {
         Alert.alert(
-          '미션 없음', 
+          '미션 없음',
           '진행중인 코스가 없거나 미션 가능한 스팟이 없습니다.\n새로운 코스를 생성해보세요!'
         );
         return;
@@ -303,16 +303,16 @@ export default function HomeScreen({ navigation }: any) {
       // 첫 번째 미션을 현재 미션으로 설정
       const testMission = missions[0];
       console.log('[HomeScreen] 테스트 미션 설정:', testMission.location.name);
-      
+
       setCurrentMission(testMission);
       setShowMissionNotification(true);
-      
+
       // 성공 메시지
       Alert.alert(
-        '미션 시뮬레이션 성공!', 
+        '미션 시뮬레이션 성공!',
         `${testMission.location.name} 미션이 발견되었습니다!\n미션 알림을 확인해보세요.`
       );
-      
+
     } catch (error) {
       console.error('[HomeScreen] 미션 시뮬레이션 실패:', error);
       Alert.alert('오류', '미션 시뮬레이션 중 오류가 발생했습니다.');
@@ -324,29 +324,29 @@ export default function HomeScreen({ navigation }: any) {
     try {
       const activeMissions = getActiveMissions();
       const completedMissions = getCompletedMissions();
-      
+
       let message = '🎯 미션 상태 확인\n\n';
       message += `📍 현재 위치: ${currentLocation ? `${currentLocation.lat.toFixed(4)}, ${currentLocation.lng.toFixed(4)}` : '설정되지 않음'}\n\n`;
       message += `🔄 활성 미션: ${activeMissions.length}개\n`;
       message += `✅ 완료된 미션: ${completedMissions.length}개\n\n`;
-      
+
       if (activeMissions.length > 0) {
         message += '📋 활성 미션 목록:\n';
         activeMissions.forEach((mission, index) => {
           // 디버깅: 미션 객체 전체 구조 확인
           console.log(`[HomeScreen] 미션 ${index + 1} 전체 데이터:`, mission);
           console.log(`[HomeScreen] 미션 ${index + 1} location:`, mission.location);
-          
+
           const missionName = mission.location?.name || '이름 없음';
           const missionLat = mission.location?.lat || 0;
           const missionLng = mission.location?.lng || 0;
-          
+
           message += `${index + 1}. ${missionName} (${missionLat.toFixed(4)}, ${missionLng.toFixed(4)})\n`;
         });
       }
-      
+
       Alert.alert('미션 상태', message);
-      
+
     } catch (error) {
       console.error('[HomeScreen] 미션 상태 확인 실패:', error);
       Alert.alert('오류', '미션 상태 확인 중 오류가 발생했습니다.');
@@ -357,14 +357,14 @@ export default function HomeScreen({ navigation }: any) {
   const checkSpotInfo = async () => {
     try {
       console.log('[HomeScreen] 스팟 정보 확인 시작');
-      
+
       // 로그인 상태 확인 및 토큰 가져오기
       const tokens = await authService.getTokens();
       if (!tokens?.access) {
         Alert.alert('오류', '로그인이 필요합니다.');
         return;
       }
-      
+
       // /v1/spots/ API 호출하여 전체 스팟 정보 가져오기 (인증 토큰 포함)
       const response = await fetch(`${BACKEND_API.BASE_URL}/v1/spots/`, {
         method: 'GET',
@@ -377,22 +377,22 @@ export default function HomeScreen({ navigation }: any) {
       if (response.ok) {
         const data = await response.json();
         console.log('[HomeScreen] 전체 스팟 데이터:', data);
-        
+
         // past_image_url이 있는 스팟들 필터링
-        const spotsWithPastImage = data.filter((spot: any) => 
+        const spotsWithPastImage = data.filter((spot: any) =>
           spot.past_image_url && spot.past_image_url.trim() !== ''
         );
-        
+
         // past_image_url이 없는 스팟들
-        const spotsWithoutPastImage = data.filter((spot: any) => 
+        const spotsWithoutPastImage = data.filter((spot: any) =>
           !spot.past_image_url || spot.past_image_url.trim() === ''
         );
-        
+
         let message = '🗺️ 스팟 정보 확인\n\n';
         message += `📊 전체 스팟: ${data.length}개\n`;
         message += `🖼️ 과거사진 있는 스팟: ${spotsWithPastImage.length}개\n`;
         message += `❌ 과거사진 없는 스팟: ${spotsWithoutPastImage.length}개\n\n`;
-        
+
         if (spotsWithPastImage.length > 0) {
           message += '🖼️ 과거사진 있는 스팟들:\n';
           spotsWithPastImage.slice(0, 10).forEach((spot: any, index: number) => {
@@ -400,31 +400,31 @@ export default function HomeScreen({ navigation }: any) {
             message += `   📍 ${spot.address || '주소 없음'}\n`;
             message += `   🖼️ ${spot.past_image_url?.substring(0, 50)}...\n\n`;
           });
-          
+
           if (spotsWithPastImage.length > 10) {
             message += `... 외 ${spotsWithPastImage.length - 10}개 더\n\n`;
           }
         }
-        
+
         if (spotsWithoutPastImage.length > 0) {
           message += '❌ 과거사진 없는 스팟들 (샘플):\n';
           spotsWithoutPastImage.slice(0, 5).forEach((spot: any, index: number) => {
             message += `${index + 1}. ${spot.name || spot.title || `스팟 ${spot.id}`}\n`;
             message += `   📍 ${spot.address || '주소 없음'}\n\n`;
           });
-          
+
           if (spotsWithoutPastImage.length > 5) {
             message += `... 외 ${spotsWithoutPastImage.length - 5}개 더\n\n`;
           }
         }
-        
+
         Alert.alert('스팟 정보', message);
-        
+
       } else {
         console.error('[HomeScreen] 스팟 정보 가져오기 실패:', response.status);
         Alert.alert('오류', '스팟 정보를 가져올 수 없습니다.');
       }
-      
+
     } catch (error) {
       console.error('[HomeScreen] 스팟 정보 확인 실패:', error);
       Alert.alert('오류', '스팟 정보 확인 중 오류가 발생했습니다.');
@@ -436,7 +436,7 @@ export default function HomeScreen({ navigation }: any) {
     try {
       console.log('[HomeScreen] 백엔드 연결 테스트 시작');
       console.log('[HomeScreen] 테스트 URL:', `${BACKEND_API.BASE_URL}/v1/photos/`);
-      
+
       const startTime = Date.now();
       const response = await fetch(`${BACKEND_API.BASE_URL}/v1/photos/`, {
         method: 'GET',
@@ -445,7 +445,7 @@ export default function HomeScreen({ navigation }: any) {
         },
       });
       const endTime = Date.now();
-      
+
       console.log('[HomeScreen] 백엔드 연결 테스트 결과:', {
         status: response.status,
         statusText: response.statusText,
@@ -453,7 +453,7 @@ export default function HomeScreen({ navigation }: any) {
         url: `${BACKEND_API.BASE_URL}/v1/photos/`,
         headers: Object.fromEntries(response.headers.entries())
       });
-      
+
       if (response.ok) {
         Alert.alert(
           '백엔드 연결 성공! 🎉',
@@ -465,7 +465,7 @@ export default function HomeScreen({ navigation }: any) {
           `상태: ${response.status} ${response.statusText}\n응답 시간: ${endTime - startTime}ms\nURL: ${BACKEND_API.BASE_URL}/v1/photos/`
         );
       }
-      
+
     } catch (error) {
       console.error('[HomeScreen] 백엔드 연결 테스트 실패:', error);
       Alert.alert(
@@ -480,7 +480,7 @@ export default function HomeScreen({ navigation }: any) {
     try {
       console.log('[HomeScreen] 간단한 GET 요청 테스트 시작');
       console.log('[HomeScreen] 테스트 URL:', `${BACKEND_API.BASE_URL}/v1/routes/`);
-      
+
       const startTime = Date.now();
       const response = await fetch(`${BACKEND_API.BASE_URL}/v1/routes/`, {
         method: 'GET',
@@ -489,7 +489,7 @@ export default function HomeScreen({ navigation }: any) {
         },
       });
       const endTime = Date.now();
-      
+
       console.log('[HomeScreen] 간단한 GET 요청 테스트 결과:', {
         status: response.status,
         statusText: response.statusText,
@@ -497,7 +497,7 @@ export default function HomeScreen({ navigation }: any) {
         url: `${BACKEND_API.BASE_URL}/v1/routes/`,
         headers: Object.fromEntries(response.headers.entries())
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         console.log('[HomeScreen] 응답 데이터:', data);
@@ -511,7 +511,7 @@ export default function HomeScreen({ navigation }: any) {
           `상태: ${response.status} ${response.statusText}\n응답 시간: ${endTime - startTime}ms`
         );
       }
-      
+
     } catch (error) {
       console.error('[HomeScreen] 간단한 GET 요청 테스트 실패:', error);
       Alert.alert(
@@ -526,13 +526,13 @@ export default function HomeScreen({ navigation }: any) {
       // 토큰과 사용자 정보 모두 확인
       const tokens = await authService.getTokens();
       const user = await authService.getUser();
-      
+
       if (tokens?.access && user) {
         // 토큰이 있고 사용자 정보가 있으면 로그인된 상태
         setIsLoggedIn(true);
         setUserProfile(user);
         console.log('[HomeScreen] 로그인된 상태:', user.nickname);
-        
+
         // 로그인 후 GPS 위치 설정
         setUserLocation();
       } else {
@@ -569,17 +569,17 @@ export default function HomeScreen({ navigation }: any) {
       if (response.ok) {
         const data = await response.json();
         console.log('[HomeScreen] 진행중인 코스 데이터:', data);
-        
+
         // 사용자에게 저장된 코스가 하나라도 있으면 진행중으로 간주
         const hasCourses = Array.isArray(data) && data.length > 0;
         setHasOngoingCourse(hasCourses);
         setOngoingCourses(hasCourses ? data : []);
-        
+
         // 첫 번째 코스의 route_id를 현재 route_id로 설정
         if (hasCourses && data.length > 0) {
           setCurrentRouteId(data[0].route_id);
         }
-        
+
         console.log('[HomeScreen] 진행중 코스 개수:', hasCourses ? data.length : 0);
         console.log('[HomeScreen] 진행중인 코스 상세:', data);
       } else if (response.status === 401) {
@@ -621,7 +621,7 @@ export default function HomeScreen({ navigation }: any) {
       console.log('[HomeScreen] 추천 루트 데이터 가져오기 시작');
       console.log('[HomeScreen] API URL:', `${BACKEND_API.BASE_URL}/v1/routes/`);
       console.log('[HomeScreen] BACKEND_API.BASE_URL:', BACKEND_API.BASE_URL);
-      
+
       // 로그인 상태와 관계없이 기존 DB에 있는 루트를 GET으로 가져오기
       // 백엔드 urls.py의 path('', views.routes, name='routes') 사용
       console.log('[HomeScreen] fetch 요청 시작...');
@@ -641,11 +641,11 @@ export default function HomeScreen({ navigation }: any) {
         console.log('[HomeScreen] 기존 루트 데이터:', data);
         console.log('[HomeScreen] 데이터 타입:', typeof data);
         console.log('[HomeScreen] 데이터 길이:', Array.isArray(data) ? data.length : '배열 아님');
-        
+
         if (Array.isArray(data) && data.length > 0) {
           // 최대 5개까지만 표시
           const limitedRoutes = data.slice(0, 5);
-          
+
           // 루트 데이터를 이미지 목업 스타일에 맞게 변환
           const formattedCourses = limitedRoutes.map((route: any, index: number) => ({
             id: route.id || index,
@@ -655,7 +655,7 @@ export default function HomeScreen({ navigation }: any) {
             price: '$~~~', // 가격 정보 (현재는 고정값)
             locked: false,
           }));
-          
+
           setRecommendedCourses(formattedCourses);
           console.log('[HomeScreen] 포맷된 추천 루트:', formattedCourses);
         } else {
@@ -699,7 +699,7 @@ export default function HomeScreen({ navigation }: any) {
   const handleRouteCardPress = async (routeId: number) => {
     try {
       console.log('[HomeScreen] 루트 카드 클릭:', routeId);
-      
+
       // route-detail API 호출
       const response = await fetch(`${BACKEND_API.BASE_URL}/v1/routes/${routeId}/`, {
         method: 'GET',
@@ -711,11 +711,11 @@ export default function HomeScreen({ navigation }: any) {
       if (response.ok) {
         const routeData = await response.json();
         console.log('[HomeScreen] 루트 상세 데이터:', routeData);
-        
+
         // 루트 상세 정보를 더 자세하게 표시
         const route = routeData.route;
         const spots = routeData.spots;
-        
+
         let message = `📍 ${route.title}\n`;
         message += `🏙️ 지역: ${route.user_region_name || '인천'}\n`;
         message += `🗺️ 총 장소 수: ${route.total_spots || spots.length}개\n`;
@@ -723,14 +723,14 @@ export default function HomeScreen({ navigation }: any) {
           message += `🎯 미션 가능: 예\n`;
         }
         message += `\n🗺️ 장소 목록:\n`;
-        
+
         spots.forEach((spot: any, index: number) => {
           message += `${index + 1}. ${spot.title}\n`;
           if (spot.address) {
             message += `   📍 ${spot.address}\n`;
           }
         });
-        
+
         Alert.alert(
           '루트 상세 정보',
           message,
@@ -756,25 +756,22 @@ export default function HomeScreen({ navigation }: any) {
           {course.user_region_name || '인천'} 여행 코스
         </Text>
         <Text style={styles.courseSubtitle}>
-          총 {course.total_spots || course.spots?.length || 0}개 장소 • {course.spots?.length || 0}개 진행중
+          총 {course.total_spots || course.spots?.length || 0}개 장소 • {course.spots?.length || 0}개 진행 중
         </Text>
       </View>
-      
+
       <View style={styles.spotsList}>
         {course.spots && course.spots.map((spot: any, index: number) => (
           <View key={spot.id} style={styles.spotItem}>
             <View style={styles.spotOrderContainer}>
               <Text style={styles.spotOrder}>{spot.order || index + 1}</Text>
             </View>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.spotInfo}
               onPress={() => handleViewSpotDetail(spot.id)}
               activeOpacity={0.7}
             >
               <Text style={styles.spotTitle} numberOfLines={1}>{spot.title || spot.name || '알 수 없는 장소'}</Text>
-              <Text style={styles.spotLocation} numberOfLines={1}>
-                {spot.lat && spot.lng ? `${spot.lat.toFixed(4)}, ${spot.lng.toFixed(4)}` : '위치 정보 없음'}
-              </Text>
             </TouchableOpacity>
             <View style={styles.spotStatus}>
               {index === 0 ? (
@@ -782,7 +779,7 @@ export default function HomeScreen({ navigation }: any) {
                   style={styles.nextDestinationBtn}
                   onPress={() => handleNextDestination(spot)}
                 >
-                  <Text style={styles.nextDestinationText}>다음 목적지</Text>
+                  <Text style={styles.nextDestinationText}>></Text>
                 </TouchableOpacity>
               ) : (
                 <View style={styles.lockedIcon}>
@@ -825,7 +822,7 @@ export default function HomeScreen({ navigation }: any) {
            <Text style={styles.recommendCourseBtnText}>지금 코스를 추천받아 보세요!</Text>
          </TouchableOpacity>
        )}
-       
+
        {/* 미션 테스트 버튼들 */}
        <View style={styles.missionTestSection}>
          <Text style={styles.missionTestTitle}>🧪 미션 테스트 (에뮬레이터용)</Text>
@@ -870,7 +867,7 @@ export default function HomeScreen({ navigation }: any) {
           <>
             <Text style={styles.sectionTitle}>진행 중인 코스</Text>
             <View style={styles.underline} />
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.cardScroll}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.ongoingCardScroll}>
               {ongoingCourses.map(renderOngoingCourseCard)}
             </ScrollView>
             {/* 진행중인 코스가 있어도 미션 테스트 버튼 표시 */}
@@ -974,7 +971,7 @@ export default function HomeScreen({ navigation }: any) {
           </>
         )}
       </ScrollView>
-      
+
       {/* 미션 알림 컴포넌트 */}
       <MissionNotification
         visible={showMissionNotification}
@@ -983,7 +980,7 @@ export default function HomeScreen({ navigation }: any) {
         onStartMission={handleStartMission}
         onCompleteVisit={handleCompleteVisit}
       />
-      
+
 
     </View>
   </SafeAreaView>
@@ -992,6 +989,7 @@ export default function HomeScreen({ navigation }: any) {
 }
 
 const CARD_WIDTH = width * 0.7;
+const ONGOING_CARD_WIDTH = width * 0.9;
 
 const styles = StyleSheet.create({
   safeArea: {
@@ -1024,7 +1022,7 @@ const styles = StyleSheet.create({
 underline: {
   height: 3,
   backgroundColor: INCHEON_BLUE,
-  width: 120,
+  width: 170,
   alignSelf: 'center',
   marginBottom: 16,
   borderRadius: 2,
@@ -1098,23 +1096,31 @@ underline: {
     marginTop: 8,
   },
   startBtnText: {
-      ...TEXT_STYLES.button,
+    ...TEXT_STYLES.button,
   },
   // 진행중인 코스 카드 스타일
+  ongoingCardScroll: {
+		flex: 1,
+    marginTop: 8,
+    paddingLeft: 16,
+    paddingRight: 16,
+  },
   ongoingCourseCard: {
-    width: CARD_WIDTH,
-    backgroundColor: '#fafafa',
+		width: width * 0.9,
+    backgroundColor: '#fff',
     borderRadius: 16,
     borderWidth: 2,
-    borderColor: INCHEON_GRAY,
+    borderColor: '#e0e0e0',
     marginRight: 16,
-    padding: 16,
+    paddingTop: 32,
+    paddingBottom: 16,
+    paddingHorizontal: 32,
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
-    elevation: 3,
+    elevation: 2,
   },
   courseHeader: {
     alignItems: 'center',
@@ -1123,13 +1129,13 @@ underline: {
   ongoingCourseTitle: {
     ...TEXT_STYLES.heading,
     color: INCHEON_GRAY,
-    fontWeight: '600',
     textAlign: 'center',
+    marginBottom: 4,
   },
   courseSubtitle: {
     ...TEXT_STYLES.body,
     color: INCHEON_GRAY,
-    marginTop: 4,
+    marginBottom: 8,
   },
   spotsPreview: {
     width: '100%',
@@ -1138,7 +1144,7 @@ underline: {
   spotItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 16,
   },
   spotOrderGray: {
     ...TEXT_STYLES.body,
@@ -1207,8 +1213,6 @@ underline: {
     shadowRadius: 8,
     elevation: 6,
   },
-
-
   locationContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1305,14 +1309,13 @@ underline: {
     alignItems: 'center',
   },
   nextDestinationBtn: {
-    backgroundColor: INCHEON_BLUE,
+    backgroundColor: INCHEON_BLUE_LIGHT,
     borderRadius: 16,
     paddingVertical: 6,
     paddingHorizontal: 12,
   },
   nextDestinationText: {
-    ...TEXT_STYLES.small,
-    color: '#fff',
+    ...TEXT_STYLES.button,
   },
   lockedIcon: {
     marginTop: 8,
@@ -1343,7 +1346,7 @@ underline: {
     color: INCHEON_GRAY,
     marginLeft: 4,
   },
-  
+
   // 미션 테스트 버튼 스타일
   missionTestSection: {
     marginTop: 20,
@@ -1351,9 +1354,7 @@ underline: {
     alignItems: 'center',
   },
   missionTestTitle: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 14,
-    color: INCHEON_GRAY,
+    ...TEXT_STYLES.small,
     marginBottom: 12,
     textAlign: 'center',
   },
@@ -1472,4 +1473,4 @@ underline: {
     fontWeight: '600',
     textAlign: 'center',
   },
-}); 
+});

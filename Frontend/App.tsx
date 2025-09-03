@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, Platform, Text } from 'react-native';
+import { View, Text } from 'react-native';
 import { NavigationContainer, useNavigation } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -124,16 +124,27 @@ function MainTabs() {
 
 // 탭 바를 포함하는 화면들과, 탭 바가 필요 없는 전체 화면들을 관리
 function RootNavigator() {
+  const navigation = useNavigation();
+  const [chatVisible, setChatVisible] = useState(false);
+
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      {/* 탭 바가 있는 메인 화면 */}
-      <Stack.Screen name="MainTabs" component={MainTabs} />
-      {/* 탭 바가 필요 없는 화면들 */}
-      <Stack.Screen name="CourseRecommendation" component={CourseRecommendationScreen} />
-      <Stack.Screen name="CourseDetail" component={CourseDetailScreen} />
-      <Stack.Screen name="ProfileSetup" component={ProfileSetupScreen} />
-      <Stack.Screen name="Login" component={LoginScreen} />
-    </Stack.Navigator>
+    <>
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        {/* 탭 바가 있는 메인 화면 */}
+        <Stack.Screen name="MainTabs" component={MainTabs} />
+        {/* 탭 바가 필요 없는 화면들 */}
+        <Stack.Screen name="CourseRecommendation" component={CourseRecommendationScreen} />
+        <Stack.Screen name="CourseDetail" component={CourseDetailScreen} />
+        <Stack.Screen name="ProfileSetup" component={ProfileSetupScreen} />
+        <Stack.Screen name="Login" component={LoginScreen} />
+      </Stack.Navigator>
+      <FloatingChatBotButton onPress={() => setChatVisible(true)} />
+      <ChatScreen 
+        visible={chatVisible} 
+        onClose={() => setChatVisible(false)} 
+        navigation={navigation}
+      />
+    </>
   );
 }
 
@@ -160,25 +171,10 @@ function TabBarIconWithLabel({ name, label, focused }: { name: string; label: st
   );
 }
 
-// AppContent 컴포넌트를 분리하여 navigation 컨텍스트 내에서 사용
-function AppContent() {
-  const navigation = useNavigation();
-  const [chatVisible, setChatVisible] = useState(false);
 
-  return (
-    <>
-      <MainTabNavigator />
-      <FloatingChatBotButton onPress={() => setChatVisible(true)} />
-      <ChatScreen 
-        visible={chatVisible} 
-        onClose={() => setChatVisible(false)} 
-        navigation={navigation}
-      />
-    </>
-  );
-}
-
+// --- 메인 앱 컴포넌트 ---
 export default function App() {
+  const [chatVisible, setChatVisible] = useState(false);
   const [isOnboardingComplete, setIsOnboardingComplete] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -213,14 +209,7 @@ export default function App() {
           )}
         </Stack.Navigator>
       </NavigationContainer>
-    );
-  }
 
-  // 메인 앱 표시
-  return (
-    <NavigationContainer>
-      <AppContent />
-    </NavigationContainer>
+    </>
   );
 }
-

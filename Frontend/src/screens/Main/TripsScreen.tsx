@@ -18,16 +18,31 @@ import PixelLockIcon from '../../components/ui/PixelLockIcon';
 import CheckIcon from '../../components/ui/CheckIcon';
 import { useNavigation } from '@react-navigation/native';
 import authService from '../../services/authService';
+import { getSpotDetail } from '../../data/missions';
 import { BACKEND_API } from '../../config/apiKeys';
 
-// 대동여지도 이미지 import
-const daedongyeojidoImage = require('../../assets/images/대동여지도.jpg');
+const { width, height } = Dimensions.get('window');
+
+
+// 스팟 상세 정보 보기
+const handleViewSpotDetail = async (spotId: number) => {
+  try {
+    const tokens = await authService.getTokens();
+    if (!tokens?.access) {
+      return null; // 로그인 안 됐으면 null 반환
+    }
+
+    const spotDetail = await getSpotDetail(spotId, tokens.access);
+    return spotDetail?.description || null; // ✅ description 반환
+  } catch (error) {
+    console.error('[HomeScreen] 스팟 상세 정보 가져오기 오류:', error);
+    return null;
+  }
+};
 
 // 자물쇠 이미지 import
 const lockedIcon = require('../../assets/icons/locked.png');
 const unlockedIcon = require('../../assets/icons/unlocked.png');
-
-const { width } = Dimensions.get('window');
 
 const TABS = [
   { key: 'progress', label: '진행 중' },
@@ -37,9 +52,11 @@ const TABS = [
 const TripsScreen: React.FC = () => {
   const navigation = useNavigation();
   const [activeTab, setActiveTab] = useState('progress');
+  const [detailModalVisible, setDetailModalVisible] = useState<boolean>(false);
+  const [selectedSpot, setSelectedSpot] = useState(null);
+  const [spotDescription, setSpotDescription] = useState<string | null>(null);
   const [selectedCourse, setSelectedCourse] = useState<any>(null);
   const [courseModalVisible, setCourseModalVisible] = useState(false);
-  
   // 백엔드 데이터 상태
   const [userCourses, setUserCourses] = useState<any[]>([]);
   const [completedCourses, setCompletedCourses] = useState<any[]>([]);
@@ -54,6 +71,19 @@ const TripsScreen: React.FC = () => {
     return unsubscribe;
   }, [navigation]);
 
+  // spot description 가져오기 위해 상태 확인
+   useEffect(() => {
+     const fetchSpotDetail = async () => {
+       if (selectedSpot) {
+         const desc = await handleViewSpotDetail(selectedSpot.id);
+         setSpotDescription(desc);
+       } else {
+         setSpotDescription(null);
+       }
+   };
+
+   fetchSpotDetail();
+ }, [selectedSpot]);
   // 사용자 코스 데이터 가져오기
   const fetchUserCourses = async () => {
     try {
@@ -77,7 +107,7 @@ const TripsScreen: React.FC = () => {
       if (response.ok) {
         const data = await response.json();
         console.log('[TripsScreen] 사용자 코스 데이터:', data);
-        
+
         // spots API에서 first_image 데이터 가져오기
         const spotsResponse = await fetch(`${BACKEND_API.BASE_URL}/v1/spots/`, {
           method: 'GET',
@@ -91,15 +121,15 @@ const TripsScreen: React.FC = () => {
           spotsData = await spotsResponse.json();
           console.log('[TripsScreen] spots 데이터:', spotsData);
         }
-        
+
         // 진행중인 코스와 완료된 코스 분리
         const inProgress: any[] = [];
         const completed: any[] = [];
-        
+
         data.forEach((course: any) => {
           const completedSpots = course.spots.filter((spot: any) => spot.completed_at);
           const totalSpots = course.spots.length;
-          
+
           // spots 데이터에서 first_image 매핑
           const spotsWithImages = course.spots.map((spot: any) => {
             const spotData = spotsData.find((s: any) => s.id === spot.id);
@@ -108,7 +138,7 @@ const TripsScreen: React.FC = () => {
               first_image: spotData?.first_image || null
             };
           });
-          
+
           if (completedSpots.length === totalSpots) {
             // 모든 스팟이 완료된 경우
             completed.push({
@@ -126,10 +156,10 @@ const TripsScreen: React.FC = () => {
             });
           }
         });
-        
+
         setUserCourses(inProgress);
         setCompletedCourses(completed);
-        
+
       } else {
         console.log('[TripsScreen] 코스 조회 실패:', response.status);
         setUserCourses([]);
@@ -152,23 +182,21 @@ const TripsScreen: React.FC = () => {
       completed: spot.completed_at ? true : false,
       first_image: spot.first_image
     }));
-    
+
     // 현재 진행중인 spot (첫 번째 미완료 spot) 찾기
     const currentSpot = spotsData.find(spot => !spot.completed);
     const backgroundImage = currentSpot?.first_image ? currentSpot.first_image.replace('http://', 'https://') : '';
-    
+
     console.log('[TripsScreen] spotsData:', spotsData);
     console.log('[TripsScreen] currentSpot:', currentSpot);
     console.log('[TripsScreen] backgroundImage:', backgroundImage);
-    
 
-    
     // 자물쇠 이미지 URI 변환
     const lockedResolved = Image.resolveAssetSource(lockedIcon);
     const unlockedResolved = Image.resolveAssetSource(unlockedIcon);
     const lockedUri = lockedResolved?.uri || '';
     const unlockedUri = unlockedResolved?.uri || '';
-        
+
     return `
       <!DOCTYPE html>
       <html>
@@ -199,7 +227,7 @@ const TripsScreen: React.FC = () => {
           });
         </script>
         <style>
-          body { 
+          body {
             margin: 0;
             padding: 0;
             font-family: Arial, sans-serif;
@@ -219,8 +247,8 @@ const TripsScreen: React.FC = () => {
             left: 0;
             right: 0;
             bottom: 0;
-            background: ${backgroundImage ? 
-              `linear-gradient(to bottom, transparent 0%, transparent 40%, rgba(255, 255, 255, 0.4) 70%, rgba(255, 255, 255, 0.9) 100%), url('${backgroundImage}')` : 
+            background: ${backgroundImage ?
+              `linear-gradient(to bottom, transparent 0%, transparent 40%, rgba(255, 255, 255, 0.4) 70%, rgba(255, 255, 255, 0.9) 100%), url('${backgroundImage}')` :
               '#f8f9fa'
             };
             background-size: 100% 100%;
@@ -327,7 +355,7 @@ const TripsScreen: React.FC = () => {
           ${spotsData.map((spot, index) => {
             let pinClass = 'waiting';
             let iconSrc = lockedUri;
-            
+
             if (spot.completed) {
               pinClass = 'completed';
               iconSrc = unlockedUri;
@@ -335,7 +363,7 @@ const TripsScreen: React.FC = () => {
               pinClass = 'next';
               iconSrc = lockedUri;
             }
-            
+
             return `
               <div class="pin-item">
                 <div class="pin ${pinClass}">
@@ -352,12 +380,12 @@ const TripsScreen: React.FC = () => {
   };
 
   const renderProgressTab = () => {
-    // 진행중인 코스가 없으면 빈 화면 표시
+    // 진행 중인 코스가 없으면 빈 화면 표시
     if (userCourses.length === 0) {
       return (
         <ScrollView style={styles.content} contentContainerStyle={{paddingBottom: 32}} showsVerticalScrollIndicator={false}>
           <View style={styles.emptyState}>
-            <Text style={styles.emptyStateText}>진행중인 코스가 없습니다.</Text>
+            <Text style={styles.emptyStateText}>진행 중인 코스가 없습니다.</Text>
             <Text style={styles.emptyStateSubtext}>새로운 코스를 생성해보세요!</Text>
           </View>
         </ScrollView>
@@ -380,11 +408,11 @@ const TripsScreen: React.FC = () => {
           </View>
           <View style={styles.progressBarContainer}>
             <View style={styles.progressBarBackground}>
-              <View 
+              <View
                 style={[
-                  styles.progressBarFill, 
+                  styles.progressBarFill,
                   { width: `${progressPercentage}%` }
-                ]} 
+                ]}
               />
             </View>
           </View>
@@ -440,12 +468,51 @@ const TripsScreen: React.FC = () => {
         </View>
 
         <View style={styles.cardContainer}>
+            {selectedSpot && (
+              <Modal
+                visible={!!selectedSpot}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={() => setSelectedSpot(null)}
+              >
+                <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPressOut={() => setSelectedSpot(null)}>
+                  <View style={styles.modalContainer}>
+                    <View style={styles.modalHeader}>
+                      <Text style={styles.modalTitle}>{selectedSpot.title}</Text>
+                      <TouchableOpacity
+                        onPress={() => setSelectedSpot(null)}
+                        style={styles.modalCloseButton}
+                      >
+                        <Text style={styles.modalCloseButtonText}>✕</Text>
+                      </TouchableOpacity>
+                    </View>
+                    <View style={styles.modalTextContainer}>
+                        {selectedSpot?.first_image && (
+                          <Image
+                            source={{ uri: selectedSpot.first_image.replace("http://", "https://") }}
+                            style={styles.modalImage}
+                            resizeMode="cover"
+                          />
+                        )}
+
+                      <Text style={styles.modalText}>
+                        {spotDescription ?? "로딩 중..."}
+                      </Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              </Modal>
+            )}
           {/* 실제 코스 스팟들 렌더링 */}
           {currentCourse.spots.map((spot: any, index: number) => (
             <View key={spot.id} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
               {spot.completed_at ? (
-                // 완료된 스팟
-                <TouchableOpacity style={styles.hotelCard} activeOpacity={0.8}>
+                // ✅ 1. 완료된 스팟: TouchableOpacity로 감싸고 onPress 추가
+                <TouchableOpacity
+                  style={styles.hotelCard}
+                  activeOpacity={0.8}
+                  onPress={() => setSelectedSpot(spot)}
+                >
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     <Text style={styles.hotelCardText}>{spot.title}</Text>
                   </View>
@@ -454,9 +521,10 @@ const TripsScreen: React.FC = () => {
               ) : index === currentCourse.spots.findIndex((s: any) => !s.completed_at) ? (
                  // 다음 목적지 (첫 번째 미완료 스팟)
                  <View style={styles.hotelCard}>
-                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                   {/* ✅ 2. 다음 목적지: Text가 아닌 View 전체를 누를 수 있도록 TouchableOpacity 추가 */}
+                   <TouchableOpacity onPress={() => setSelectedSpot(spot)}>
                      <Text style={styles.hotelCardText}>{spot.title}</Text>
-                   </View>
+                   </TouchableOpacity>
                    <TouchableOpacity
                      onPress={() => (navigation as any).navigate('Map', {
                        screen: 'MapMain',
@@ -473,17 +541,21 @@ const TripsScreen: React.FC = () => {
                    </TouchableOpacity>
                  </View>
               ) : (
-                // 잠긴 스팟
-                <View style={styles.lockedCard}>
+                // ✅ 3. 잠긴 스팟: View를 TouchableOpacity로 바꾸고 onPress 추가
+                <TouchableOpacity
+                  style={styles.lockedCard}
+                  onPress={() => setSelectedSpot(spot)}
+                >
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     <Text style={styles.lockedCardText}>{spot.title}</Text>
                   </View>
                   <PixelLockIcon />
-                </View>
+                </TouchableOpacity>
               )}
             </View>
           ))}
         </View>
+
 
         {/* 사진 섹션 */}
         <Text style={[styles.photoSectionTitle, { fontFamily: 'NeoDunggeunmoPro-Regular' }]}>미션 완료</Text>
@@ -561,10 +633,10 @@ const TripsScreen: React.FC = () => {
             <Text style={styles.modalCloseButtonText}>✕</Text>
           </TouchableOpacity>
         </View>
-        
+
         <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
           <Text style={styles.modalDescription}>완료된 여행 코스입니다.</Text>
-          
+
           <Text style={styles.modalSectionTitle}>방문 장소</Text>
           {selectedCourse?.spots?.map((spot: any, index: number) => (
             <View key={index} style={styles.modalLocationItem}>
@@ -572,14 +644,14 @@ const TripsScreen: React.FC = () => {
               <Text style={styles.modalLocationText}>{spot.title}</Text>
             </View>
           ))}
-          
+
           <Text style={styles.modalSectionTitle}>코스 사진</Text>
           <View style={styles.modalPhotoGrid}>
             {selectedCourse?.photos?.map((photo: any, index: number) => (
               <Image key={index} source={photo} style={styles.modalPhoto} resizeMode="cover" />
             ))}
           </View>
-          
+
           {selectedCourse?.completedDate && (
             <Text style={styles.modalDate}>완료 날짜: {selectedCourse.completedDate}</Text>
           )}
@@ -624,7 +696,7 @@ const TripsScreen: React.FC = () => {
           {activeTab === 'completed' && renderCompletedTab()}
         </View>
       </SafeAreaView>
-      
+
       {/* 코스 상세 모달 */}
       {renderCourseModal()}
     </>
@@ -925,6 +997,20 @@ const styles = StyleSheet.create({
   modalCloseButtonText: {
     ...TEXT_STYLES.body,
   },
+  modalContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    maxHeight: '80%',
+  },
+
+  modalImage: {
+    width: '100%',
+    height: 200,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+
   modalContent: {
     flex: 1,
     padding: 20,
@@ -1084,6 +1170,56 @@ const styles = StyleSheet.create({
      fontSize: 14,
     color: INCHEON_GRAY,
   },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContainer: {
+    width: width - 20,
+    height: height - 100,
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: '#e0e0e0',
+    marginVertical: 30,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    backgroundColor: INCHEON_BLUE_LIGHT,
+  },
+  modalTitle: {
+    ...TEXT_STYLES.subtitle,
+    color: INCHEON_BLUE
+  },
+  modalCloseButton: {
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalCloseButtonText: {
+    ...TEXT_STYLES.body,
+  },
+  modalTextContainer: {
+    padding: 16,
+    flex: 1,
+    gap: 8,
+
+  },
+  modalSubTitle: {
+    ...TEXT_STYLES.heading,
+   },
+  modalText: {
+    ...TEXT_STYLES.body
+  },
+  modalDescription: {
+    ...TEXT_STYLES.small,
+  }
 });
 
-export default TripsScreen; 
+export default TripsScreen;

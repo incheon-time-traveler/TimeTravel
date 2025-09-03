@@ -657,8 +657,8 @@ export default function HomeScreen({ navigation }: any) {
   };
 
   const handleContinueCourse = () => {
-    // TODO: 진행중인 코스로 이동
     Alert.alert('코스 진행', '진행중인 코스로 이동합니다.');
+    navigation.navigate('Trips');
   };
 
   const handleNextDestination = (spot: any) => {
@@ -749,7 +749,7 @@ export default function HomeScreen({ navigation }: any) {
                 >
                   <Text style={styles.spotTitle} numberOfLines={1}>{spot.title || spot.name || '알 수 없는 장소'}</Text>
                   <View style={styles.nextDestinationBtn}>
-                    <Text style={styles.nextDestinationText}>></Text>
+                    <Text style={styles.nextDestinationText}>📍</Text>
                   </View>
                 </TouchableOpacity>
               ) : (
@@ -787,7 +787,7 @@ export default function HomeScreen({ navigation }: any) {
       </View>
 
 
-             {hasOngoingCourse ? (
+       {hasOngoingCourse ? (
          <TouchableOpacity style={styles.continueCourseBtn} onPress={handleContinueCourse}>
            <Text style={styles.continueCourseBtnText}>아래 코스를 계속해서 진행해보세요</Text>
          </TouchableOpacity>
@@ -1289,13 +1289,14 @@ underline: {
     borderRadius: 16,
     paddingVertical: 6,
     paddingHorizontal: 12,
+    marginRight: 12,
   },
   nextDestinationText: {
     ...TEXT_STYLES.button,
   },
   lockedIcon: {
     marginTop: 8,
-    marginRight: 8,
+    marginRight: 24,
   },
   bookmarkIcon: {
     position: 'absolute',

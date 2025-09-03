@@ -34,6 +34,7 @@ const TABS = [
   { key: 'completed', label: '진행 완료' },
 ];
 
+
 const TripsScreen: React.FC = () => {
   const navigation = useNavigation();
   const [activeTab, setActiveTab] = useState('progress');
@@ -44,6 +45,7 @@ const TripsScreen: React.FC = () => {
   const [userCourses, setUserCourses] = useState<any[]>([]);
   const [completedCourses, setCompletedCourses] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [userRouteSpot, setUserRouteSpot] = useState<any>(null);
 
   // 화면이 포커스될 때마다 데이터 새로고침
   useEffect(() => {
@@ -53,6 +55,36 @@ const TripsScreen: React.FC = () => {
 
     return unsubscribe;
   }, [navigation]);
+
+  // 사용자 코스 그만두기
+  const handleQuitCourse = async () => {
+    try {
+      const tokens = await authService.getTokens();
+      if (!tokens?.access) {
+        console.log('[TripsScreen] 로그인이 필요합니다.');
+        return;
+      }
+
+      console.log(userRouteSpot)
+      // 사용자 코스 데이터 삭제
+      const response = await fetch(`${BACKEND_API.BASE_URL}/v1/courses/${userRouteSpot[0].route_id}/users/delete/`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${tokens.access}`,
+        },
+      });
+
+      if (response.ok) {
+        alert('코스를 그만두었습니다.');
+        console.log(response.json())
+        fetchUserCourses();
+      } else {
+        console.log('[TripsScreen] 사용자 코스 데이터 삭제 실패:', response.status);
+      }
+    } catch (error) {
+      console.error('[TripsScreen] 사용자 코스 데이터 삭제 에러:', error);
+    }
+  }
 
   // 사용자 코스 데이터 가져오기
   const fetchUserCourses = async () => {
@@ -76,6 +108,7 @@ const TripsScreen: React.FC = () => {
 
       if (response.ok) {
         const data = await response.json();
+        setUserRouteSpot(data);
         console.log('[TripsScreen] 사용자 코스 데이터:', data);
         
         // spots API에서 first_image 데이터 가져오기
@@ -99,7 +132,6 @@ const TripsScreen: React.FC = () => {
         data.forEach((course: any) => {
           const completedSpots = course.spots.filter((spot: any) => spot.completed_at);
           const totalSpots = course.spots.length;
-          
           // spots 데이터에서 first_image 매핑
           const spotsWithImages = course.spots.map((spot: any) => {
             const spotData = spotsData.find((s: any) => s.id === spot.id);
@@ -501,7 +533,7 @@ const TripsScreen: React.FC = () => {
 
         {/* 하단 버튼 */}
         <View style={styles.bottomRow}>
-          <TouchableOpacity style={styles.quitBtn} activeOpacity={0.8}>
+          <TouchableOpacity style={styles.quitBtn} activeOpacity={0.8} onPress={() => handleQuitCourse()}>
             <Text style={styles.quitBtnText}>코스 그만두기</Text>
           </TouchableOpacity>
         </View>

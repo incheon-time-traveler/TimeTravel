@@ -106,18 +106,18 @@ export default function GalleryScreen({ navigation }: any) {
   const handleLoginPress = () => {
     navigation.navigate('Profile');
   };
-  const [loginModalVisible, setLoginModalVisible] = useState(true);
+
 
   // 로그인 안내 모달 컴포넌트
   const renderLoginModal = () => (
     <Modal
-      visible={isLoggedIn ? true : loginModalVisible}
+      visible={!isLoggedIn}
       transparent={true}
       animationType="fade"
       statusBarTranslucent={false}
     >
       {/* 배경 클릭 감지 */}
-      <TouchableWithoutFeedback onPress={() => setLoginModalVisible(false)}>
+      <TouchableWithoutFeedback onPress={() => setIsLoggedIn(true)}>
       <View style={styles.modalOverlay}>
         <View style={styles.modalBackground}>
           <View style={styles.loginModalContent}>
@@ -214,7 +214,6 @@ export default function GalleryScreen({ navigation }: any) {
   useFocusEffect(
     React.useCallback(() => {
       checkLoginStatus();
-      setLoginModalVisible(!isLoggedIn);
       console.log('[GalleryScreen] 화면 포커스됨 - 갤러리 데이터 새로고침');
       fetchGalleryData();
     }, [])

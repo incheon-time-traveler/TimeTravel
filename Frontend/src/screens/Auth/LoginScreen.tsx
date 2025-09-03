@@ -642,6 +642,11 @@ const LoginScreen = ({ navigation, route }: any) => {
 	                  DAMAGES, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 	                  FROM, OUT OF THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM
 	                  OTHER DEALINGS IN THE FONT SOFTWARE.
+	                  {'\n'}
+	                  {'\n'}
+	                  {'\n'}
+	                  {'\n'}
+
 	                  </Text>
 	                </ScrollView>
 	              </View>

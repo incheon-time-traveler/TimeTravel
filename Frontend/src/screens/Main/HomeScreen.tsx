@@ -251,32 +251,6 @@ export default function HomeScreen({ navigation }: any) {
     }
   };
 
-
-
-  // 스팟 상세 정보 보기
-  const handleViewSpotDetail = async (spotId: number) => {
-    try {
-      const tokens = await authService.getTokens();
-      if (!tokens?.access) {
-        Alert.alert('오류', '로그인이 필요합니다.');
-        return;
-      }
-
-      const spotDetail = await getSpotDetail(spotId, tokens.access);
-      if (spotDetail) {
-        Alert.alert(
-          spotDetail.name || '장소 정보',
-          spotDetail.description || '상세 정보가 없습니다.'
-        );
-      } else {
-        Alert.alert('오류', '스팟 정보를 가져올 수 없습니다.');
-      }
-    } catch (error) {
-      console.error('[HomeScreen] 스팟 상세 정보 가져오기 오류:', error);
-      Alert.alert('오류', '스팟 정보를 가져오는 중 오류가 발생했습니다.');
-    }
-  };
-
   // 미션 테스트 시뮬레이션 (에뮬레이터용)
   const simulateMission = async () => {
     try {
@@ -766,24 +740,24 @@ export default function HomeScreen({ navigation }: any) {
             <View style={styles.spotOrderContainer}>
               <Text style={styles.spotOrder}>{spot.order || index + 1}</Text>
             </View>
-            <TouchableOpacity
-              style={styles.spotInfo}
-              onPress={() => handleViewSpotDetail(spot.id)}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.spotTitle} numberOfLines={1}>{spot.title || spot.name || '알 수 없는 장소'}</Text>
-            </TouchableOpacity>
             <View style={styles.spotStatus}>
               {index === 0 ? (
                 <TouchableOpacity
-                  style={styles.nextDestinationBtn}
+                  style={styles.spotInfo}
+                  activeOpacity={0.7}
                   onPress={() => handleNextDestination(spot)}
                 >
-                  <Text style={styles.nextDestinationText}>></Text>
+                  <Text style={styles.spotTitle} numberOfLines={1}>{spot.title || spot.name || '알 수 없는 장소'}</Text>
+                  <View style={styles.nextDestinationBtn}>
+                    <Text style={styles.nextDestinationText}>></Text>
+                  </View>
                 </TouchableOpacity>
               ) : (
-                <View style={styles.lockedIcon}>
-                  <Ionicons name="lock-closed" size={16} color="#FFD700" />
+                <View style={styles.spotInfo}>
+                  <Text style={styles.spotTitle} numberOfLines={1}>{spot.title || spot.name || '알 수 없는 장소'}</Text>
+                  <View style={styles.lockedIcon}>
+                    <Ionicons name="lock-closed" size={16} color="#FFD700" />
+                  </View>
                 </View>
               )}
             </View>
@@ -989,7 +963,6 @@ export default function HomeScreen({ navigation }: any) {
 }
 
 const CARD_WIDTH = width * 0.7;
-const ONGOING_CARD_WIDTH = width * 0.9;
 
 const styles = StyleSheet.create({
   safeArea: {
@@ -1292,8 +1265,11 @@ underline: {
     color: '#fff',
   },
   spotInfo: {
-    flex: 1,
-    marginRight: 12,
+    width: '90%',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginRight: 20,
   },
   spotTitle: {
     ...TEXT_STYLES.heading,
@@ -1305,7 +1281,7 @@ underline: {
     marginTop: 2,
   },
   spotStatus: {
-    width: 50,
+    width: '100%',
     alignItems: 'center',
   },
   nextDestinationBtn: {
@@ -1319,6 +1295,7 @@ underline: {
   },
   lockedIcon: {
     marginTop: 8,
+    marginRight: 8,
   },
   bookmarkIcon: {
     position: 'absolute',

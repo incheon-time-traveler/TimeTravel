@@ -633,8 +633,24 @@ const TripsScreen: React.FC = () => {
     );
   };
 
-  const renderCompletedTab = () => (
-    <ScrollView style={styles.content} contentContainerStyle={{paddingVertical: 16}} showsVerticalScrollIndicator={false}>
+const renderCompletedTab = () => (
+  completedCourses.length === 0 ? (
+    <ScrollView
+      style={styles.content}
+      contentContainerStyle={{ paddingBottom: 32 }}
+      showsVerticalScrollIndicator={false}
+    >
+      <View style={styles.emptyState}>
+        <Text style={styles.emptyStateText}>완료된 코스가 없습니다.</Text>
+        <Text style={styles.emptyStateSubtext}>진행 중인 코스를 완주해보세요!</Text>
+      </View>
+    </ScrollView>
+  ) : (
+    <ScrollView
+      style={styles.content}
+      contentContainerStyle={{ paddingVertical: 16 }}
+      showsVerticalScrollIndicator={false}
+    >
       {completedCourses.map((course) => (
         <TouchableOpacity
           key={course.route_id}
@@ -670,7 +686,8 @@ const TripsScreen: React.FC = () => {
         </TouchableOpacity>
       ))}
     </ScrollView>
-  );
+  )
+);
 
   const renderCourseModal = () => (
     <Modal
@@ -1058,7 +1075,7 @@ const styles = StyleSheet.create({
 
   modalImage: {
     width: '100%',
-    height: 200,
+    height: 250,
     borderRadius: 8,
     marginBottom: 12,
   },

@@ -550,13 +550,13 @@ const styles = StyleSheet.create({
   },
   googleButton: {
 		width: 300,
-		height: 50,
+		height: 55,
 		resizeMode: 'stretch'
 	},
   kakaoButton: {
 		width: 300,
-		height: 50,
-		resizeMode: 'contain'
+		height: 55,
+		resizeMode: 'stretch'
 	},
   // 프로필 관련 스타일
   profileContainer: {

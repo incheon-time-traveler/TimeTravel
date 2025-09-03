@@ -44,6 +44,7 @@ export default function HomeScreen({ navigation }: any) {
   const [hasOngoingCourse, setHasOngoingCourse] = useState(false);
   const [ongoingCourses, setOngoingCourses] = useState<any[]>([]);
   const [recommendedCourses, setRecommendedCourses] = useState<any[]>([]);
+  const [courseDetails, setCourseDetails] = useState<{[key: number]: any}>({});
 
   // 미션 관련 상태
   const [currentMission, setCurrentMission] = useState<any>(null);
@@ -586,6 +587,25 @@ export default function HomeScreen({ navigation }: any) {
       console.log('[HomeScreen] 방문 완료된 spot들:', visitedSpotsData);
     } catch (error) {
       console.error('[HomeScreen] 방문 완료된 spot들 조회 에러:', error);
+      
+      // 세션 만료 오류 처리
+      if (error instanceof Error && error.message === 'SESSION_EXPIRED') {
+        Alert.alert(
+          '세션 만료',
+          '오래 사용하지 않아 로그아웃되었습니다.\n다시 로그인해주세요.',
+          [
+            {
+              text: '로그인',
+              onPress: () => {
+                // 로그인 화면으로 이동
+                navigation.navigate('Login' as never);
+              }
+            }
+          ]
+        );
+        return;
+      }
+      
       setVisitedSpots([]);
     }
   };
@@ -594,11 +614,7 @@ export default function HomeScreen({ navigation }: any) {
     try {
       console.log('[HomeScreen] 추천 루트 데이터 가져오기 시작');
       console.log('[HomeScreen] API URL:', `${BACKEND_API.BASE_URL}/v1/routes/`);
-      console.log('[HomeScreen] BACKEND_API.BASE_URL:', BACKEND_API.BASE_URL);
 
-      // 로그인 상태와 관계없이 기존 DB에 있는 루트를 GET으로 가져오기
-      // 백엔드 urls.py의 path('', views.routes, name='routes') 사용
-      console.log('[HomeScreen] fetch 요청 시작...');
       const response = await fetch(`${BACKEND_API.BASE_URL}/v1/routes/`, {
         method: 'GET',
         headers: {
@@ -606,45 +622,197 @@ export default function HomeScreen({ navigation }: any) {
         },
       });
 
-      console.log('[HomeScreen] fetch 요청 완료!');
-      console.log('[HomeScreen] API 응답 상태:', response.status, response.statusText);
-      console.log('[HomeScreen] API 응답 헤더:', response.headers);
-
       if (response.ok) {
         const data = await response.json();
         console.log('[HomeScreen] 기존 루트 데이터:', data);
-        console.log('[HomeScreen] 데이터 타입:', typeof data);
-        console.log('[HomeScreen] 데이터 길이:', Array.isArray(data) ? data.length : '배열 아님');
+        console.log('[HomeScreen] 루트 데이터 타입:', typeof data);
+        console.log('[HomeScreen] 루트 데이터 길이:', Array.isArray(data) ? data.length : '배열 아님');
 
         if (Array.isArray(data) && data.length > 0) {
           // 최대 5개까지만 표시
           const limitedRoutes = data.slice(0, 5);
+          console.log('[HomeScreen] 제한된 루트들:', limitedRoutes);
+
+          // spots API에서 first_image 데이터 가져오기 (TripsScreen 로직 참고)
+          const tokens = await authService.getTokens();
+          const spotsResponse = await fetch(`${BACKEND_API.BASE_URL}/v1/spots/`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(tokens?.access && { 'Authorization': `Bearer ${tokens.access}` }),
+            },
+          });
+
+          let spotsData: any[] = [];
+          if (spotsResponse.ok) {
+            spotsData = await spotsResponse.json();
+            console.log('[HomeScreen] spots 데이터:', spotsData);
+            console.log('[HomeScreen] spots 데이터 개수:', spotsData.length);
+            
+            // first_image와 first_image2 데이터 확인
+            spotsData.forEach((spot, index) => {
+              if (spot.first_image || spot.first_image2) {
+                console.log(`[HomeScreen] Spot ${index + 1} (ID: ${spot.id}, Name: ${spot.name}):`, {
+                  first_image: spot.first_image,
+                  first_image2: spot.first_image2,
+                  has_first_image: !!spot.first_image,
+                  has_first_image2: !!spot.first_image2
+                });
+              }
+            });
+            
+            // 이미지가 있는 스팟 개수 확인
+            const spotsWithImages = spotsData.filter(spot => spot.first_image || spot.first_image2);
+            console.log('[HomeScreen] 이미지가 있는 스팟 개수:', spotsWithImages.length);
+          } else {
+            console.log('[HomeScreen] spots API 호출 실패:', spotsResponse.status, spotsResponse.statusText);
+          }
+
+          // 각 루트의 상세 정보 로깅
+          limitedRoutes.forEach((route: any, index: number) => {
+            console.log(`[HomeScreen] 루트 ${index + 1} 상세 정보:`, {
+              id: route.id,
+              title: route.title,
+              name: route.name,
+              image_url: route.image_url,
+              user_region_name: route.user_region_name,
+              전체_객체: route
+            });
+          });
+
+          // 각 코스의 상세 정보도 미리 가져오기 (spotsData 전달)
+          await fetchCourseDetails(limitedRoutes, spotsData);
 
           // 루트 데이터를 이미지 목업 스타일에 맞게 변환
-          const formattedCourses = limitedRoutes.map((route: any, index: number) => ({
-            id: route.id || index,
-            title: route.title || route.name || '알 수 없는 루트',
-            image: '', // 이미지 URL이 있으면 사용, 없으면 빈 문자열
-            location: route.user_region_name || '인천',
-            price: '$~~~', // 가격 정보 (현재는 고정값)
-            locked: false,
-          }));
+          const formattedCourses = limitedRoutes.map((route: any, index: number) => {
+            // TripsScreen처럼 첫 번째 스팟의 이미지 찾기
+            let routeImage = '';
+            
+            console.log(`[HomeScreen] 코스 ${route.id} 포맷팅 시작:`, {
+              route_id: route.id,
+              courseDetail_exists: !!courseDetails[route.id],
+              courseDetail_spots: courseDetails[route.id]?.spots?.length || 0
+            });
+            
+            // 코스 상세 정보에서 첫 번째 스팟의 이미지 가져오기
+            const courseDetail = courseDetails[route.id];
+            if (courseDetail && courseDetail.spots && courseDetail.spots.length > 0) {
+              const firstSpot = courseDetail.spots[0];
+              console.log(`[HomeScreen] 코스 ${route.id} 첫 번째 스팟:`, {
+                spot_id: firstSpot.id,
+                spot_title: firstSpot.title,
+                spot_first_image: firstSpot.first_image,
+                spot_first_image2: firstSpot.first_image2
+              });
+              
+              // 이미 매핑된 first_image 사용
+              routeImage = firstSpot.first_image || firstSpot.first_image2 || '';
+              console.log(`[HomeScreen] 코스 ${route.id} 최종 이미지 URL:`, routeImage);
+            } else {
+              console.log(`[HomeScreen] 코스 ${route.id} 상세 정보 없음 또는 스팟 없음`);
+            }
+
+            const formatted = {
+              id: route.id || index,
+              title: route.user_region_name || '알 수 없는 루트',
+              image: routeImage, // 첫 번째 스팟의 이미지 사용
+              location: route.user_region_name || '인천',
+              price: '$~~~', // 가격 정보 (현재는 고정값)
+              locked: false,
+            };
+            console.log(`[HomeScreen] 포맷된 코스 ${index + 1}:`, formatted);
+            return formatted;
+          });
 
           setRecommendedCourses(formattedCourses);
-          console.log('[HomeScreen] 포맷된 추천 루트:', formattedCourses);
+          console.log('[HomeScreen] 최종 포맷된 추천 루트:', formattedCourses);
         } else {
-          console.log('[HomeScreen] 기존 루트가 없음, sampleCourses 사용');
+          console.log('[HomeScreen] 기존 루트가 없음');
           setRecommendedCourses([]);
         }
       } else {
         console.log('[HomeScreen] 기존 루트 API 호출 실패:', response.status, response.statusText);
-        // API 호출 실패 시 sampleCourses 사용
         setRecommendedCourses([]);
       }
     } catch (error) {
       console.error('[HomeScreen] 기존 루트 가져오기 에러:', error);
-      // 에러 발생 시 sampleCourses 사용
       setRecommendedCourses([]);
+    }
+  };
+
+  // 코스 상세 정보 가져오기 (스팟 정보 포함)
+  const fetchCourseDetails = async (routes: any[], spotsData: any[] = []) => {
+    try {
+      console.log('[HomeScreen] 코스 상세 정보 가져오기 시작');
+      
+      const tokens = await authService.getTokens();
+      const detailsPromises = routes.map(async (route) => {
+        try {
+          const response = await fetch(`${BACKEND_API.BASE_URL}/v1/routes/${route.id}/`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(tokens?.access && { 'Authorization': `Bearer ${tokens.access}` }),
+            },
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            console.log(`[HomeScreen] 코스 ${route.id} 상세 정보:`, data);
+            console.log(`[HomeScreen] 코스 ${route.id} route 객체:`, data.route);
+            console.log(`[HomeScreen] 코스 ${route.id} spots 배열:`, data.spots);
+            
+            // TripsScreen처럼 spots 데이터에서 first_image 매핑
+            if (data.spots && spotsData.length > 0) {
+              console.log(`[HomeScreen] 코스 ${route.id} 매핑 전 spots:`, data.spots);
+              console.log(`[HomeScreen] 코스 ${route.id} 사용할 spotsData 개수:`, spotsData.length);
+              
+              const spotsWithImages = data.spots.map((spot: any) => {
+                const spotData = spotsData.find((s: any) => s.id === spot.id);
+                console.log(`[HomeScreen] 코스 ${route.id} 스팟 ${spot.id} 매핑:`, {
+                  spot_id: spot.id,
+                  spot_name: spot.title,
+                  found_spotData: !!spotData,
+                  first_image: spotData?.first_image,
+                  first_image2: spotData?.first_image2
+                });
+                return {
+                  ...spot,
+                  first_image: spotData?.first_image || null,
+                  first_image2: spotData?.first_image2 || null
+                };
+              });
+              data.spots = spotsWithImages;
+              console.log(`[HomeScreen] 코스 ${route.id} 이미지 매핑된 spots:`, spotsWithImages);
+            }
+            
+            if (data.route && data.route.image_url) {
+              console.log(`[HomeScreen] 코스 ${route.id} 이미지 URL:`, data.route.image_url);
+            }
+            return { routeId: route.id, data };
+          } else {
+            console.log(`[HomeScreen] 코스 ${route.id} 상세 정보 가져오기 실패:`, response.status);
+            return { routeId: route.id, data: null };
+          }
+        } catch (error) {
+          console.error(`[HomeScreen] 코스 ${route.id} 상세 정보 가져오기 에러:`, error);
+          return { routeId: route.id, data: null };
+        }
+      });
+
+      const results = await Promise.all(detailsPromises);
+      const detailsMap: {[key: number]: any} = {};
+      
+      results.forEach(({ routeId, data }) => {
+        if (data) {
+          detailsMap[routeId] = data;
+        }
+      });
+
+      setCourseDetails(detailsMap);
+      console.log('[HomeScreen] 코스 상세 정보 저장 완료:', detailsMap);
+    } catch (error) {
+      console.error('[HomeScreen] 코스 상세 정보 가져오기 전체 에러:', error);
     }
   };
 
@@ -674,48 +842,100 @@ export default function HomeScreen({ navigation }: any) {
     try {
       console.log('[HomeScreen] 루트 카드 클릭:', routeId);
 
-      // route-detail API 호출
-      const response = await fetch(`${BACKEND_API.BASE_URL}/v1/routes/${routeId}/`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.ok) {
-        const routeData = await response.json();
-        console.log('[HomeScreen] 루트 상세 데이터:', routeData);
-
-        // 루트 상세 정보를 더 자세하게 표시
-        const route = routeData.route;
-        const spots = routeData.spots;
-
-        let message = `📍 ${route.title}\n`;
-        message += `🏙️ 지역: ${route.user_region_name || '인천'}\n`;
-        message += `🗺️ 총 장소 수: ${route.total_spots || spots.length}개\n`;
-        if (route.mission_available) {
-          message += `🎯 미션 가능: 예\n`;
-        }
-        message += `\n🗺️ 장소 목록:\n`;
-
-        spots.forEach((spot: any, index: number) => {
-          message += `${index + 1}. ${spot.title}\n`;
-          if (spot.address) {
-            message += `   📍 ${spot.address}\n`;
-          }
+      // 이미 가져온 상세 정보가 있는지 확인
+      let routeData = courseDetails[routeId];
+      
+      if (!routeData) {
+        // 상세 정보가 없으면 새로 가져오기
+        const tokens = await authService.getTokens();
+        const response = await fetch(`${BACKEND_API.BASE_URL}/v1/routes/${routeId}/`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(tokens?.access && { 'Authorization': `Bearer ${tokens.access}` }),
+          },
         });
 
-        Alert.alert(
-          '루트 상세 정보',
-          message,
-          [
-            { text: '확인', style: 'default' }
-          ]
-        );
-      } else {
-        console.log('[HomeScreen] 루트 상세 조회 실패:', response.status, response.statusText);
-        Alert.alert('오류', '루트 정보를 가져올 수 없습니다.');
+        if (response.ok) {
+          routeData = await response.json();
+          console.log('[HomeScreen] 루트 상세 데이터 새로 가져옴:', routeData);
+          
+          // spots 데이터도 가져와서 매핑
+          const tokens = await authService.getTokens();
+          const spotsResponse = await fetch(`${BACKEND_API.BASE_URL}/v1/spots/`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(tokens?.access && { 'Authorization': `Bearer ${tokens.access}` }),
+            },
+          });
+
+          if (spotsResponse.ok) {
+            const spotsData = await spotsResponse.json();
+            console.log('[HomeScreen] handleRouteCardPress spots 데이터:', spotsData);
+            console.log('[HomeScreen] handleRouteCardPress spots 데이터 개수:', spotsData.length);
+            
+            // spots 데이터에서 first_image 매핑
+            if (routeData.spots && spotsData.length > 0) {
+              console.log('[HomeScreen] handleRouteCardPress 매핑 전 spots:', routeData.spots);
+              
+              const spotsWithImages = routeData.spots.map((spot: any) => {
+                const spotData = spotsData.find((s: any) => s.id === spot.id);
+                console.log(`[HomeScreen] handleRouteCardPress 스팟 ${spot.id} 매핑:`, {
+                  spot_id: spot.id,
+                  spot_name: spot.title,
+                  found_spotData: !!spotData,
+                  first_image: spotData?.first_image,
+                  first_image2: spotData?.first_image2
+                });
+                return {
+                  ...spot,
+                  first_image: spotData?.first_image || null,
+                  first_image2: spotData?.first_image2 || null
+                };
+              });
+              routeData.spots = spotsWithImages;
+              console.log('[HomeScreen] handleRouteCardPress 이미지 매핑된 spots:', spotsWithImages);
+            }
+          } else {
+            console.log('[HomeScreen] handleRouteCardPress spots API 호출 실패:', spotsResponse.status);
+          }
+        } else {
+          console.log('[HomeScreen] 루트 상세 조회 실패:', response.status, response.statusText);
+          Alert.alert('오류', '루트 정보를 가져올 수 없습니다.');
+          return;
+        }
       }
+
+      // 루트 상세 정보를 더 자세하게 표시
+      const route = routeData.route;
+      const spots = routeData.spots;
+
+      let message = `📍 ${route.title}\n`;
+      message += `🏙️ 지역: ${route.user_region_name || '인천'}\n`;
+      message += `🗺️ 총 장소 수: ${route.total_spots || spots.length}개\n`;
+      if (route.mission_available) {
+        message += `🎯 미션 가능: 예\n`;
+      }
+      message += `\n🗺️ 장소 목록:\n`;
+
+      spots.forEach((spot: any, index: number) => {
+        message += `${index + 1}. ${spot.title}\n`;
+        if (spot.address) {
+          message += `   📍 ${spot.address}\n`;
+        }
+        if (spot.description) {
+          message += `   📝 ${spot.description.substring(0, 50)}...\n`;
+        }
+      });
+
+      Alert.alert(
+        '루트 상세 정보',
+        message,
+        [
+          { text: '확인', style: 'default' }
+        ]
+      );
     } catch (error) {
       console.error('[HomeScreen] 루트 상세 조회 에러:', error);
       Alert.alert('오류', '루트 정보 조회 중 오류가 발생했습니다.');
@@ -775,15 +995,11 @@ export default function HomeScreen({ navigation }: any) {
   const renderLoggedInHeader = () => (
     <View style={styles.loggedInHeader}>
       <View style={styles.userInfoSection}>
-        <View style={styles.userGreeting}>
-          <View style={styles.locationContainer}>
-            <View style={styles.greetingContainer}>
-                <Ionicons name="location" size={16} color={INCHEON_GRAY} />
-                <Text style={styles.userName}>{userProfile?.nickname || userProfile?.username || '사용자'}님 안녕하세요</Text>
-            </View>
-          </View>
-          <Text style={styles.greetingText}>어디로 떠나볼까요?</Text>
+        <View style={styles.locationContainer}>
+          <Ionicons name="location" size={16} color={INCHEON_GRAY} />
+          <Text style={styles.userName}>{userProfile?.nickname || userProfile?.username || '사용자'}님 안녕하세요</Text>
         </View>
+        <Text style={styles.greetingText}>어디로 떠나볼까요?</Text>
       </View>
 
 
@@ -895,14 +1111,32 @@ export default function HomeScreen({ navigation }: any) {
                       <View style={styles.priceIndicator}>
                         <Text style={styles.priceText}>$~~~</Text>
                       </View>
-                      <Ionicons name="image-outline" size={36} color="#bbb" />
+                      {course.image ? (
+                        <Image 
+                          source={{ uri: course.image }} 
+                          style={styles.courseImage}
+                          resizeMode="cover"
+                          onError={(error) => {
+                            console.error(`[HomeScreen] 코스 ${course.id} 이미지 로드 실패:`, error);
+                          }}
+                          onLoad={() => {
+                            console.log(`[HomeScreen] 코스 ${course.id} 이미지 로드 성공:`, course.image);
+                          }}
+                        />
+                      ) : (
+                        <Ionicons name="image-outline" size={36} color="#bbb" />
+                      )}
                     </View>
                     <Text style={styles.courseTitle} numberOfLines={1}>{course.title}</Text>
                     <View style={styles.locationContainer}>
                       <Ionicons name="location-outline" size={14} color={INCHEON_GRAY} />
                       <Text style={styles.locationText} numberOfLines={1}>{course.location || '위치 정보 없음'}</Text>
                     </View>
-                    <TouchableOpacity style={styles.startBtn} disabled>
+                    <TouchableOpacity 
+                      style={styles.startBtn} 
+                      onPress={() => handleRouteCardPress(course.id)}
+                      activeOpacity={0.7}
+                    >
                       <Text style={styles.startBtnText}>시작하기</Text>
                     </TouchableOpacity>
                   </TouchableOpacity>
@@ -934,7 +1168,11 @@ export default function HomeScreen({ navigation }: any) {
                       <Ionicons name="location-outline" size={14} color={INCHEON_GRAY} />
                       <Text style={styles.locationText} numberOfLines={1}>인천</Text>
                     </View>
-                    <TouchableOpacity style={styles.startBtn} disabled>
+                    <TouchableOpacity 
+                      style={styles.startBtn} 
+                      onPress={() => handleRouteCardPress(course.id)}
+                      activeOpacity={0.7}
+                    >
                       <Text style={styles.startBtnText}>시작하기</Text>
                     </TouchableOpacity>
                   </TouchableOpacity>
@@ -1052,6 +1290,12 @@ underline: {
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 12,
+    position: 'relative',
+  },
+  courseImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 12,
   },
   courseTitle: {
     ...TEXT_STYLES.heading,
@@ -1060,16 +1304,26 @@ underline: {
     fontWeight: '600',
   },
   startBtn: {
-    backgroundColor: INCHEON_BLUE_LIGHT,
+    backgroundColor: INCHEON_BLUE,
     borderColor: '#e0e0e0',
     borderWidth: 0.3,
     borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 32,
     marginTop: 8,
+    shadowColor: INCHEON_BLUE,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
   },
   startBtnText: {
     ...TEXT_STYLES.button,
+    color: '#fff',
+    fontWeight: '600',
   },
   // 진행중인 코스 카드 스타일
   ongoingCardScroll: {
@@ -1160,7 +1414,6 @@ underline: {
     alignItems: 'center',
   },
   userInfoSection: {
-    flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 20,
     paddingHorizontal: 20,
@@ -1189,14 +1442,8 @@ underline: {
   locationContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    textAlign: 'center',
+    justifyContent: 'center',
     marginBottom: 8,
-  },
-  greetingContainer: {
-    width: '100%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center'
   },
   userName: {
     ...TEXT_STYLES.subtitle,

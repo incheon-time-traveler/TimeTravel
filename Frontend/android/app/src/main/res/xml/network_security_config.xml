@@ -13,6 +13,12 @@
         <domain includeSubdomains="true">m.map.kakao.com</domain>
     </domain-config>
     
+    <!-- 챗봇 서버 도메인 허용 -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">timetravel.ddnsfree.com</domain>
+        <domain includeSubdomains="true">incheon-time-traveler.duckdns.org</domain>
+    </domain-config>
+    
     <!-- 모든 HTTPS 도메인 허용 (개발용) -->
     <base-config cleartextTrafficPermitted="false">
         <trust-anchors>

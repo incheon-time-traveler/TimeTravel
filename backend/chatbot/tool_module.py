@@ -714,15 +714,16 @@ def resolve_place(query: str) -> dict:
         "lat": first["y"],
         "lon": first["x"],
         "address": first["road_address_name"] or first["address_name"],
+        "place_id": first["id"],  # 카카오맵 place_id 추가
         "candidates": [
-            {"name": doc["place_name"], "lat": doc["y"], "lon": doc["x"]}
+            {"name": doc["place_name"], "lat": doc["y"], "lon": doc["x"], "place_id": doc["id"]}
             for doc in docs
         ]
     }
 
 # 14. Kakao 맵 길찾기 링크 생성 tool
 @tool
-def build_kakaomap_route(start_lat: str, start_lon: str, end_lat: str, end_lon: str, by: str = "car") -> dict:
+def build_kakaomap_route(start_lat: str, start_lon: str, end_lat: str, end_lon: str, by: str = "car", end_place_id: str = None, end_place_name: str = None) -> dict:
     """출발지, 도착지, 이동수단으로 카카오맵 길찾기 앱/웹 링크를 생성합니다."""
     # 이동수단별 카카오맵 파라미터 매핑
     transport_mapping = {
@@ -748,8 +749,16 @@ def build_kakaomap_route(start_lat: str, start_lon: str, end_lat: str, end_lon: 
         "publictransit": "대중교통"
     }
     
-    return {
+    result = {
         "url": web_url,
         "transport_type": transport_descriptions.get(transport_type, "자동차"),
         "message": f"카카오맵 {transport_descriptions.get(transport_type, '자동차')} 길찾기 링크를 생성했습니다."
     }
+    
+    # 장소 상세 정보 URL도 함께 제공 (place_id가 있는 경우)
+    if end_place_id:
+        place_detail_url = f"https://place.map.kakao.com/{end_place_id}"
+        result["place_detail_url"] = place_detail_url
+        result["place_name"] = end_place_name or "장소"
+    
+    return result

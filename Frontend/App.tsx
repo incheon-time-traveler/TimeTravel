@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { View, StyleSheet, Platform, Text } from 'react-native';
+import { NavigationContainer, useNavigation } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -160,10 +160,25 @@ function TabBarIconWithLabel({ name, label, focused }: { name: string; label: st
   );
 }
 
-
-// --- 메인 앱 컴포넌트 ---
-export default function App() {
+// AppContent 컴포넌트를 분리하여 navigation 컨텍스트 내에서 사용
+function AppContent() {
+  const navigation = useNavigation();
   const [chatVisible, setChatVisible] = useState(false);
+
+  return (
+    <>
+      <MainTabNavigator />
+      <FloatingChatBotButton onPress={() => setChatVisible(true)} />
+      <ChatScreen 
+        visible={chatVisible} 
+        onClose={() => setChatVisible(false)} 
+        navigation={navigation}
+      />
+    </>
+  );
+}
+
+export default function App() {
   const [isOnboardingComplete, setIsOnboardingComplete] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -198,13 +213,14 @@ export default function App() {
           )}
         </Stack.Navigator>
       </NavigationContainer>
-      {isOnboardingComplete && (
-        <>
-          <FloatingChatBotButton onPress={() => setChatVisible(true)} />
-          <ChatScreen visible={chatVisible} onClose={() => setChatVisible(false)} />
-        </>
-      )}
-    </>
+    );
+  }
+
+  // 메인 앱 표시
+  return (
+    <NavigationContainer>
+      <AppContent />
+    </NavigationContainer>
   );
 }
 

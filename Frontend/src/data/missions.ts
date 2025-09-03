@@ -1,5 +1,6 @@
 import { Mission, MissionLocation, HistoricalPhoto } from '../types/mission';
 import { BACKEND_API } from '../config/apiKeys';
+import { authService } from '../services/authService';
 
 // 미션 상태 관리
 export interface MissionState {
@@ -605,18 +606,10 @@ export const completeSpotVisit = async (userRouteSpotId: number, authToken?: str
 // 방문 완료된 spot들 조회 (기존 unlock_spots API 활용)
 export const getVisitedSpots = async (authToken?: string): Promise<any[]> => {
   try {
-    const token = authToken || await getAuthToken();
-    
-    if (!token) {
-      console.error('[missions] 인증 토큰이 없습니다.');
-      return [];
-    }
-
-    const response = await fetch(`${BACKEND_API.BASE_URL}/v1/courses/unlock_spots/`, {
+    const response = await authService.authenticatedFetch(`${BACKEND_API.BASE_URL}/v1/courses/unlock_spots/`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
       },
     });
 

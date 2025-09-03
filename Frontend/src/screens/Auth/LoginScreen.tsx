@@ -476,7 +476,24 @@ const LoginScreen = ({ navigation, route }: any) => {
 
             <TouchableOpacity
               style={[styles.profileButton, styles.logoutButton]}
-              onPress={handleLogout}
+              onPress={ () => {
+                  Alert.alert(
+                    "알림",
+                    "로그아웃 하시겠습니까?",
+                    [
+                      {
+                        text: "돌아가기", // 취소 버튼
+                        style: "cancel",
+                      },
+                      {
+                        text: "로그아웃", // 실행 버튼
+                        style: "destructive", // iOS에서 빨간색 표시
+                        onPress: () => handleLogout(),
+                      },
+                    ]
+                  )
+                }
+              }
             >
               <View style={styles.buttonContent}>
                 <Text style={[styles.profileButtonText, styles.logoutButtonText]}>로그아웃</Text>

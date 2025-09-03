@@ -124,27 +124,16 @@ function MainTabs() {
 
 // 탭 바를 포함하는 화면들과, 탭 바가 필요 없는 전체 화면들을 관리
 function RootNavigator() {
-  const navigation = useNavigation();
-  const [chatVisible, setChatVisible] = useState(false);
-
   return (
-    <>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {/* 탭 바가 있는 메인 화면 */}
-        <Stack.Screen name="MainTabs" component={MainTabs} />
-        {/* 탭 바가 필요 없는 화면들 */}
-        <Stack.Screen name="CourseRecommendation" component={CourseRecommendationScreen} />
-        <Stack.Screen name="CourseDetail" component={CourseDetailScreen} />
-        <Stack.Screen name="ProfileSetup" component={ProfileSetupScreen} />
-        <Stack.Screen name="Login" component={LoginScreen} />
-      </Stack.Navigator>
-      <FloatingChatBotButton onPress={() => setChatVisible(true)} />
-      <ChatScreen 
-        visible={chatVisible} 
-        onClose={() => setChatVisible(false)} 
-        navigation={navigation}
-      />
-    </>
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      {/* 탭 바가 있는 메인 화면 */}
+      <Stack.Screen name="MainTabs" component={MainTabs} />
+      {/* 탭 바가 필요 없는 화면들 */}
+      <Stack.Screen name="CourseRecommendation" component={CourseRecommendationScreen} />
+      <Stack.Screen name="CourseDetail" component={CourseDetailScreen} />
+      <Stack.Screen name="ProfileSetup" component={ProfileSetupScreen} />
+      <Stack.Screen name="Login" component={LoginScreen} />
+    </Stack.Navigator>
   );
 }
 
@@ -208,8 +197,19 @@ export default function App() {
             </>
           )}
         </Stack.Navigator>
+        {isOnboardingComplete && (
+          <>
+            <FloatingChatBotButton onPress={() => setChatVisible(true)} />
+            <ChatScreenWrapper visible={chatVisible} onClose={() => setChatVisible(false)} />
+          </>
+        )}
       </NavigationContainer>
-
     </>
   );
+}
+
+// ChatScreen을 위한 래퍼 컴포넌트 (NavigationContainer 내부에서 사용)
+function ChatScreenWrapper({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+  const navigation = useNavigation();
+  return <ChatScreen visible={visible} onClose={onClose} navigation={navigation} />;
 }

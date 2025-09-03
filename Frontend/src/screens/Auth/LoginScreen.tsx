@@ -528,6 +528,17 @@ const LoginScreen = ({ navigation, route }: any) => {
                 </View>
 
                 <View style={styles.modalTextContainer}>
+                  <Text style={styles.modalSubTitle}>자료 출처</Text>
+                  <Text style={styles.modalText}>
+                    • 한국관광공사 TourAPI 국문 관광 정보 서비스
+                  </Text>
+                  <Text style={styles.modalText}>
+                    • 인천문화유산 디지털아카이브
+                  </Text>
+                  <Text style={styles.modalText}>
+                    • 카카오맵 API
+                  </Text>
+                  <Text style={styles.modalSubTitle}> </Text>
                   <Text style={styles.modalSubTitle}>글꼴 라이센스</Text>
 
                   <Text style={styles.modalText}>

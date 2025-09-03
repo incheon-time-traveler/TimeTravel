@@ -124,10 +124,10 @@ export default function GalleryScreen({ navigation }: any) {
             <View style={styles.loginModalIcon}>
               <Ionicons name="lock-closed" size={32} color={INCHEON_BLUE} />
             </View>
-            <Text style={styles.loginModalTitle}>스탬프 갤러리</Text>
+            <Text style={styles.loginModalTitle}>과거 사진 모음집</Text>
             <Text style={styles.loginModalSubtitle}>
-              로그인하면 수집한 스탬프를 확인하고{`\n`}
-              미션을 완료할 수 있어요!
+              로그인하면 과거 사진과 함께{`\n`}
+              특별한 스탬프도 수집할 수 있어요!
             </Text>
             <TouchableOpacity 
               style={styles.loginButton}
@@ -224,7 +224,7 @@ export default function GalleryScreen({ navigation }: any) {
     
     Alert.alert(
       '스탬프 사용',
-      '스탬프를 사장님께 보여주세요!\n(사용 버튼을 직접 누르지 않도록 조심해주세요)',
+      '스탬프를 사장님께 보여주세요!\n(사용 버튼을 직접 누르지 않도록 조심하세요)',
       [
         {
           text: '돌아가기',

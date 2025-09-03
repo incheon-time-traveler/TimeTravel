@@ -9,7 +9,8 @@ import {
   TouchableOpacity, 
   Modal, 
   Alert,
-  ActivityIndicator
+  ActivityIndicator,
+  TouchableWithoutFeedback
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -19,7 +20,6 @@ import { INCHEON_BLUE, INCHEON_BLUE_LIGHT, INCHEON_GRAY, TEXT_STYLES } from '../
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BACKEND_API } from '../../config/apiKeys';
 import authService from '../../services/authService';
-
 
 const { width, height } = Dimensions.get('window');
 
@@ -60,7 +60,7 @@ const STAMP_IMAGES: { [key: string]: any } = {
 
 const TOTAL_COURSE = 16; // 전체 코스 수 (API에서 가져올 수 있음)
 
-export default function GalleryScreen() {
+export default function GalleryScreen({ navigation }: any) {
   const [selectedImage, setSelectedImage] = useState<GalleryItem | null>(null);
   const [imageModalVisible, setImageModalVisible] = useState(false);
   const [galleryData, setGalleryData] = useState<GalleryItem[]>([]);
@@ -74,27 +74,94 @@ export default function GalleryScreen() {
     }
   };
 
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userProfile, setUserProfile] = useState<any>(null);
+
+  const checkLoginStatus = async () => {
+      try {
+        // 토큰과 사용자 정보 모두 확인
+        const tokens = await authService.getTokens();
+        const user = await authService.getUser();
+  
+        if (tokens?.access && user) {
+          // 토큰이 있고 사용자 정보가 있으면 로그인된 상태
+          setIsLoggedIn(true);
+          setUserProfile(user);
+          console.log('[HomeScreen] 로그인된 상태:', user.nickname);
+
+        } else {
+          // 토큰이나 사용자 정보가 없으면 로그아웃된 상태
+          setIsLoggedIn(false);
+          setUserProfile(null);
+          console.log('[HomeScreen] 로그아웃된 상태');
+        }
+      } catch (error) {
+        console.error('로그인 상태 확인 실패:', error);
+        setIsLoggedIn(false);
+        setUserProfile(null);
+      }
+    };
+
+
+  const handleLoginPress = () => {
+    navigation.navigate('Profile');
+  };
+  const [loginModalVisible, setLoginModalVisible] = useState(true);
+
+  // 로그인 안내 모달 컴포넌트
+  const renderLoginModal = () => (
+    <Modal
+      visible={isLoggedIn ? true : loginModalVisible}
+      transparent={true}
+      animationType="fade"
+      statusBarTranslucent={false}
+    >
+      {/* 배경 클릭 감지 */}
+      <TouchableWithoutFeedback onPress={() => setLoginModalVisible(false)}>
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalBackground}>
+          <View style={styles.loginModalContent}>
+            <View style={styles.loginModalIcon}>
+              <Ionicons name="lock-closed" size={32} color={INCHEON_BLUE} />
+            </View>
+            <Text style={styles.loginModalTitle}>스탬프 갤러리</Text>
+            <Text style={styles.loginModalSubtitle}>
+              로그인하면 수집한 스탬프를 확인하고{`\n`}
+              미션을 완료할 수 있어요!
+            </Text>
+            <TouchableOpacity 
+              style={styles.loginButton}
+              onPress={handleLoginPress}
+              activeOpacity={0.9}
+            >
+              <Text style={styles.loginButtonText}>로그인하기</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+      </TouchableWithoutFeedback>
+    </Modal>
+  );
+
   // 갤러리 데이터 가져오기
   const fetchGalleryData = async () => {
     try {
       setIsLoading(true);
       const tokens = await authService.getTokens();
+      let response;
       if (!tokens?.access) {
-        console.error('[GalleryScreen] 인증 토큰이 없습니다.');
-        return;
+          // 1. 백엔드에서 unlock_spots 데이터 가져오기
+          response = await fetch(`${BACKEND_API.BASE_URL}/v1/courses/unlock_spots/`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${tokens?.access}`,
+          },
+        });
       }
-
-      // 1. 백엔드에서 unlock_spots 데이터 가져오기
-      const response = await fetch(`${BACKEND_API.BASE_URL}/v1/courses/unlock_spots/`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${tokens.access}`,
-        },
-      });
-
+      
       let backendItems: GalleryItem[] = [];
-      if (response.ok) {
+      if (response && response.ok) {
         const data = await response.json();
         console.log('[GalleryScreen] 백엔드 갤러리 데이터:', data);
         
@@ -110,19 +177,16 @@ export default function GalleryScreen() {
           route_id: item.route_id,
           spot_id: item.route_spot_id,
         }));
-      } else {
-        console.error('[GalleryScreen] 백엔드 갤러리 데이터 가져오기 실패:', response.status);
       }
 
       // 2. 백엔드 데이터만 사용
       const allItems = backendItems;
       console.log('[GalleryScreen] 갤러리 데이터:', allItems);
-
+    
       // 3. 빈 슬롯 생성 (고유한 ID 보장)
-      const remainingSlots = TOTAL_COURSE - allItems.length;
-      const maxExistingId = Math.max(...allItems.map(item => item.id), 0);
+      const remainingSlots = TOTAL_COURSE - allItems.length || 0;
       const emptySlots = Array(remainingSlots).fill(null).map((_, index) => ({
-        id: maxExistingId + index + 1000, // 기존 ID와 겹치지 않도록 큰 수 사용
+        id: index + 1000, // 기존 ID와 겹치지 않도록 큰 수 사용
         title: `장소 ${allItems.length + index + 1}`,
         image_url: '',
         past_image_url: '',
@@ -135,8 +199,6 @@ export default function GalleryScreen() {
 
       setGalleryData(allItems.concat(emptySlots));
       setFoundCount(allItems.filter(item => item.completed).length);
-    } catch (error) {
-      console.error('[GalleryScreen] 갤러리 데이터 가져오기 에러:', error);
     } finally {
       setIsLoading(false);
     }
@@ -144,12 +206,15 @@ export default function GalleryScreen() {
 
   // 컴포넌트 마운트 시 데이터 가져오기
   useEffect(() => {
+    checkLoginStatus();
     fetchGalleryData();
   }, []);
 
   // 화면이 포커스될 때마다 갤러리 데이터 새로고침
   useFocusEffect(
     React.useCallback(() => {
+      checkLoginStatus();
+      setLoginModalVisible(!isLoggedIn);
       console.log('[GalleryScreen] 화면 포커스됨 - 갤러리 데이터 새로고침');
       fetchGalleryData();
     }, [])
@@ -243,12 +308,16 @@ export default function GalleryScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-        <View style={styles.container}>
-          <ScrollView contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
-            <Text style={styles.title}>완료한 미션</Text>
-            <View style={styles.underline} />
+      <View style={styles.container}>
+        <ScrollView contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
+          <Text style={styles.title}>완료한 미션</Text>
+          <View style={styles.underline} />
+          {isLoggedIn ? (
             <Text style={styles.subtitle}>전체 코스 {TOTAL_COURSE}개 중 {foundCount}개의 과거를 찾았어요</Text>
-            <View style={styles.gridWrap}>
+          ) : (
+            <Text style={styles.subtitle}>로그인해 과거 모습을 찾아보세요.</Text>
+          )}
+          <View style={styles.gridWrap}>
               {galleryData.map((item) => (
                 <TouchableOpacity
                   key={item.id}
@@ -262,7 +331,6 @@ export default function GalleryScreen() {
                       style={styles.photo} 
                       resizeMode="cover"
                       onLoad={() => console.log('[GalleryScreen] 이미지 로드 성공:', item.title, item.past_image_url)}
-                      onError={(error) => console.log('[GalleryScreen] 이미지 로드 실패:', item.title, item.past_image_url, error)}
                     />
                     {!item.completed && (
                       <View style={styles.lockedOverlay}>
@@ -292,9 +360,12 @@ export default function GalleryScreen() {
                       )}
                   </View>
                 </TouchableOpacity>
-              ))}
+              ))} 
             </View>
           </ScrollView>
+
+          {/* 로그인 안내 모달 */}
+          {renderLoginModal()}
 
           {/* 사진 확대 모달 */}
           <Modal
@@ -321,7 +392,6 @@ export default function GalleryScreen() {
                     style={styles.modalImage}
                     resizeMode="contain"
                     onLoad={() => console.log('[GalleryScreen] 모달 이미지 로드 성공:', selectedImage?.title, selectedImage?.image_url)}
-                    onError={(error) => console.log('[GalleryScreen] 모달 이미지 로드 실패:', selectedImage?.title, selectedImage?.image_url, error)}
                   />
 
                   {renderStamp()}
@@ -346,6 +416,64 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
     padding: 16,
+  },
+  // 모달 오버레이 스타일
+  modalBackground: {
+    width: '100%',
+    borderRadius: 16,
+    overflow: 'hidden',
+    backgroundColor: 'white',
+    maxWidth: 400,
+  },
+  loginModalContent: {
+    padding: 32,
+    alignItems: 'center',
+  },
+  loginModalIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: 'rgba(20, 80, 158, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  loginModalTitle: {
+    ...TEXT_STYLES.heading,
+    color: INCHEON_BLUE,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  loginModalSubtitle: {
+    ...TEXT_STYLES.body,
+    color: '#555',
+    textAlign: 'center',
+    marginBottom: 32,
+    lineHeight: 22,
+  },
+  loginButton: {
+    backgroundColor: INCHEON_BLUE,
+    borderRadius: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    width: '100%',
+    alignItems: 'center',
+    shadowColor: INCHEON_BLUE,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  loginButtonText: {
+    ...TEXT_STYLES.button,
+    color: 'white',
+    fontWeight: '600',
+  },
+  bottomArea: {
+    height: 70,
+    backgroundColor: "transparent",
+    justifyContent: "center",
+    alignItems: "center",
   },
   title: {
     ...TEXT_STYLES.subtitle,

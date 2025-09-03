@@ -151,7 +151,7 @@ function MainTabs() {
       />
       <Tab.Screen 
         name="Profile" 
-        component={ProfileScreen} 
+        component={LoginScreen} 
         options={{
           tabBarLabel: ({ color, focused }) => (
             <Text style={{ color, fontSize: 14, marginBottom: 4 }}>

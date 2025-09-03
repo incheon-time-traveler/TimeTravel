@@ -211,6 +211,7 @@ export default function CourseRecommendationScreen({ navigation }: any) {
             // 성공적인 코스 생성
             if (data.success && data.course_spots) {
               const totalSpots = data.total_spots || data.course_spots.length;
+              // 엄격모드와 같은 용어 안쓰기 위해 나눈 건데 제대로 적용 안되는 거 같음
               const mode = '모든 조건을 반영해' || '모든 조건을 만족하는 경우가 없어 일부를 제외했습니다.';
               
               Alert.alert(
@@ -769,6 +770,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 30,
     width: '100%',
+    marginBottom: 50,
   },
   generateButtonDisabled: {
     ...TEXT_STYLES.button,

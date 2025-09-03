@@ -58,6 +58,7 @@ const TripsScreen: React.FC = () => {
   const [selectedCourse, setSelectedCourse] = useState<any>(null);
   const [courseModalVisible, setCourseModalVisible] = useState(false);
   // 백엔드 데이터 상태
+  const [userRouteSpot, setUserRouteSpot] = useState<any>(null);
   const [userCourses, setUserCourses] = useState<any[]>([]);
   const [completedCourses, setCompletedCourses] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -84,6 +85,36 @@ const TripsScreen: React.FC = () => {
 
    fetchSpotDetail();
  }, [selectedSpot]);
+
+  // 사용자 코스 그만두기
+  const handleQuitCourse = async () => {
+    try {
+      const tokens = await authService.getTokens();
+      if (!tokens?.access) {
+        console.log('[TripsScreen] 로그인이 필요합니다.');
+        return;
+      }
+
+      console.log(userRouteSpot)
+      // 사용자 코스 데이터 삭제
+      const response = await fetch(`${BACKEND_API.BASE_URL}/v1/courses/${userRouteSpot[0].route_id}/users/delete/`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${tokens.access}`,
+        },
+      });
+
+      if (response.ok) {
+        Alert.alert('알림','코스를 멈췄습니다. 다른 코스를 시작할 수 있어요.');
+        console.log(response.json())
+        fetchUserCourses();
+      } else {
+        console.log('[TripsScreen] 사용자 코스 데이터 삭제 실패:', response.status);
+      }
+    } catch (error) {
+      console.error('[TripsScreen] 사용자 코스 데이터 삭제 에러:', error);
+    }
+  }
   // 사용자 코스 데이터 가져오기
   const fetchUserCourses = async () => {
     try {
@@ -106,6 +137,7 @@ const TripsScreen: React.FC = () => {
 
       if (response.ok) {
         const data = await response.json();
+        setUserRouteSpot(data);
         console.log('[TripsScreen] 사용자 코스 데이터:', data);
 
         // spots API에서 first_image 데이터 가져오기
@@ -573,7 +605,27 @@ const TripsScreen: React.FC = () => {
 
         {/* 하단 버튼 */}
         <View style={styles.bottomRow}>
-          <TouchableOpacity style={styles.quitBtn} activeOpacity={0.8}>
+          <TouchableOpacity
+            style={styles.quitBtn}
+            activeOpacity={0.8}
+            onPress={() => {
+              Alert.alert(
+                "🔴 주의",
+                "코스를 그만두면 모든 정보가 사라지고 미션이 초기화됩니다. 그래도 삭제하시겠습니까?",
+                [
+                  {
+                    text: "돌아가기", // 취소 버튼
+                    style: "cancel",
+                  },
+                  {
+                    text: "그만두기", // 실행 버튼
+                    style: "destructive", // iOS에서 빨간색 표시
+                    onPress: () => handleQuitCourse(),
+                  },
+                ]
+              );
+            }}
+          >
             <Text style={styles.quitBtnText}>코스 그만두기</Text>
           </TouchableOpacity>
         </View>

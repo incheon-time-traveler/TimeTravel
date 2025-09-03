@@ -51,7 +51,7 @@ class AuthService {
       const refresh = await AsyncStorage.getItem('refresh_token');
       
       console.log('[authService.getTokens] access 존재:', !!access, 'refresh 존재:', !!refresh);
-      
+      // console.log(access)
       // access 토큰이 있으면 로그인 상태로 간주 (refresh 토큰은 선택사항)
       if (access) {
         return { 

@@ -28,6 +28,7 @@ def routes(request):
         serializer = RouteSerializer(routes, many=True)
         return Response(serializer.data, status=200)
 
+# 코스 인기순 조회회
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def best_routes(request):
@@ -258,6 +259,24 @@ def user_routes(request, route_id=None):
             {'error': f'사용자 코스 조회 중 오류가 발생했습니다: {str(e)}'}, 
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
+# 유저 코스 삭제
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_user_route_spot(request, route_id):
+    """
+    유저 코스 삭제 API
+    프론트엔드에서 사용자가 코스를 삭제합니다.
+    route_id를 받아, user_id와 route_id를 가진 UserRouteSpot을 전부 삭제합니다.
+    """
+    if request.method == "DELETE":
+        user = request.user
+        user_route_spot = UserRouteSpot.objects.filter(user_id=user, route_id_id=route_id)
+        user_route_spot.delete()
+        return Response({'success': '사용자 코스가 삭제되었습니다.'}, status=status.HTTP_204_NO_CONTENT)
+    else:
+        return Response({'error': 'DELETE 메서드만 지원됩니다.'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
 
 # 잠금 해제
 @api_view(['PATCH'])

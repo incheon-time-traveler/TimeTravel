@@ -231,12 +231,12 @@ export default function MissionScreen({ route, navigation }: MissionScreenProps)
 
                 <Text style={styles.missionInfoTitle}>🎯 미션 목표</Text>
                 <Text style={styles.missionInfoText}>
-                  이곳의 과거 모습을 확인하고 역사를 탐험해보세요!
+                  이곳의 과거 모습을 확인하고 시간을 탐험해보세요!
                 </Text>
 
                 <Text style={styles.missionInfoTitle}>📸 게임 방법</Text>
                 <Text style={styles.missionInfoText}>
-                  4개의 과거 사진 중에서 {mission.location.name}의 과거 모습을 찾으세요.
+                  4개의 과거 사진 중에서 {mission.location.name}의 과거 모습을 찾아야해요.
                 </Text>
               </View>
 

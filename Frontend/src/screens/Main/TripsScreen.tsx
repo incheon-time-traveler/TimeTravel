@@ -56,8 +56,23 @@ const TripsScreen: React.FC = () => {
     return unsubscribe;
   }, [navigation]);
 
+  const handleQuitCourse = () => {
+    Alert.alert('코스를 그만두시겠습니까?', '\n코스를 그만두면 지금까지 진행한 여정이 사라집니다.', [
+      {
+        text: '취소',
+        onPress: () => console.log('취소'),
+        style: 'cancel',
+      },
+      {
+        text: '확인',
+        onPress: () => quitCourse(),
+        style: 'destructive',
+      },
+    ]);
+  }
+
   // 사용자 코스 그만두기
-  const handleQuitCourse = async () => {
+  const quitCourse = async () => {
     try {
       const tokens = await authService.getTokens();
       if (!tokens?.access) {
@@ -66,7 +81,7 @@ const TripsScreen: React.FC = () => {
       }
 
       console.log(userRouteSpot)
-      // 사용자 코스 데이터 삭제
+
       const response = await fetch(`${BACKEND_API.BASE_URL}/v1/courses/${userRouteSpot[0].route_id}/users/delete/`, {
         method: 'DELETE',
         headers: {
@@ -533,7 +548,7 @@ const TripsScreen: React.FC = () => {
 
         {/* 하단 버튼 */}
         <View style={styles.bottomRow}>
-          <TouchableOpacity style={styles.quitBtn} activeOpacity={0.8} onPress={() => handleQuitCourse()}>
+          <TouchableOpacity style={styles.quitBtn} activeOpacity={0.8} onPress={handleQuitCourse}>
             <Text style={styles.quitBtnText}>코스 그만두기</Text>
           </TouchableOpacity>
         </View>

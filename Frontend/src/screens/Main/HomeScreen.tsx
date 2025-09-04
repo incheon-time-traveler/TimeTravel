@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Dimensions, Alert, AppState, Modal } from 'react-native';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Dimensions, Alert, AppState, Modal, ActivityIndicator } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import Geolocation from '@react-native-community/geolocation';
 import { INCHEON_BLUE, INCHEON_BLUE_LIGHT, INCHEON_GRAY, TEXT_STYLES, FONT_STYLES } from '../../styles/fonts';
@@ -23,20 +23,6 @@ import MissionNotification from '../../components/MissionNotification';
 
 const { width, height } = Dimensions.get('window');
 
-const sampleCourses = [
-  {
-    id: 1,
-    title: '가볍게 인천 한바퀴',
-    image: '', // 실제 이미지 경로 또는 URL
-    locked: false,
-  },
-  {
-    id: 2,
-    title: '먹으면서 즐기는 인천',
-    image: '',
-    locked: false,
-  },
-];
 
 export default function HomeScreen({ navigation }: any) {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -44,6 +30,7 @@ export default function HomeScreen({ navigation }: any) {
   const [hasOngoingCourse, setHasOngoingCourse] = useState(false);
   const [ongoingCourses, setOngoingCourses] = useState<any[]>([]);
   const [recommendedCourses, setRecommendedCourses] = useState<any[]>([]);
+  const [isLoadingRecommended, setIsLoadingRecommended] = useState(true);
 
   // 미션 관련 상태
   const [currentMission, setCurrentMission] = useState<any>(null);
@@ -60,6 +47,7 @@ export default function HomeScreen({ navigation }: any) {
   
   // 카드 이미지 carousel 관련 상태
   const [cardImageIndices, setCardImageIndices] = useState<{[key: number]: number}>({});
+  const carouselIntervalsRef = useRef<{[key: number]: any}>({});
 
   // 위치 감지 인터벌 참조
   const locationIntervalRef = useRef<any>(null);
@@ -115,6 +103,14 @@ export default function HomeScreen({ navigation }: any) {
     });
   }, [isLoggedIn, hasOngoingCourse, ongoingCourses, userProfile]);
 
+  // 컴포넌트 언마운트 시 모든 carousel 정리
+  useEffect(() => {
+    return () => {
+      Object.values(carouselIntervalsRef.current).forEach(timeout => clearTimeout(timeout));
+      carouselIntervalsRef.current = {};
+    };
+  }, []);
+
   // 위치 기반 미션 감지 시작
   const startLocationDetection = () => {
     if (locationIntervalRef.current) {
@@ -159,10 +155,10 @@ export default function HomeScreen({ navigation }: any) {
           console.log(`[HomeScreen] GPS 위치 획득: ${latitude}, ${longitude}`);
 
           setCurrentLocationState({ lat: latitude, lng: longitude });
-          setCurrentLocation(latitude, longitude); // missions.ts에 위치 설정
-
-          // 로그인된 상태이고 위치가 설정되면 미션 감지 시작
+          
+          // 로그인된 상태에서만 missions.ts에 위치 설정
           if (isLoggedIn) {
+            setCurrentLocation(latitude, longitude);
             startLocationDetection();
           }
         },
@@ -175,12 +171,11 @@ export default function HomeScreen({ navigation }: any) {
           console.log(`[HomeScreen] 기본 위치 설정: ${defaultLat}, ${defaultLng}`);
 
           setCurrentLocationState({ lat: defaultLat, lng: defaultLng });
-          setCurrentLocation(defaultLat, defaultLng);
-
-          // GPS 실패 시에는 미션 감지를 시작하지 않음 (무한 루프 방지)
-          // if (isLoggedIn) {
-          //   startLocationDetection();
-          // }
+          
+          // 로그인된 상태에서만 missions.ts에 위치 설정
+          if (isLoggedIn) {
+            setCurrentLocation(defaultLat, defaultLng);
+          }
         },
         {
           enableHighAccuracy: false, // true → false로 변경하여 배터리 절약
@@ -195,12 +190,11 @@ export default function HomeScreen({ navigation }: any) {
       const defaultLat = 37.4563;
       const defaultLng = 126.7052;
       setCurrentLocationState({ lat: defaultLat, lng: defaultLng });
-      setCurrentLocation(defaultLat, defaultLng);
-
-      // 위치 서비스 실패 시에도 미션 감지를 시작하지 않음 (무한 루프 방지)
-      // if (isLoggedIn) {
-      //   startLocationDetection();
-      // }
+      
+      // 로그인된 상태에서만 missions.ts에 위치 설정
+      if (isLoggedIn) {
+        setCurrentLocation(defaultLat, defaultLng);
+      }
     }
   };
 
@@ -601,6 +595,7 @@ export default function HomeScreen({ navigation }: any) {
   const fetchRecommendedCourses = async () => {
     try {
       console.log('[HomeScreen] 인기 추천 루트 데이터 가져오기 시작');
+      setIsLoadingRecommended(true);
 
       // 1. 먼저 spots 데이터를 한 번에 가져오기
       console.log('[HomeScreen] spots 데이터 가져오기 시작...');
@@ -711,12 +706,12 @@ export default function HomeScreen({ navigation }: any) {
                 }
 
                 return {
-                  id: route.id || index,
+            id: route.id || index,
                   title: route.user_region_name || route.title || '알 수 없는 루트',
                   images: images.map(img => img.replace('http://', 'https://')), // HTTPS로 변환
-                  location: route.user_region_name || '인천',
-                  price: '$~~~', // 가격 정보 (현재는 고정값)
-                  locked: false,
+            location: route.user_region_name || '인천',
+            price: '$~~~', // 가격 정보 (현재는 고정값)
+            locked: false,
                 };
               } catch (error) {
                 console.error(`[HomeScreen] 루트 ${route.id} 처리 중 오류:`, error);
@@ -746,7 +741,9 @@ export default function HomeScreen({ navigation }: any) {
       }
     } catch (error) {
       console.error('[HomeScreen] 추천 루트 가져오기 에러:', error);
-      setRecommendedCourses([]);
+          setRecommendedCourses([]);
+    } finally {
+      setIsLoadingRecommended(false);
     }
   };
 
@@ -754,6 +751,7 @@ export default function HomeScreen({ navigation }: any) {
   const fetchGeneralRoutes = async (spotsData: any[]) => {
     try {
       console.log('[HomeScreen] 일반 루트 데이터 가져오기 시작...');
+      setIsLoadingRecommended(true);
       const routesResponse = await fetch(`${BACKEND_API.BASE_URL}/v1/routes/`, {
         method: 'GET',
         headers: {
@@ -798,7 +796,7 @@ export default function HomeScreen({ navigation }: any) {
                           if (tokens?.access) {
                             headers['Authorization'] = `Bearer ${tokens.access}`;
                             console.log(`[HomeScreen] 인증 토큰으로 일반 루트 스팟 ${spot.id} 상세 정보 요청`);
-                          } else {
+      } else {
                             console.log(`[HomeScreen] 인증 토큰 없이 일반 루트 스팟 ${spot.id} 상세 정보 요청`);
                           }
                           
@@ -866,6 +864,8 @@ export default function HomeScreen({ navigation }: any) {
     } catch (error) {
       console.error('[HomeScreen] 일반 루트 가져오기 에러:', error);
       setRecommendedCourses([]);
+    } finally {
+      setIsLoadingRecommended(false);
     }
   };
 
@@ -891,20 +891,65 @@ export default function HomeScreen({ navigation }: any) {
     });
   };
 
-  // 카드 이미지 carousel 관련 함수들
-  const nextCardImage = (courseId: number, totalImages: number) => {
-    setCardImageIndices(prev => ({
-      ...prev,
-      [courseId]: ((prev[courseId] || 0) + 1) % totalImages
-    }));
-  };
 
-  const prevCardImage = (courseId: number, totalImages: number) => {
-    setCardImageIndices(prev => ({
-      ...prev,
-      [courseId]: ((prev[courseId] || 0) - 1 + totalImages) % totalImages
-    }));
-  };
+
+  // 단순한 carousel 함수들
+  const nextImage = useCallback((courseId: number, totalImages: number) => {
+    console.log(`[Carousel] 다음 이미지 - 코스 ${courseId}`);
+    setCardImageIndices(prev => {
+      const current = prev[courseId] || 0;
+      const next = (current + 1) % totalImages;
+      console.log(`[Carousel] 인덱스 변경: ${current} → ${next}`);
+      return { ...prev, [courseId]: next };
+    });
+  }, []);
+
+  const prevImage = useCallback((courseId: number, totalImages: number) => {
+    console.log(`[Carousel] 이전 이미지 - 코스 ${courseId}`);
+    setCardImageIndices(prev => {
+      const current = prev[courseId] || 0;
+      const prevIndex = (current - 1 + totalImages) % totalImages;
+      console.log(`[Carousel] 인덱스 변경: ${current} → ${prevIndex}`);
+      return { ...prev, [courseId]: prevIndex };
+    });
+  }, []);
+
+  const startCarousel = useCallback((courseId: number, totalImages: number) => {
+    if (totalImages <= 1) return;
+    
+    console.log(`[Carousel] 자동 시작 - 코스 ${courseId}, 총 ${totalImages}개`);
+    
+    // 기존 인터벌 정리
+    if (carouselIntervalsRef.current[courseId]) {
+      clearTimeout(carouselIntervalsRef.current[courseId]);
+    }
+    
+    // 재귀적 setTimeout 사용
+    const scheduleNext = () => {
+      console.log(`[Carousel] 자동 실행 - 코스 ${courseId}`);
+      nextImage(courseId, totalImages);
+      
+      // 다음 실행 예약
+      const timeoutId = setTimeout(scheduleNext, 3000);
+      carouselIntervalsRef.current[courseId] = timeoutId;
+    };
+    
+    // 첫 실행 예약
+    const timeoutId = setTimeout(scheduleNext, 3000);
+    carouselIntervalsRef.current[courseId] = timeoutId;
+  }, [nextImage]);
+
+  const stopCarousel = useCallback((courseId: number) => {
+    if (carouselIntervalsRef.current[courseId]) {
+      clearTimeout(carouselIntervalsRef.current[courseId]);
+      delete carouselIntervalsRef.current[courseId];
+    }
+  }, []);
+
+  const stopAllCarousels = useCallback(() => {
+    Object.values(carouselIntervalsRef.current).forEach(timeout => clearTimeout(timeout));
+    carouselIntervalsRef.current = {};
+  }, []);
 
   const handleRouteCardPress = async (routeId: number) => {
     try {
@@ -1019,15 +1064,15 @@ export default function HomeScreen({ navigation }: any) {
   const renderLoggedInHeader = () => (
     <View style={styles.loggedInHeader}>
       <View style={styles.userInfoSection}>
-        <View style={styles.locationContainer}>
-          <View style={styles.greetingContainer}>
-              <Ionicons name="location" size={16} color={INCHEON_GRAY} />
-              <Text style={styles.userName}>{userProfile?.nickname || userProfile?.username || '사용자'}님 안녕하세요</Text>
+          <View style={styles.locationContainer}>
+            <View style={styles.greetingContainer}>
+                <Ionicons name="location" size={16} color={INCHEON_GRAY} />
+                <Text style={styles.userName}>{userProfile?.nickname || userProfile?.username || '사용자'}님 안녕하세요</Text>
+            </View>
           </View>
-        </View>
-        <Text style={styles.greetingText}>어디로 떠나볼까요?</Text>
       </View>
 
+      <Text style={styles.greetingText}>어디로 떠나볼까요?</Text>
 
        {hasOngoingCourse ? (
          <TouchableOpacity style={styles.continueCourseBtn} onPress={handleContinueCourse}>
@@ -1401,42 +1446,57 @@ export default function HomeScreen({ navigation }: any) {
             <Text style={styles.sectionTitle}>인기 추천 코스</Text>
             <View style={styles.underline} />
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.cardScroll}>
-              {recommendedCourses.length > 0 ? (
-                recommendedCourses.map((course) => (
+              {isLoadingRecommended ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="large" color={INCHEON_BLUE} />
+                  <Text style={styles.loadingText}>추천 코스를 불러오는 중...</Text>
+                </View>
+              ) : recommendedCourses.length > 0 ? (
+                recommendedCourses.map((course, index) => (
                   <TouchableOpacity
                     key={course.id}
                     style={styles.courseCard}
                     onPress={() => handleRouteCardPress(course.id)}
                     activeOpacity={0.7}
+                    onLayout={() => {
+                      // 모든 카드에서 자동 carousel 시작
+                      if (course.images && course.images.length > 1) {
+                        startCarousel(course.id, course.images.length);
+                      }
+                    }}
                   >
                     <View style={styles.imageBox}>
 
 
                       
-                      {/* 이미지 Carousel */}
+                                            {/* 이미지 Carousel */}
                       {course.images && course.images.length > 0 ? (
                         <View style={styles.cardImageCarousel}>
-                          <TouchableOpacity 
+                                                <TouchableOpacity 
                             style={[styles.cardCarouselButton, styles.cardCarouselButtonLeft]} 
                             onPress={(e) => {
                               e.stopPropagation();
-                              prevCardImage(course.id, course.images.length);
+                              prevImage(course.id, course.images.length);
                             }}
                           >
                             <Ionicons name="chevron-back" size={16} color="#fff" />
                           </TouchableOpacity>
                           
-                          <Image 
-                            source={{ uri: course.images[cardImageIndices[course.id] || 0] }} 
-                            style={styles.courseImage}
-                            resizeMode="cover"
-                          />
+                          <View style={styles.imageContainer}>
+                            <Image 
+                              source={{ 
+                                uri: course.images[cardImageIndices[course.id] || 0]
+                              }} 
+                              style={styles.courseImage}
+                              resizeMode="cover"
+                            />
+                          </View>
                           
                           <TouchableOpacity 
                             style={[styles.cardCarouselButton, styles.cardCarouselButtonRight]} 
                             onPress={(e) => {
                               e.stopPropagation();
-                              nextCardImage(course.id, course.images.length);
+                              nextImage(course.id, course.images.length);
                             }}
                           >
                             <Ionicons name="chevron-forward" size={16} color="#fff" />
@@ -1465,38 +1525,10 @@ export default function HomeScreen({ navigation }: any) {
                     </TouchableOpacity>
                   </TouchableOpacity>
                 ))
-              ) : (sampleCourses.map((course) => (
-                  <TouchableOpacity
-                    key={course.id}
-                    style={styles.courseCard}
-                    onPress={() => handleRouteCardPress(course.id)}
-                    activeOpacity={0.7}
-                  >
-                    <View style={styles.imageBox}>
-                      <TouchableOpacity
-                        style={styles.bookmarkIcon}
-                        onPress={(e) => {
-                          e.stopPropagation();
-                          Alert.alert('북마크', '북마크에 추가하기 위해선 로그인이 필요해요.');
-                        }}
-                      >
-                        <Ionicons name="bookmark-outline" size={20} color="#fff" />
-                      </TouchableOpacity>
-                      <View style={styles.priceIndicator}>
-                        <Text style={styles.priceText}>$~~~</Text>
-                      </View>
-                      <Ionicons name="image-outline" size={36} color="#bbb" />
-                    </View>
-                    <Text style={styles.courseTitle} numberOfLines={1}>{course.title}</Text>
-                    <View style={styles.locationContainer}>
-                      <Ionicons name="location-outline" size={14} color={INCHEON_GRAY} />
-                      <Text style={styles.locationText} numberOfLines={1}>인천</Text>
-                    </View>
-                    <TouchableOpacity style={styles.startBtn} disabled>
-                      <Text style={styles.startBtnText}>시작하기</Text>
-                    </TouchableOpacity>
-                  </TouchableOpacity>
-                ))
+              ) : (
+                <View style={styles.loadingContainer}>
+                  <Text style={styles.loadingText}>추천 코스가 없습니다.</Text>
+                </View>
               )}
             </ScrollView>
             {isLoggedIn ? renderLoggedInHeader() : renderLoggedOutHeader()}
@@ -1522,7 +1554,6 @@ export default function HomeScreen({ navigation }: any) {
   );
 }
 
-const CARD_WIDTH = width * 0.7;
 
 const styles = StyleSheet.create({
   safeArea: {
@@ -1560,6 +1591,21 @@ underline: {
   marginBottom: 16,
   borderRadius: 2,
 },
+  loadingContainer: {
+    width: width - 30,
+    height: 200,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
+    paddingHorizontal: 20,
+  },
+  loadingText: {
+    ...FONT_STYLES.pixel,
+    fontSize: 16,
+    marginTop: 16,
+    color: INCHEON_GRAY,
+    textAlign: 'center',
+},
   loginTitle: {
     ...TEXT_STYLES.subtitle,
   },
@@ -1590,7 +1636,7 @@ underline: {
     paddingRight: 16,
   },
   courseCard: {
-    width: CARD_WIDTH,
+    width: width * 0.7,
     backgroundColor: '#fefefe',
     borderRadius: 16,
     borderWidth: 1,
@@ -1612,6 +1658,12 @@ underline: {
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 12,
+    overflow: 'hidden',
+  },
+  imageContainer: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 12,
     overflow: 'hidden',
   },
   courseImage: {
@@ -1808,7 +1860,8 @@ underline: {
     ...TEXT_STYLES.heading,
     textAlign: 'center',
     color: INCHEON_GRAY,
-    marginBottom: 8,
+    marginTop: 0,
+    marginBottom: 15,
   },
   continueCourseBtn: {
     backgroundColor: INCHEON_BLUE,

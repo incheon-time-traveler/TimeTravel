@@ -54,7 +54,7 @@ function MapStack() {
 function MainTabs() {
   return (
     <Tab.Navigator
-      initialRouteName="Trips"
+      initialRouteName="Home"
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarShowLabel: false,

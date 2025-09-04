@@ -61,7 +61,7 @@ export const fetchUserActiveCourse = async (authToken?: string): Promise<RouteDa
     const token = authToken || await getAuthToken();
     
     if (!token) {
-      console.error('[missions] 인증 토큰이 없습니다.');
+      // 로그아웃 상태에서는 에러 메시지 출력하지 않음
       return null;
     }
 
@@ -278,7 +278,7 @@ export const completeMission = async (missionId: number, authToken?: string) => 
     const token = authToken || await getAuthToken();
     
     if (!token) {
-      console.error('[missions] 인증 토큰이 없습니다.');
+      // 로그아웃 상태에서는 에러 메시지 출력하지 않음
       return false;
     }
 
@@ -528,7 +528,7 @@ const getAuthToken = async (): Promise<string | null> => {
     const tokens = await authService.getTokens();
     return tokens?.access || null;
   } catch (error) {
-    console.error('[missions] 토큰 가져오기 실패:', error);
+    // 로그아웃 상태에서는 에러 메시지 출력하지 않음
     return null;
   }
 };
@@ -573,7 +573,7 @@ export const completeSpotVisit = async (userRouteSpotId: number, authToken?: str
     const token = authToken || await getAuthToken();
     
     if (!token) {
-      console.error('[missions] 인증 토큰이 없습니다.');
+      // 로그아웃 상태에서는 에러 메시지 출력하지 않음
       return null;
     }
 
@@ -633,7 +633,7 @@ export const getSpotDetail = async (spotId: number, authToken?: string): Promise
     const token = authToken || await getAuthToken();
     
     if (!token) {
-      console.error('[missions] 인증 토큰이 없습니다.');
+      // 로그아웃 상태에서는 에러 메시지 출력하지 않음
       return null;
     }
 

@@ -3,6 +3,7 @@ import {
   View,
   ScrollView,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   StyleSheet,
   Image,
   Dimensions,
@@ -501,39 +502,41 @@ const TripsScreen: React.FC = () => {
 
         <View style={styles.cardContainer}>
             {selectedSpot && (
-              <Modal
-                visible={!!selectedSpot}
-                transparent={true}
-                animationType="fade"
-                onRequestClose={() => setSelectedSpot(null)}
-              >
-                <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPressOut={() => setSelectedSpot(null)}>
-                  <View style={styles.modalContainer}>
-                    <View style={styles.modalHeader}>
-                      <Text style={styles.modalTitle}>{selectedSpot.title}</Text>
-                      <TouchableOpacity
-                        onPress={() => setSelectedSpot(null)}
-                        style={styles.modalCloseButton}
-                      >
-                        <Text style={styles.modalCloseButtonText}>✕</Text>
-                      </TouchableOpacity>
-                    </View>
-                    <View style={styles.modalTextContainer}>
-                        {selectedSpot?.first_image && (
-                          <Image
-                            source={{ uri: selectedSpot.first_image.replace("http://", "https://") }}
-                            style={styles.modalImage}
-                            resizeMode="cover"
-                          />
-                        )}
 
-                      <Text style={styles.modalText}>
-                        {spotDescription ?? "로딩 중..."}
-                      </Text>
-                    </View>
-                  </View>
-                </TouchableOpacity>
-              </Modal>
+	          <Modal
+	            visible={!!selectedSpot}
+	            transparent={true}
+	            animationType="fade"
+	            onRequestClose={() => setSelectedSpot(null)}
+	          >
+	            <View style={styles.modalOverlay}>
+	              <View style={styles.modalContainer}>
+	                <View style={styles.modalHeader}>
+	                  <Text style={styles.modalTitle}>{selectedSpot.title}</Text>
+	                  <TouchableOpacity
+	                    onPress={() => setSelectedSpot(null)}
+	                    style={styles.modalCloseButton}
+	                  >
+	                    <Text style={styles.modalCloseButtonText}>✕</Text>
+	                  </TouchableOpacity>
+	                </View>
+
+	                <ScrollView style={styles.modalTextContainer}>
+					          {selectedSpot?.first_image && (
+					            <Image
+					              source={{ uri: selectedSpot.first_image.replace("http://", "https://") }}
+					              style={styles.modalImage}
+					              resizeMode="cover"
+					            />
+					          )}
+					          <Text style={styles.modalText}>
+					            {spotDescription ?? "로딩 중..."}
+					          </Text>
+	                </ScrollView>
+	              </View>
+	            </View>
+	          </Modal>
+
             )}
           {/* 실제 코스 스팟들 렌더링 */}
           {currentCourse.spots.map((spot: any, index: number) => (
@@ -1039,39 +1042,6 @@ const styles = StyleSheet.create({
     color: INCHEON_BLUE,
   },
   // 모달 스타일
-  modalContainer: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingLeft: 20,
-    paddingRight: 10,
-    paddingTop: 32,
-    paddingBottom: 16,
-    backgroundColor: INCHEON_BLUE_LIGHT,
-  },
-  modalTitle: {
-    ...TEXT_STYLES.subtitle,
-    color: INCHEON_BLUE
-  },
-  modalCloseButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  modalCloseButtonText: {
-    ...TEXT_STYLES.body,
-  },
-  modalContainer: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    maxHeight: '80%',
-  },
 
   modalImage: {
     width: '100%',
@@ -1080,15 +1050,6 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
 
-  modalContent: {
-    flex: 1,
-    padding: 20,
-  },
-  modalDescription: {
-    ...TEXT_STYLES.body,
-    lineHeight: 24,
-    marginBottom: 20,
-  },
   modalSectionTitle: {
     ...TEXT_STYLES.heading,
     color: INCHEON_BLUE,
@@ -1247,12 +1208,13 @@ const styles = StyleSheet.create({
   },
   modalContainer: {
     width: width - 20,
-    height: height - 100,
+    height: height * 0.9,
     backgroundColor: '#fff',
     borderRadius: 20,
     borderWidth: 2,
     borderColor: '#e0e0e0',
     marginVertical: 30,
+    overflow: 'hidden',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -1278,13 +1240,13 @@ const styles = StyleSheet.create({
     padding: 16,
     flex: 1,
     gap: 8,
-
   },
   modalSubTitle: {
     ...TEXT_STYLES.heading,
    },
   modalText: {
-    ...TEXT_STYLES.body
+    ...TEXT_STYLES.body,
+    marginBottom: 50,
   },
   modalDescription: {
     ...TEXT_STYLES.small,

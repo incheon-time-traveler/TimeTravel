@@ -1676,7 +1676,7 @@ underline: {
   ongoingCardScroll: {
 		flex: 1,
     marginTop: 8,
-    paddingLeft: 16,
+    paddingLeft: 10,
     paddingRight: 16,
   },
   ongoingCourseCard: {

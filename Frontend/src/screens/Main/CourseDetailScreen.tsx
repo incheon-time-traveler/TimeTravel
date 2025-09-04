@@ -150,7 +150,7 @@ export default function CourseDetailScreen({ navigation, route }: CourseDetailSc
         <View style={styles.summarySection}>
           <Text style={styles.summaryTitle}>🎯 코스 요약</Text>
           <View style={styles.summaryInfo}>
-            <Text style={styles.summaryText}>• 총 {courseData.total_spots}개 장소 {courseData.mode}</Text>
+            <Text style={styles.summaryText}>• 총 {courseData.total_spots}개 장소</Text>
             <Text style={styles.summaryText}>
               • {courseData.mode === '엄격 모드'
                   ? '모든 조건을 만족 하는 장소로 코스를 구성했습니다.'
@@ -172,9 +172,6 @@ export default function CourseDetailScreen({ navigation, route }: CourseDetailSc
                 <View style={styles.spotInfo}>
                   <Text style={styles.spotTitle}>{spot.title}</Text>
                   <View style={styles.spotDetails}>
-                    <Text style={styles.spotDetailText}>
-                      📍 {spot.lat.toFixed(6)}, {spot.lng.toFixed(6)}
-                    </Text>
                     {spot.distance_from_previous > 0 && (
                       <Text style={styles.spotDetailText}>
                         🚶‍♂️ 이전 장소로부터 {spot.distance_from_previous}km

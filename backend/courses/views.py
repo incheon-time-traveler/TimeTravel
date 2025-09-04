@@ -319,8 +319,13 @@ def unlock_spots(request):
     if request.method == "GET":
         user = request.user
         user_route_spots = UserRouteSpot.objects.filter(user_id=user.id, unlock_at__isnull=False)
-        serializer = UserRouteSpotSerializer(user_route_spots, many=True)
         data = []
+        if not user_route_spots.exists():
+            return Response({
+                'message': '해당 사용자의 루트 스팟이 없습니다.',
+                'data': data
+            }, status=status.HTTP_200_OK)
+        serializer = UserRouteSpotSerializer(user_route_spots, many=True)
         for spot in serializer.data:
             spot_id = RouteSpot.objects.get(id=spot['route_spot_id'])
             if spot_id.spot_id.past_image_url:

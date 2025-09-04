@@ -149,13 +149,13 @@ export default function GalleryScreen({ navigation }: any) {
       setIsLoading(true);
       const tokens = await authService.getTokens();
       let response;
-      if (!tokens?.access) {
+      if (tokens?.access) {
           // 1. 백엔드에서 unlock_spots 데이터 가져오기
           response = await fetch(`${BACKEND_API.BASE_URL}/v1/courses/unlock_spots/`, {
             method: 'GET',
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${tokens?.access}`,
+              'Authorization': `Bearer ${tokens.access}`,
           },
         });
       }
@@ -257,14 +257,8 @@ export default function GalleryScreen({ navigation }: any) {
               });
 
               if (response.ok) {
-                // 로컬 상태 업데이트
-                setGalleryData(prev => 
-                  prev.map(item => 
-                    item.id === selectedImage.id 
-                      ? { ...item, stampUsed: true }
-                      : item
-                  )
-                );
+                // 갤러리 데이터 새로고침
+                await fetchGalleryData();
                 setImageModalVisible(false);
                 Alert.alert('스탬프 사용 완료!', '스탬프가 사용되었습니다.');
               } else {

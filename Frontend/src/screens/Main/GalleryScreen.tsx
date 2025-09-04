@@ -149,7 +149,7 @@ export default function GalleryScreen({ navigation }: any) {
       setIsLoading(true);
       const tokens = await authService.getTokens();
       let response;
-      if (!tokens?.access) {
+      if (tokens?.access) {
           // 1. 백엔드에서 unlock_spots 데이터 가져오기
           response = await fetch(`${BACKEND_API.BASE_URL}/v1/courses/unlock_spots/`, {
             method: 'GET',

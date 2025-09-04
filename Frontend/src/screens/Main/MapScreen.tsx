@@ -7,6 +7,7 @@ import {
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { useRoute } from '@react-navigation/native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const { width, height } = Dimensions.get('window');
 
@@ -62,50 +63,56 @@ const MapScreen: React.FC = () => {
 
 
   return (
-    <View style={styles.container}>
-      {/* 카카오맵 WebView */}
-      {mapUrl && (
-        <WebView
-          source={{ uri: mapUrl }}
-          style={styles.map}
-          javaScriptEnabled={true}
-          domStorageEnabled={true}
-          startInLoadingState={true}
-          scalesPageToFit={false}
-          allowsInlineMediaPlayback={true}
-          mediaPlaybackRequiresUserAction={false}
-          mixedContentMode="always"
-          allowsBackForwardNavigationGestures={false}
-          cacheEnabled={false}
-          incognito={false}
-          androidLayerType="hardware"
-          onLoadStart={() => {
-            console.log('[MapScreen] 지도 로딩 시작');
-            setIsLoading(true);
-          }}
-          onLoadEnd={() => {
-            console.log('[MapScreen] 지도 로딩 완료');
-            setIsLoading(false);
-          }}
-          onError={(syntheticEvent) => {
-            const { nativeEvent } = syntheticEvent;
-            console.error('[MapScreen] WebView 에러:', nativeEvent);
-            setIsLoading(false);
-          }}
-        />
-      )}
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+      <View style={styles.container}>
+        {/* 카카오맵 WebView */}
+        {mapUrl && (
+          <WebView
+            source={{ uri: mapUrl }}
+            style={styles.map}
+            javaScriptEnabled={true}
+            domStorageEnabled={true}
+            startInLoadingState={true}
+            scalesPageToFit={false}
+            allowsInlineMediaPlayback={true}
+            mediaPlaybackRequiresUserAction={false}
+            mixedContentMode="always"
+            allowsBackForwardNavigationGestures={false}
+            cacheEnabled={false}
+            incognito={false}
+            androidLayerType="hardware"
+            onLoadStart={() => {
+              console.log('[MapScreen] 지도 로딩 시작');
+              setIsLoading(true);
+            }}
+            onLoadEnd={() => {
+              console.log('[MapScreen] 지도 로딩 완료');
+              setIsLoading(false);
+            }}
+            onError={(syntheticEvent) => {
+              const { nativeEvent } = syntheticEvent;
+              console.error('[MapScreen] WebView 에러:', nativeEvent);
+              setIsLoading(false);
+            }}
+          />
+        )}
 
-      {/* 로딩 인디케이터 */}
-      {isLoading && (
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>지도를 불러오는 중...</Text>
-        </View>
-      )}
-    </View>
+        {/* 로딩 인디케이터 */}
+        {isLoading && (
+          <View style={styles.loadingContainer}>
+            <Text style={styles.loadingText}>지도를 불러오는 중...</Text>
+          </View>
+        )}
+      </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1, // SafeAreaView가 화면 전체를 차지하도록 설정
+    backgroundColor: '#f0f0f0', // SafeAreaView 자체의 배경색 (선택 사항)
+  },
   container: {
     flex: 1,
     backgroundColor: '#fff',

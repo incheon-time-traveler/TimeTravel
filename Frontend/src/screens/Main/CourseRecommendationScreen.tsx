@@ -15,6 +15,7 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import { INCHEON_BLUE, INCHEON_BLUE_LIGHT, INCHEON_GRAY, TEXT_STYLES } from '../../styles/fonts';
 import { BACKEND_API } from '../../config/apiKeys';
 import authService from '../../services/authService';
+import { KAKAO_REST_API_KEY } from '@env';
 
 const { width } = Dimensions.get('window');
 
@@ -55,7 +56,7 @@ export default function CourseRecommendationScreen({ navigation }: any) {
   const [moveToOtherRegion, setMoveToOtherRegion] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [missionProposal, setMissionProposal] = useState<string>('');
-
+	const [currentAddress, setCurrentAddress] = useState<string>('');
   useEffect(() => {
     // 임시로 서울 인천 지역 좌표 설정 (실제로는 GPS로 가져와야 함)
     setUserLocation({ lat: 37.4562557, lng: 126.7052062 });
@@ -211,15 +212,13 @@ export default function CourseRecommendationScreen({ navigation }: any) {
             // 성공적인 코스 생성
             if (data.success && data.course_spots) {
               const totalSpots = data.total_spots || data.course_spots.length;
-              // 엄격모드와 같은 용어 안쓰기 위해 나눈 건데 제대로 적용 안되는 거 같음
-              const mode = '모든 조건을 반영해' || '모든 조건을 만족하는 경우가 없어 일부를 제외했습니다.';
               
               Alert.alert(
                 '코스 생성 완료! 🎉',
-                `${mode} ${totalSpots}개의 장소로 구성된 코스가 생성되었습니다!`,
+                `${totalSpots}개의 장소로 구성된 코스가 생성되었습니다!`,
                 [
                   {
-                    text: '다시 만들기',
+                    text: '조건 바꾸기',
                     style: 'cancel'
                   },
                   {
@@ -270,6 +269,22 @@ export default function CourseRecommendationScreen({ navigation }: any) {
       Alert.alert('네트워크 오류', '서버와의 연결을 확인해주세요.');
     } finally {
       setIsLoading(false);
+    }
+  };
+	// 현재 위치 간단한 주소 요청
+  const getAddressFromCoords = async (lat: number, lng: number): Promise<string | null> => {
+    try {
+			console.log(KAKAO_REST_API_KEY);
+      const response = await fetch(
+        `https://dapi.kakao.com/v2/local/geo/coord2regioncode.json?x=${lng}&y=${lat}`,
+        { headers: { Authorization: `KakaoAK ${KAKAO_REST_API_KEY}` } }
+      );
+      if (!response.ok) throw new Error('API 요청 실패');
+      const result = await response.json();
+      return result.documents?.[0]?.address_name || '주소 정보를 찾을 수 없습니다.';
+    } catch (error) {
+      console.error('주소 가져오기 오류:', error);
+      return '주소를 가져오는 중 오류가 발생했습니다.';
     }
   };
 
@@ -350,7 +365,22 @@ export default function CourseRecommendationScreen({ navigation }: any) {
       getMissionProposal();
     }
   }, [userLocation, moveToOtherRegion]);
-
+  useEffect(() => {
+    const fetchAndSetAddress = async () => {
+      if (userLocation) {
+        const tokens = await authService.getTokens();
+        if (!tokens?.access) {
+          setCurrentAddress('로그인이 필요합니다.');
+          return;
+        }
+        const fetchedAddress = await getAddressFromCoords(userLocation.lat, userLocation.lng);
+        if (fetchedAddress) {
+          setCurrentAddress(fetchedAddress);
+        }
+      }
+    };
+    fetchAndSetAddress();
+  }, [userLocation]);
   return (
     <View style={styles.container}>
       {/* 헤더 */}
@@ -365,9 +395,9 @@ export default function CourseRecommendationScreen({ navigation }: any) {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* 안내 메시지 */}
         <View style={styles.infoSection}>
-          <Text style={styles.infoTitle}>나만의 여행 코스를 만들어보세요! 🗺️</Text>
+          <Text style={styles.infoTitle}>나만의 여행 코스를 만들어요! 🗺️</Text>
           <Text style={styles.infoSubtitle}>
-            최소 한 개 이상의 질문에 답변하면 최적의 여행 코스를 추천해드려요
+            최소 한 개 이상의 질문에 답변하면 {'\n'}최적의 여행 코스를 추천해드려요
           </Text>
         </View>
 
@@ -378,7 +408,9 @@ export default function CourseRecommendationScreen({ navigation }: any) {
             <View style={styles.locationInfo}>
               <Ionicons name="location" size={20} color={INCHEON_BLUE} />
               <Text style={styles.locationText}>
-                위도: {userLocation.lat.toFixed(6)}, 경도: {userLocation.lng.toFixed(6)}
+                {currentAddress
+                  ? currentAddress // 🆕 주소가 있으면 주소 출력
+                  : `위도: ${userLocation.lat.toFixed(6)}, 경도: ${userLocation.lng.toFixed(6)}`}
               </Text>
             </View>
           ) : (
@@ -527,7 +559,7 @@ export default function CourseRecommendationScreen({ navigation }: any) {
                     </View>
                   ))
                 // missionAccepted가 false일 때
-                : '과거를 숨기고 있는 장소들을 제외하고 코스를 구성해요'
+                : '현재와 과거를 동시에 볼 수 있는 장소를 제외하고 코스를 구성해요'
               }
             </Text>
           <View style={styles.missionContainer}>
@@ -580,7 +612,6 @@ export default function CourseRecommendationScreen({ navigation }: any) {
               <ActivityIndicator color="#fff" size="small" />
             ) : (
               <>
-                <Ionicons name="wand" size={24} color="#fff" />
                 <Text style={styles.generateButtonText}>맞춤형 코스 생성하기</Text>
               </>
             )}
@@ -630,6 +661,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   infoSection: {
+		borderRadius: 16,
     padding: 20,
     alignItems: 'center',
     backgroundColor: INCHEON_BLUE_LIGHT,
@@ -647,7 +679,7 @@ const styles = StyleSheet.create({
   },
   section: {
     backgroundColor: '#fff',
-    padding: 16,
+    paddingTop: 16,
     marginBottom: 16,
   },
   sectionTitle: {
@@ -732,13 +764,13 @@ const styles = StyleSheet.create({
   missionProposal: {
     backgroundColor: INCHEON_BLUE_LIGHT,
     borderRadius: 12,
-    padding: 12,
+    height: 70,
+    padding: 16,
     marginTop: 10,
   },
   missionProposalText: {
     ...TEXT_STYLES.small,
     color: INCHEON_BLUE,
-    padding: 8,
     textAlign: 'center',
   },
   regionToggle: {

@@ -1,15 +1,19 @@
 import React, { useEffect, useState } from 'react';
-import { Text, Image, View, Alert, StyleSheet, TouchableOpacity, Modal, Linking, ScrollView, RefreshControl } from 'react-native';
+import { Text, Image, View, Dimensions, Alert, StyleSheet, TouchableOpacity, Modal, Linking, ScrollView, RefreshControl } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { OAUTH_URLS } from '../../config/apiKeys';
 import authService from '../../services/authService';
 import SocialLoginWebView from './SocialLoginWebView';
-import { INCHEON_BLUE, INCHEON_BLUE_LIGHT, INCHEON_GRAY, TEXT_STYLES } from '../../styles/fonts';
+import { INCHEON_BLUE, INCHEON_BLUE_LIGHT, INCHEON_GRAY, WARNING, TEXT_STYLES } from '../../styles/fonts';
 import { BACKEND_API } from '../../config/apiKeys';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+const { width, height } = Dimensions.get('window');
 
 const LoginScreen = ({ navigation, route }: any) => {
-  const [showWebView, setShowWebView] = useState(false);
+  const [showWebView, setShowWebView] = useState<boolean>(false);
+  const [licenseModalVisible, setLicenseModalVisible] = useState<boolean>(false);
   const [loginProvider, setLoginProvider] = useState<'google' | 'kakao'>('google');
   const [loginUrl, setLoginUrl] = useState('');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -406,84 +410,252 @@ const LoginScreen = ({ navigation, route }: any) => {
 
   if (isLoggedIn && userProfile) {
     return (
-			<View style={styles.container}>
-        <View style={styles.profileContainer}>
+	  <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+		  <ScrollView contentContainerStyle={styles.scrollContainer}>
+				<View style={styles.container}>
+	        <View style={styles.profileContainer}>
+	          <View style={styles.profileHeader}>
+	            <View style={styles.profileAvatar}>
+	              <Text style={styles.profileAvatarText}>
+	                {userProfile.nickname?.charAt(0) || userProfile.username?.charAt(0) || 'U'}
+	              </Text>
+	            </View>
+	            <Text style={styles.profileTitle}>
+	              {userProfile.nickname || userProfile.username || '사용자'}
+	            </Text>
+	            <Text style={styles.profileSubtitle}>
+	              {userProfile.useremail || '이메일 미설정'}
+	            </Text>
+	          </View>
 
-          <View style={styles.profileHeader}>
-            <View style={styles.profileAvatar}>
-              <Text style={styles.profileAvatarText}>
-                {userProfile.nickname?.charAt(0) || userProfile.username?.charAt(0) || 'U'}
-              </Text>
-            </View>
-            <Text style={styles.profileTitle}>
-              {userProfile.nickname || userProfile.username || '사용자'}
-            </Text>
-            <Text style={styles.profileSubtitle}>
-              {userProfile.useremail || '이메일 미설정'}
-            </Text>
-          </View>
+	          <View style={styles.profileInfo}>
+	            <View style={styles.profileRow}>
+	              <View style={styles.profileLabelContainer}>
+	                <Text style={styles.profileLabel}>이름</Text>
+	              </View>
+	              <Text style={styles.profileValue}>{userProfile.username || '미설정'}</Text>
+	            </View>
 
-          <View style={styles.profileInfo}>
-            <View style={styles.profileRow}>
-              <View style={styles.profileLabelContainer}>
-                <Text style={styles.profileLabel}>이름</Text>
-              </View>
-              <Text style={styles.profileValue}>{userProfile.username || '미설정'}</Text>
-            </View>
+	            <View style={styles.profileRow}>
+	              <View style={styles.profileLabelContainer}>
+	                <Text style={styles.profileLabel}>닉네임</Text>
+	              </View>
+	              <Text style={styles.profileValue}>{userProfile.nickname || '미설정'}</Text>
+	            </View>
 
-            <View style={styles.profileRow}>
-              <View style={styles.profileLabelContainer}>
-                <Text style={styles.profileLabel}>닉네임</Text>
-              </View>
-              <Text style={styles.profileValue}>{userProfile.nickname || '미설정'}</Text>
-            </View>
+	            <View style={styles.profileRow}>
+	              <View style={styles.profileLabelContainer}>
+	                <Text style={styles.profileLabel}>나이</Text>
+	              </View>
+	              <Text style={styles.profileValue}>{userProfile.age || '미설정'}</Text>
+	            </View>
 
-            <View style={styles.profileRow}>
-              <View style={styles.profileLabelContainer}>
-                <Text style={styles.profileLabel}>나이</Text>
-              </View>
-              <Text style={styles.profileValue}>{userProfile.age || '미설정'}</Text>
-            </View>
+	            <View style={styles.profileRow}>
+	              <View style={styles.profileLabelContainer}>
+	                <Text style={styles.profileLabel}>성별</Text>
+	              </View>
+	              <Text style={styles.profileValue}>{userProfile.gender || '미설정'}</Text>
+	            </View>
+	          </View>
 
-            <View style={styles.profileRow}>
-              <View style={styles.profileLabelContainer}>
-                <Text style={styles.profileLabel}>성별</Text>
-              </View>
-              <Text style={styles.profileValue}>{userProfile.gender || '미설정'}</Text>
-            </View>
-          </View>
+	          <View style={styles.profileActions}>
+	            <TouchableOpacity
+	              style={[styles.profileButton, styles.editButton]}
+	              onPress={() => navigation.navigate('ProfileSetup')}
+	            >
+	              <View style={styles.buttonContent}>
+	                <Text style={[styles.profileButtonText, styles.editButtonText]}>프로필 수정</Text>
+	              </View>
+	            </TouchableOpacity>
+	            <TouchableOpacity
+	              style={[styles.profileButton, styles.licenseButton]}
+	              onPress={() => setLicenseModalVisible(true)}
+	            >
+	              <View style={styles.buttonContent}>
+	                <Text style={[styles.profileButtonText, styles.editButtonText]}>라이센스 확인</Text>
+	              </View>
+	            </TouchableOpacity>
 
-          <View style={styles.profileActions}>
-            <TouchableOpacity
-              style={[styles.profileButton, styles.editButton]}
-              onPress={() => navigation.navigate('ProfileSetup')}
-            >
-              <View style={styles.buttonContent}>
-                <Text style={[styles.profileButtonText, styles.editButtonText]}>프로필 수정</Text>
-              </View>
-            </TouchableOpacity>
+	            <TouchableOpacity
+	              style={[styles.profileButton, styles.logoutButton]}
+	              onPress={ () => {
+	                  Alert.alert(
+	                    "알림",
+	                    "로그아웃 하시겠습니까?",
+	                    [
+	                      {
+	                        text: "돌아가기", // 취소 버튼
+	                        style: "cancel",
+	                      },
+	                      {
+	                        text: "로그아웃", // 실행 버튼
+	                        style: "destructive", // iOS에서 빨간색 표시
+	                        onPress: () => handleLogout(),
+	                      },
+	                    ]
+	                  )
+	                }
+	              }
+	            >
+	              <View style={styles.buttonContent}>
+	                <Text style={[styles.profileButtonText, styles.logoutButtonText]}>로그아웃</Text>
+	              </View>
+	            </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[styles.profileButton, styles.logoutButton]}
-              onPress={handleLogout}
-            >
-              <View style={styles.buttonContent}>
-                <Text style={[styles.profileButtonText, styles.logoutButtonText]}>로그아웃</Text>
-              </View>
-            </TouchableOpacity>
+	            <TouchableOpacity
+	              style={[styles.profileButton, styles.signOutButton]}
+	              onPress={handleDeleteAccount}
+	            >
+	              <View style={styles.buttonContent}>
+	                <Text style={[styles.profileButtonText, styles.signOutButtonText]}>회원 탈퇴</Text>
+	              </View>
+	            </TouchableOpacity>
+	          </View>
+	          <Modal
+	            visible={licenseModalVisible}
+	            transparent={true}
+	            animationType="fade"
+	            onRequestClose={() => setLicenseModalVisible(false)}
+	          >
+	            <View style={styles.modalOverlay}>
+	              <View style={styles.modalContainer}>
+	                <View style={styles.modalHeader}>
+	                  <Text style={styles.modalTitle}>라이센스</Text>
+	                  <TouchableOpacity
+	                    onPress={() => setLicenseModalVisible(false)}
+	                    style={styles.modalCloseButton}
+	                  >
+	                    <Text style={styles.modalCloseButtonText}>✕</Text>
+	                  </TouchableOpacity>
+	                </View>
 
-            <TouchableOpacity
-              style={[styles.profileButton, styles.signOutButton]}
-              onPress={handleDeleteAccount}
-            >
-              <View style={styles.buttonContent}>
-                <Text style={[styles.profileButtonText, styles.signOutButtonText]}>회원 탈퇴</Text>
-              </View>
-            </TouchableOpacity>
-          </View>
+	                <ScrollView style={styles.modalTextContainer}>
+	                  <Text style={styles.modalSubTitle}>자료 출처</Text>
+	                  <Text style={styles.modalText}>
+	                    • 한국관광공사 TourAPI 국문 관광 정보 서비스
+	                  </Text>
+	                  <Text style={styles.modalText}>
+	                    • 인천문화유산 디지털아카이브
+	                  </Text>
+	                  <Text style={styles.modalText}>
+	                    • 카카오맵 API
+	                  </Text>
+	                  <Text style={styles.modalSubTitle}> </Text>
+	                  <Text style={styles.modalSubTitle}>글꼴 라이센스</Text>
 
-        </View>
-      </View>
+	                  <Text style={styles.modalText}>
+	                    Copyright © 2017-2024, Eunbin Jeong (Dalgona.) (project-neodgm@dalgona.dev)
+	                    with reserved font name "Neo둥근모 Pro" and "NeoDunggeunmo Pro".
+	                  </Text>
+	                  <Text style={styles.modalDescription}>
+	                  Copyright (c) 2022, Eunbin Jeong (Dalgona.) (project-neodgm@dalgona.dev),
+	                  with Reserved Font Name NeoDunggeunmo Pro.
+
+	                  This Font Software is licensed under the SIL Open Font License, Version 1.1.
+	                  This license is copied below, and is also available with a FAQ at:
+	                  http://scripts.sil.org/OFL
+
+
+	                  -----------------------------------------------------------
+	                  SIL OPEN FONT LICENSE Version 1.1 - 26 February 2007
+	                  -----------------------------------------------------------
+
+	                  PREAMBLE
+	                  The goals of the Open Font License (OFL) are to stimulate worldwide
+	                  development of collaborative font projects, to support the font creation
+	                  efforts of academic and linguistic communities, and to provide a free and
+	                  open framework in which fonts may be shared and improved in partnership
+	                  with others.
+
+	                  The OFL allows the licensed fonts to be used, studied, modified and
+	                  redistributed freely as long as they are not sold by themselves. The
+	                  fonts, including any derivative works, can be bundled, embedded,
+	                  redistributed and/or sold with any software provided that any reserved
+	                  names are not used by derivative works. The fonts and derivatives,
+	                  however, cannot be released under any other type of license. The
+	                  requirement for fonts to remain under this license does not apply
+	                  to any document created using the fonts or their derivatives.
+
+	                  DEFINITIONS
+	                  "Font Software" refers to the set of files released by the Copyright
+	                  Holder(s) under this license and clearly marked as such. This may
+	                  include source files, build scripts and documentation.
+
+	                  "Reserved Font Name" refers to any names specified as such after the
+	                  copyright statement(s).
+
+	                  "Original Version" refers to the collection of Font Software components as
+	                  distributed by the Copyright Holder(s).
+
+	                  "Modified Version" refers to any derivative made by adding to, deleting,
+	                  or substituting -- in part or in whole -- any of the components of the
+	                  Original Version, by changing formats or by porting the Font Software to a
+	                  new environment.
+
+	                  "Author" refers to any designer, engineer, programmer, technical
+	                  writer or other person who contributed to the Font Software.
+
+	                  PERMISSION & CONDITIONS
+	                  Permission is hereby granted, free of charge, to any person obtaining
+	                  a copy of the Font Software, to use, study, copy, merge, embed, modify,
+	                  redistribute, and sell modified and unmodified copies of the Font
+	                  Software, subject to the following conditions:
+
+	                  1) Neither the Font Software nor any of its individual components,
+	                  in Original or Modified Versions, may be sold by itself.
+
+	                  2) Original or Modified Versions of the Font Software may be bundled,
+	                  redistributed and/or sold with any software, provided that each copy
+	                  contains the above copyright notice and this license. These can be
+	                  included either as stand-alone text files, human-readable headers or
+	                  in the appropriate machine-readable metadata fields within text or
+	                  binary files as long as those fields can be easily viewed by the user.
+
+	                  3) No Modified Version of the Font Software may use the Reserved Font
+	                  Name(s) unless explicit written permission is granted by the corresponding
+	                  Copyright Holder. This restriction only applies to the primary font name as
+	                  presented to the users.
+
+	                  4) The name(s) of the Copyright Holder(s) or the Author(s) of the Font
+	                  Software shall not be used to promote, endorse or advertise any
+	                  Modified Version, except to acknowledge the contribution(s) of the
+	                  Copyright Holder(s) and the Author(s) or with their explicit written
+	                  permission.
+
+	                  5) The Font Software, modified or unmodified, in part or in whole,
+	                  must be distributed entirely under this license, and must not be
+	                  distributed under any other license. The requirement for fonts to
+	                  remain under this license does not apply to any document created
+	                  using the Font Software.
+
+	                  TERMINATION
+	                  This license becomes null and void if any of the above conditions are
+	                  not met.
+
+	                  DISCLAIMER
+	                  THE FONT SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+	                  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO ANY WARRANTIES OF
+	                  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT
+	                  OF COPYRIGHT, PATENT, TRADEMARK, OR OTHER RIGHT. IN NO EVENT SHALL THE
+	                  COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+	                  INCLUDING ANY GENERAL, SPECIAL, INDIRECT, INCIDENTAL, OR CONSEQUENTIAL
+	                  DAMAGES, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+	                  FROM, OUT OF THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM
+	                  OTHER DEALINGS IN THE FONT SOFTWARE.
+	                  {'\n'}
+	                  {'\n'}
+	                  {'\n'}
+	                  {'\n'}
+
+	                  </Text>
+	                </ScrollView>
+	              </View>
+	            </View>
+	          </Modal>
+	        </View>
+	      </View>
+      </ScrollView>
+    </SafeAreaView>
     );
   }
 
@@ -517,12 +689,17 @@ const LoginScreen = ({ navigation, route }: any) => {
 };
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1, // SafeAreaView가 화면 전체를 차지하도록 설정
+    backgroundColor: '#f0f0f0', // SafeAreaView 자체의 배경색 (선택 사항)
+  },
   container: {
 		flex: 1,
 		justifyContent: 'center',
 		alignItems: 'center',
 		padding: 20,
-		backgroundColor: '#fff'
+		backgroundColor: '#fff',
+		overflow: 'scroll'
 	},
   headerContainer: {
 		alignItems: 'center',
@@ -550,13 +727,13 @@ const styles = StyleSheet.create({
   },
   googleButton: {
 		width: 300,
-		height: 50,
+		height: 55,
 		resizeMode: 'stretch'
 	},
   kakaoButton: {
 		width: 300,
-		height: 50,
-		resizeMode: 'contain'
+		height: 55,
+		resizeMode: 'stretch'
 	},
   // 프로필 관련 스타일
   profileContainer: {
@@ -633,10 +810,10 @@ const styles = StyleSheet.create({
   profileActions: {
     gap: 15,
   },
-     profileButton: {
-     paddingVertical: 16,
-     borderRadius: 12,
-     alignItems: 'center',
+   profileButton: {
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
 		borderWidth: 1,
 		borderColor: '#e0e0e0',
    },
@@ -644,29 +821,81 @@ const styles = StyleSheet.create({
      alignItems: 'center',
    },
    editButton: {
-		borderWidth: 2,
-     borderColor: '#007AFF',
+    backgroundColor: INCHEON_BLUE_LIGHT,
+   },
+  licenseButton: {
+    backgroundColor: INCHEON_BLUE_LIGHT,
    },
    logoutButton: {
-		borderWidth: 2,
-     borderColor: '#34C759',
+     backgroundColor: '#FFE3E3',
    },
    signOutButton: {
-		borderWidth: 2,
-     borderColor: '#FF3B30',
+     backgroundColor: '#FFE3E3',
    },
    profileButtonText: {
 		...TEXT_STYLES.button,
    },
    editButtonText: {
-     color: '#007AFF',
+     color: INCHEON_BLUE,
    },
    logoutButtonText: {
-     color: '#34C759',
+     color: WARNING,
    },
 	signOutButtonText: {
-     color: '#FF3B30',
-	}
+     color: WARNING,
+	},
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContainer: {
+    width: width - 20,
+    height: height - 100,
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: '#e0e0e0',
+    marginVertical: 30,
+    overflow: 'hidden',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    backgroundColor: INCHEON_BLUE_LIGHT,
+  },
+  modalTitle: {
+    ...TEXT_STYLES.subtitle,
+    color: INCHEON_BLUE
+  },
+  modalCloseButton: {
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalCloseButtonText: {
+    ...TEXT_STYLES.body,
+  },
+  modalTextContainer: {
+    padding: 16,
+    flex: 1,
+    gap: 8,
+
+  },
+  modalSubTitle: {
+    ...TEXT_STYLES.heading,
+   },
+  modalText: {
+    ...TEXT_STYLES.body
+  },
+  modalDescription: {
+    ...TEXT_STYLES.small,
+  }
+
 });
 
 export default LoginScreen;

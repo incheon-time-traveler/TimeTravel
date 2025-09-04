@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { INCHEON_BLUE, INCHEON_BLUE_LIGHT, INCHEON_GRAY, TEXT_STYLES } from '../../styles/fonts';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { BACKEND_API } from '../../config/apiKeys';
 import { completeMission } from '../../data/missions';
 import authService from '../../services/authService';
@@ -202,105 +203,114 @@ export default function MissionScreen({ route, navigation }: MissionScreenProps)
 
   if (isLoading) {
     return (
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={INCHEON_BLUE} />
         <Text style={styles.loadingText}>과거사진을 가져오는 중...</Text>
       </View>
+    </SafeAreaView>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* 헤더 */}
-        <View style={styles.header}>
-          <Text style={styles.title}>🎯 {mission.location.name} 미션</Text>
-          <Text style={styles.subtitle}>과거사진 4개 중 정답을 찾아보세요!</Text>
-        </View>
-
-        {!gameStarted ? (
-          /* 미션 시작 화면 */
-          <View style={styles.startSection}>
-            <View style={styles.missionInfo}>
-              <Text style={styles.missionInfoTitle}>📍 미션 장소</Text>
-              <Text style={styles.missionInfoText}>{mission.location.name}</Text>
-              
-              <Text style={styles.missionInfoTitle}>🎯 미션 목표</Text>
-              <Text style={styles.missionInfoText}>
-                이곳의 과거 모습을 확인하고 역사를 탐험해보세요!
-              </Text>
-              
-              <Text style={styles.missionInfoTitle}>📸 게임 방법</Text>
-              <Text style={styles.missionInfoText}>
-                4개의 과거사진 중에서 {mission.location.name}의 과거 모습을 찾으세요.
-              </Text>
-            </View>
-
-            <TouchableOpacity style={styles.startButton} onPress={startMission}>
-              <Text style={styles.startButtonText}>미션 시작하기</Text>
-            </TouchableOpacity>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+      <View style={styles.container}>
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          {/* 헤더 */}
+          <View style={styles.header}>
+            <Text style={styles.title}>🎯 {mission.location.name} 미션</Text>
+            <Text style={styles.subtitle}>과거 사진 4개 중 정답을 찾아보세요!</Text>
           </View>
-        ) : (
-          /* 게임 화면 */
-          <View style={styles.gameSection}>
-            <Text style={styles.gameTitle}>4개 중 정답을 선택하세요!</Text>
-            
-            <View style={styles.imagesGrid}>
-              {selectedImages.map((image, index) => (
-                <TouchableOpacity
-                  key={image.id}
-                  style={[
-                    styles.imageContainer,
-                    selectedAnswer === image.id && styles.selectedImage,
-                    gameCompleted && image.id === correctAnswer?.id && styles.correctImage
-                  ]}
-                  onPress={() => selectAnswer(image.id)}
-                  disabled={gameCompleted}
-                >
-                  <Image
-                    source={{ uri: image.past_image_url }}
-                    style={styles.image}
-                    resizeMode="cover"
-                  />
-                  <View style={styles.imageOverlay}>
-                    <Text style={styles.imageName} numberOfLines={2}>
-                      {image.name}
-                    </Text>
-                  </View>
-                  
-                  {/* 선택 표시 */}
-                  {selectedAnswer === image.id && (
-                    <View style={styles.selectionIndicator}>
-                      <Text style={styles.selectionText}>
-                        {image.id === correctAnswer?.id ? '✅' : '❌'}
+
+          {!gameStarted ? (
+            /* 미션 시작 화면 */
+            <View style={styles.startSection}>
+              <View style={styles.missionInfo}>
+                <Text style={styles.missionInfoTitle}>📍 미션 장소</Text>
+                <Text style={styles.missionInfoText}>{mission.location.name}</Text>
+
+                <Text style={styles.missionInfoTitle}>🎯 미션 목표</Text>
+                <Text style={styles.missionInfoText}>
+                  이곳의 과거 모습을 확인하고 시간을 탐험해보세요!
+                </Text>
+
+                <Text style={styles.missionInfoTitle}>📸 게임 방법</Text>
+                <Text style={styles.missionInfoText}>
+                  4개의 과거 사진 중에서 {mission.location.name}의 과거 모습을 찾아야해요.
+                </Text>
+              </View>
+
+              <TouchableOpacity style={styles.startButton} onPress={startMission}>
+                <Text style={styles.startButtonText}>미션 시작하기</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            /* 게임 화면 */
+            <View style={styles.gameSection}>
+              <Text style={styles.gameTitle}>4개 중 정답을 선택하세요!</Text>
+
+              <View style={styles.imagesGrid}>
+                {selectedImages.map((image, index) => (
+                  <TouchableOpacity
+                    key={image.id}
+                    style={[
+                      styles.imageContainer,
+                      selectedAnswer === image.id && styles.selectedImage,
+                      gameCompleted && image.id === correctAnswer?.id && styles.correctImage
+                    ]}
+                    onPress={() => selectAnswer(image.id)}
+                    disabled={gameCompleted}
+                  >
+                    <Image
+                      source={{ uri: image.past_image_url }}
+                      style={styles.image}
+                      resizeMode="cover"
+                    />
+                    <View style={styles.imageOverlay}>
+                      <Text style={styles.imageName} numberOfLines={2}>
+                        {image.name}
                       </Text>
                     </View>
-                  )}
-                </TouchableOpacity>
-              ))}
-            </View>
 
-            {gameCompleted && (
-              <View style={styles.completionSection}>
-                <Text style={styles.completionText}>
-                  🎉 미션을 완료했습니다!
-                </Text>
-                <TouchableOpacity style={styles.restartButton} onPress={restartMission}>
-                  <Text style={styles.restartButtonText}>다시 도전하기</Text>
-                </TouchableOpacity>
+                    {/* 선택 표시 */}
+                    {selectedAnswer === image.id && (
+                      <View style={styles.selectionIndicator}>
+                        <Text style={styles.selectionText}>
+                          {image.id === correctAnswer?.id ? '⭕' : '❌'}
+                        </Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                ))}
               </View>
-            )}
-          </View>
-        )}
-      </ScrollView>
-    </View>
+
+              {gameCompleted && (
+                <View style={styles.completionSection}>
+                  <Text style={styles.completionText}>
+                    🎉 미션을 완료했습니다!
+                  </Text>
+                  <TouchableOpacity style={styles.restartButton} onPress={restartMission}>
+                    <Text style={styles.restartButtonText}>다시 도전하기</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          )}
+        </ScrollView>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#f0f0f0',
+  },
   container: {
     flex: 1,
     backgroundColor: '#fff',
+    paddingTop: 20
   },
   scrollContent: {
     padding: 20,

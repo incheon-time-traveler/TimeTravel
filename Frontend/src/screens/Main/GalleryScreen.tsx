@@ -82,7 +82,7 @@ export default function GalleryScreen({ navigation }: any) {
         // 토큰과 사용자 정보 모두 확인
         const tokens = await authService.getTokens();
         const user = await authService.getUser();
-  
+
         if (tokens?.access && user) {
           // 토큰이 있고 사용자 정보가 있으면 로그인된 상태
           setIsLoggedIn(true);
@@ -129,7 +129,7 @@ export default function GalleryScreen({ navigation }: any) {
               로그인하면 과거 사진과 함께{`\n`}
               특별한 스탬프도 수집할 수 있어요!
             </Text>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.loginButton}
               onPress={handleLoginPress}
               activeOpacity={0.9}
@@ -155,16 +155,16 @@ export default function GalleryScreen({ navigation }: any) {
             method: 'GET',
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${tokens?.access}`,
+              'Authorization': `Bearer ${tokens.access}`,
           },
         });
       }
-      
+
       let backendItems: GalleryItem[] = [];
       if (response && response.ok) {
         const data = await response.json();
         console.log('[GalleryScreen] 백엔드 갤러리 데이터:', data);
-        
+
         // 백엔드 데이터를 GalleryItem 형식으로 변환
         backendItems = data.map((item: any) => ({
           id: item.id,
@@ -182,7 +182,7 @@ export default function GalleryScreen({ navigation }: any) {
       // 2. 백엔드 데이터만 사용
       const allItems = backendItems;
       console.log('[GalleryScreen] 갤러리 데이터:', allItems);
-    
+
       // 3. 빈 슬롯 생성 (고유한 ID 보장)
       const remainingSlots = TOTAL_COURSE - allItems.length || 0;
       const emptySlots = Array(remainingSlots).fill(null).map((_, index) => ({
@@ -221,88 +221,97 @@ export default function GalleryScreen({ navigation }: any) {
 
   const handleStampPress = () => {
     if (!selectedImage) return;
-    
+
     Alert.alert(
-      '스탬프 사용',
-      '스탬프를 사장님께 보여주세요!\n(사용 버튼을 직접 누르지 않도록 조심하세요)',
+      '아직은 스탬프 사용이 어렵습니다.',
+      '추후 제휴 서비스 추가 예정입니다. 다음 업데이트를 기다려주세요. 감사합니다.',
       [
         {
           text: '돌아가기',
           style: 'cancel',
         },
-        {
-          text: '사용',
-          onPress: async () => {
-            try {
-              const tokens = await authService.getTokens();
-              if (!tokens?.access) {
-                Alert.alert('오류', '로그인이 필요합니다.');
-                return;
-              }
-
-              console.log('[GalleryScreen] 스탬프 사용:', selectedImage);
-
-              const useStampUrl = `${BACKEND_API.BASE_URL}/v1/courses/use_stamp/`;
-              const useStampPayload = { id: selectedImage.id, is_used: true };
-              console.log('[Gallery] PATCH use_stamp URL:', useStampUrl);
-              console.log('[Gallery] PATCH use_stamp Payload:', useStampPayload);
-              
-              const response = await fetch(useStampUrl, {
-                method: 'PATCH',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${tokens.access}`,
-                },
-                body: JSON.stringify(useStampPayload),
-              });
-
-              if (response.ok) {
-                // 로컬 상태 업데이트
-                setGalleryData(prev => 
-                  prev.map(item => 
-                    item.id === selectedImage.id 
-                      ? { ...item, stampUsed: true }
-                      : item
-                  )
-                );
-                setImageModalVisible(false);
-                Alert.alert('스탬프 사용 완료!', '스탬프가 사용되었습니다.');
-              } else {
-                const errorText = await response.text();
-                console.error('[GalleryScreen] 스탬프 사용 실패:', response.status, errorText);
-                Alert.alert('오류', '스탬프 사용에 실패했습니다.');
-              }
-            } catch (error) {
-              console.error('[GalleryScreen] 스탬프 사용 에러:', error);
-              Alert.alert('오류', '스탬프 사용 중 오류가 발생했습니다.');
-            }
-          },
-          style: 'destructive',
-        },
+//         {
+//           text: '사용',
+//           onPress: async () => {
+//             try {
+//               const tokens = await authService.getTokens();
+//               if (!tokens?.access) {
+//                 Alert.alert('오류', '로그인이 필요합니다.');
+//                 return;
+//               }
+//
+//               console.log('[GalleryScreen] 스탬프 사용:', selectedImage);
+//
+//               const useStampUrl = `${BACKEND_API.BASE_URL}/v1/courses/use_stamp/`;
+//               const useStampPayload = { id: selectedImage.id, is_used: true };
+//               console.log('[Gallery] PATCH use_stamp URL:', useStampUrl);
+//               console.log('[Gallery] PATCH use_stamp Payload:', useStampPayload);
+//
+//               const response = await fetch(useStampUrl, {
+//                 method: 'PATCH',
+//                 headers: {
+//                   'Content-Type': 'application/json',
+//                   'Authorization': `Bearer ${tokens.access}`,
+//                 },
+//                 body: JSON.stringify(useStampPayload),
+//               });
+//
+//               if (response.ok) {
+//                 // 갤러리 데이터 새로고침
+//                 await fetchGalleryData();
+//                 setImageModalVisible(false);
+//                 Alert.alert('스탬프 사용 완료!', '스탬프가 사용되었습니다.');
+//               } else {
+//                 const errorText = await response.text();
+//                 console.error('[GalleryScreen] 스탬프 사용 실패:', response.status, errorText);
+//                 Alert.alert('오류', '스탬프 사용에 실패했습니다.');
+//               }
+//             } catch (error) {
+//               console.error('[GalleryScreen] 스탬프 사용 에러:', error);
+//               Alert.alert('오류', '스탬프 사용 중 오류가 발생했습니다.');
+//             }
+//           },
+//           style: 'destructive',
+//         },
       ]
     );
   };
 
   const renderStamp = () => {
-    if (!selectedImage?.hasStamp || selectedImage.stampUsed) {
-      return null;
+    if (!selectedImage) return null;
+
+    const stampSource = STAMP_IMAGES[selectedImage.title] || require('../../assets/stamps/jaemulpo.png');
+
+    if (selectedImage.stampUsed) {
+      return (
+        <View style={styles.modalStampContainer}>
+          <Image
+            source={stampSource}
+            style={styles.modalStampImage}
+            resizeMode="contain"
+          />
+          <View style={styles.modalStampImageUsed}>
+            <Text style={styles.modalStampImageUsedText}>사용 완료</Text>
+          </View>
+        </View>
+      );
     }
 
-    return (
-      <View style={styles.modalStampContainer}>
-        <Image 
-          source={STAMP_IMAGES[selectedImage.title] || require('../../assets/stamps/jaemulpo.png')}
-          style={styles.modalStampImage}
-          resizeMode="contain"
-        />
-        <TouchableOpacity
-          style={styles.useStampButton}
-          onPress={handleStampPress}
-        >
-          <Text style={styles.useStampButtonText}>스탬프 사용하기</Text>
-        </TouchableOpacity>
-      </View>
-    );
+    if (selectedImage.hasStamp) {
+      return (
+        <View style={styles.modalStampContainer}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} onPress={handleStampPress}>
+            <Image
+              source={stampSource}
+              style={styles.modalStampImage}
+              resizeMode="contain"
+            />
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    return null;
   };
 
   return (
@@ -325,9 +334,9 @@ export default function GalleryScreen({ navigation }: any) {
                   activeOpacity={0.8}
                 >
                   <View style={styles.imageContainer}>
-                    <Image 
-                      source={{ uri: item.past_image_url || 'https://via.placeholder.com/300' }} 
-                      style={styles.photo} 
+                    <Image
+                      source={{ uri: item.past_image_url || 'https://via.placeholder.com/300' }}
+                      style={styles.photo}
                       resizeMode="cover"
                       onLoad={() => console.log('[GalleryScreen] 이미지 로드 성공:', item.title, item.past_image_url)}
                     />
@@ -337,29 +346,33 @@ export default function GalleryScreen({ navigation }: any) {
                         <Text style={styles.lockedText}>잠금</Text>
                       </View>
                     )}
-                    {item.completed && item.hasStamp && !item.stampUsed && (
+                    {item.completed && item.hasStamp && (
                       <View style={styles.stampOverlay}>
-                        <Image 
-                          source={STAMP_IMAGES[item.title] || require('../../assets/stamps/jaemulpo.png')} 
-                          style={styles.stampImage} 
+                        <Image
+                          source={STAMP_IMAGES[item.title] || require('../../assets/stamps/jaemulpo.png')}
+                          style={styles.stampImage}
                           resizeMode="contain"
                         />
-                        <View style={styles.stampBadge}>
-                          <Ionicons name="checkmark-circle" size={16} color="white" />
-                        </View>
+                        {item.stampUsed && (
+                          <View style={styles.stampImageUsed}>
+                            <Text style={styles.stampImageUsedText}><CheckIcon /></Text>
+                          </View>
+                        )}
                       </View>
                     )}
                   </View>
                   <View style={styles.cardFooter}>
                     <Text style={styles.missionTitle} numberOfLines={1}>{item.title}</Text>
                       {item.completed ? (
-                        <CheckIcon />
+                        <View style={styles.stampBadge}>
+                          <Ionicons name="checkmark-circle" size={16} color="white" />
+                        </View>
                       ) : (
                         <PixelLockIcon />
                       )}
                   </View>
                 </TouchableOpacity>
-              ))} 
+              ))}
             </View>
           </ScrollView>
 
@@ -588,11 +601,39 @@ const styles = StyleSheet.create({
   stampImage: {
     width: '100%',
     height: '100%',
+    transform: [{ rotate: '15deg' }],
+  },
+  stampImage: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: '100%',
+    marginBottom: 10,
+    borderRadius: 100,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  stampImageUsed: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      width: '100%',
+      height: '100%',
+      marginBottom: 10,
+      borderRadius: 100,
+      backgroundColor: 'rgba(0, 0, 0, 0.8)',
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center'
+  },
+  stampImageUsedText: {
+    ...TEXT_STYLES.small,
+    color: '#e0e0e0',
   },
   stampBadge: {
-    position: 'absolute',
-    top: -5,
-    right: -5,
     backgroundColor: '#FF4444',
     width: 20,
     height: 20,
@@ -605,29 +646,39 @@ const styles = StyleSheet.create({
   // 모달 내 스탬프 스타일
   modalStampContainer: {
     position: 'absolute',
-    bottom: 20,
-    right: 20,
+    top: 160,
+    right: 0,
+    width: 100,
+    height: 100,
     alignItems: 'center',
   },
   modalStampImage: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: 100,
+    height: 100,
+    transform: [{ rotate: '20deg' }],
+
+  },
+  modalStampImageUsed: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
     width: 100,
     height: 100,
     marginBottom: 10,
-  },
-  useStampButton: {
-    backgroundColor: INCHEON_BLUE,
-    padding: 10,
-    borderRadius: 8,
-    alignItems: 'center',
+    borderRadius: 100,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    flex: 1,
     justifyContent: 'center',
-    minWidth: 120,
-  },
-  useStampButtonText: {
-    color: 'white',
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
-
+    alignItems: 'center'
+    },
+    modalStampImageUsedText: {
+      ...TEXT_STYLES.button,
+      transform: [{ rotate: '15deg' }],
+      color: '#fff'
+    },
   // 모달 스타일
   modalOverlay: {
     flex: 1,

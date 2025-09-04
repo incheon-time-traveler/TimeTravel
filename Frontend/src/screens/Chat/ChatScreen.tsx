@@ -11,15 +11,25 @@ import {
   Platform,
   Modal,
   Alert,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { NavigationProp } from '@react-navigation/native';
+import Geolocation from '@react-native-community/geolocation';
+// import * as WebBrowser from 'expo-web-browser';
 import { INCHEON_BLUE, INCHEON_BLUE_LIGHT, INCHEON_GRAY, TEXT_STYLES } from '../../styles/fonts';
 import { ChatMessage, ChatBotResponse } from '../../types/chat';
 import { ChatbotService } from '../../services/chatbotService';
 
 const { width, height } = Dimensions.get('window');
 
-const ChatScreen: React.FC<{ visible: boolean; onClose: () => void }> = ({ visible, onClose }) => {
+interface ChatScreenProps {
+  visible: boolean;
+  onClose: () => void;
+  navigation: NavigationProp<any>;
+}
+
+const ChatScreen: React.FC<ChatScreenProps> = ({ visible, onClose, navigation }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: '1',
@@ -32,6 +42,7 @@ const ChatScreen: React.FC<{ visible: boolean; onClose: () => void }> = ({ visib
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [userId] = useState(() => ChatbotService.generateUserId());
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
 
   useEffect(() => {
@@ -39,8 +50,30 @@ const ChatScreen: React.FC<{ visible: boolean; onClose: () => void }> = ({ visib
       setTimeout(() => {
         scrollViewRef.current?.scrollToEnd({ animated: true });
       }, 100);
+      // 위치 정보 가져오기
+      getCurrentLocation();
     }
   }, [visible, messages]);
+
+  const getCurrentLocation = () => {
+    Geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        setUserLocation({ lat: latitude, lng: longitude });
+        console.log('[ChatScreen] 현재 위치:', latitude, longitude);
+      },
+      (error) => {
+        console.error('[ChatScreen] 위치 정보 가져오기 실패:', error);
+        // 기본 위치 설정 (인천)
+        setUserLocation({ lat: 37.4563, lng: 126.7052 });
+      },
+      {
+        enableHighAccuracy: false,
+        timeout: 10000,
+        maximumAge: 300000,
+      }
+    );
+  };
 
   const handleSendMessage = async () => {
     if (!inputText.trim() || isLoading) return;
@@ -63,6 +96,7 @@ const ChatScreen: React.FC<{ visible: boolean; onClose: () => void }> = ({ visib
       const response = await ChatbotService.chatWithBot({
         user_question: currentInput,
         user_id: userId,
+        user_location: userLocation || undefined,
       });
 
       const botMessage: ChatMessage = {
@@ -96,10 +130,144 @@ const ChatScreen: React.FC<{ visible: boolean; onClose: () => void }> = ({ visib
     setInputText(suggestion);
   };
 
+
+
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString('ko-KR', { 
       hour: '2-digit', 
       minute: '2-digit' 
+    });
+  };
+
+
+
+  // 카카오맵 URL에서 장소 정보 추출
+  const parseKakaoMapUrl = (url: string) => {
+    // 카카오맵 URL 패턴들
+    const patterns = [
+      // place.map.kakao.com/숫자 패턴 (장소 상세 정보)
+      /place\.map\.kakao\.com\/(\d+)/,
+      // map.kakao.com/link/map/장소명,위도,경도 패턴
+      /map\.kakao\.com\/link\/map\/([^,]+),([0-9.-]+),([0-9.-]+)/,
+      // map.kakao.com/link/map/장소명 패턴
+      /map\.kakao\.com\/link\/map\/([^,]+)/,
+    ];
+    
+    for (const pattern of patterns) {
+      const match = url.match(pattern);
+      if (match) {
+        if (pattern === patterns[0]) {
+          // place.map.kakao.com/숫자 패턴 - 장소 상세 정보로 이동
+          return {
+            type: 'place',
+            placeId: match[1],
+            destination: '카카오맵 장소',
+            searchQuery: '카카오맵 장소', // 검색용 쿼리
+          };
+        } else if (pattern === patterns[1]) {
+          // map.kakao.com/link/map/장소명,위도,경도 패턴
+          return {
+            type: 'map',
+            destination: decodeURIComponent(match[1]),
+            destinationLat: parseFloat(match[2]),
+            destinationLng: parseFloat(match[3]),
+            searchQuery: decodeURIComponent(match[1]), // 검색용 쿼리
+          };
+        } else if (pattern === patterns[2]) {
+          // map.kakao.com/link/map/장소명 패턴
+          return {
+            type: 'map',
+            destination: decodeURIComponent(match[1]),
+            searchQuery: decodeURIComponent(match[1]), // 검색용 쿼리
+          };
+        }
+      }
+    }
+    
+    return null;
+  };
+
+  const handleLinkPress = async (url: string) => {
+    try {
+      // URL 유효성 검사
+      if (!url || url.trim() === '') {
+        Alert.alert('오류', '유효하지 않은 링크입니다.');
+        return;
+      }
+
+      // 카카오맵 URL인지 확인
+      const kakaoMapInfo = parseKakaoMapUrl(url);
+      
+      if (kakaoMapInfo) {
+        // 챗봇 닫기
+        onClose();
+        // 맵으로 이동
+        navigation.navigate('Map', {
+          screen: 'MapMain',
+          params: kakaoMapInfo
+        });
+        return;
+      }
+
+      // URL 형식 검사
+      const urlPattern = /^https?:\/\/.+/;
+      if (!urlPattern.test(url)) {
+        Alert.alert('오류', `잘못된 URL 형식입니다: ${url}`);
+        return;
+      }
+
+      const canOpen = await Linking.canOpenURL(url);
+      
+      if (canOpen) {
+        await Linking.openURL(url);
+      } else {
+        Alert.alert('오류', '이 링크를 열 수 없습니다.');
+      }
+    } catch (error) {
+      Alert.alert('오류', `링크 열기 실패: ${error?.message || '알 수 없는 오류'}`);
+    }
+  };
+
+  const renderFormattedText = (text: string) => {
+    // **텍스트** 패턴과 [텍스트](URL) 패턴을 모두 처리
+    const parts = text.split(/(\*\*.*?\*\*|\[.*?\]\(.*?\))/g);
+    
+    return parts.map((part, index) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        // **텍스트** 패턴인 경우 bold 스타일 적용
+        const boldText = part.slice(2, -2); // ** 제거
+        return (
+          <Text key={index} style={{ fontWeight: 'bold' }}>
+            {boldText}
+          </Text>
+        );
+      } else if (part.startsWith('[') && part.includes('](') && part.endsWith(')')) {
+        // [텍스트](URL) 패턴인 경우 하이퍼링크로 처리
+        const match = part.match(/\[(.*?)\]\((.*?)\)/);
+        if (match) {
+          const linkText = match[1];
+          const url = match[2];
+          
+          return (
+            <TouchableOpacity
+              key={index}
+              onPress={() => handleLinkPress(url)}
+              activeOpacity={0.7}
+            >
+              <Text
+                style={{ 
+                  color: '#007AFF', 
+                  textDecorationLine: 'underline',
+                  fontWeight: 'bold'
+                }}
+              >
+                {linkText}
+              </Text>
+            </TouchableOpacity>
+          );
+        }
+      }
+      return part;
     });
   };
 
@@ -137,9 +305,9 @@ const ChatScreen: React.FC<{ visible: boolean; onClose: () => void }> = ({ visib
                   styles.messageText,
                   message.isUser ? styles.userMessageText : styles.botMessageText
                 ]}>
-                  {message.text}
+                  {message.isUser ? message.text : renderFormattedText(message.text)}
                 </Text>
-                <Text style={styles.timestamp}>
+                <Text style={message.isUser ? styles.userTimestamp : styles.timestamp}>
                   {formatTime(message.timestamp)}
                 </Text>
               </View>
@@ -159,7 +327,7 @@ const ChatScreen: React.FC<{ visible: boolean; onClose: () => void }> = ({ visib
         <View style={styles.suggestionsContainer}>
           <Text style={styles.suggestionsTitle}>추천 질문</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {['인천 추천 코스', '대불호텔 정보', '미션 도움말', '길찾기'].map((suggestion, index) => (
+            {['인천 추천 코스', '대불호텔 정보', '미션 도움말', '길찾기', '주변 관광지'].map((suggestion, index) => (
               <TouchableOpacity
                 key={index}
                 style={[styles.suggestionButton, isLoading && styles.suggestionButtonDisabled]}
@@ -221,6 +389,7 @@ const styles = StyleSheet.create({
     ...TEXT_STYLES.subtitle,
     color: INCHEON_BLUE,
   },
+
   closeButton: {
     width: 30,
     height: 30,
@@ -278,6 +447,12 @@ const styles = StyleSheet.create({
     ...TEXT_STYLES.small,
     marginTop: 4,
     alignSelf: 'flex-end',
+  },
+  userTimestamp: {
+    ...TEXT_STYLES.small,
+    marginTop: 4,
+    alignSelf: 'flex-end',
+    color: '#fff',
   },
   inputContainer: {
     flexDirection: 'row',

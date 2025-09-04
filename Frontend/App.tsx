@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, useNavigation } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -197,14 +197,19 @@ export default function App() {
             </>
           )}
         </Stack.Navigator>
+        {isOnboardingComplete && (
+          <>
+            <FloatingChatBotButton onPress={() => setChatVisible(true)} />
+            <ChatScreenWrapper visible={chatVisible} onClose={() => setChatVisible(false)} />
+          </>
+        )}
       </NavigationContainer>
-      {isOnboardingComplete && (
-        <>
-          <FloatingChatBotButton onPress={() => setChatVisible(true)} />
-          <ChatScreen visible={chatVisible} onClose={() => setChatVisible(false)} />
-        </>
-      )}
     </>
   );
 }
 
+// ChatScreen을 위한 래퍼 컴포넌트 (NavigationContainer 내부에서 사용)
+function ChatScreenWrapper({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+  const navigation = useNavigation();
+  return <ChatScreen visible={visible} onClose={onClose} navigation={navigation} />;
+}

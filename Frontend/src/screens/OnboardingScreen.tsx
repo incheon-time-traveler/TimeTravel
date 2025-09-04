@@ -6,7 +6,7 @@ import { RootStackParamList } from '../types/navigation';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import OnboardingImage1 from '../assets/images/Onboarding_1';
 import OnboardingImage2 from '../assets/images/Onboarding_2';
-import { INCHEON_BLUE, INCHEON_BLUE_LIGHT, INCHEON_GRAY } from '../styles/fonts';
+import { INCHEON_BLUE, INCHEON_BLUE_LIGHT, INCHEON_GRAY, TEXT_STYLES } from '../styles/fonts';
 
 
 const { width, height } = Dimensions.get('window');
@@ -20,7 +20,10 @@ const OnboardingScreen = () => {
 
   const handleSkip = async () => {
     await AsyncStorage.setItem('@viewedOnboarding', 'true');
-    navigation.replace('Main');
+    navigation.navigate('RootAfterOnboarding', {
+      screen: 'MainTabs',
+      params: { screen: 'Home', params: { screen: 'HomeMain' } }
+    });
   };
 
   const pages = [
@@ -45,7 +48,10 @@ const OnboardingScreen = () => {
       // setCurrentPage(currentPage + 1); // onMomentumScrollEnd에서 처리하므로 주석 처리
     } else {
       await AsyncStorage.setItem('@viewedOnboarding', 'true');
-      navigation.replace('Main');
+      navigation.navigate('RootAfterOnboarding', {
+        screen: 'MainTabs',
+        params: { screen: 'Home', params: { screen: 'HomeMain' } }
+      });
     }
   };
 
@@ -211,9 +217,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   nextButtonText: {
+    ...TEXT_STYLES.button,
     color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
   }
 });
 

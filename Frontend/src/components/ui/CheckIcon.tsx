@@ -1,7 +1,7 @@
 import React from 'react';
 import { Image, ImageStyle, StyleProp } from 'react-native';
 
-const lockedImg = require('../../assets/icons/check.png');
+const lockedImg = require('../../assets/icons/check_white.png');
 
 interface CheckIconProps {
   size?: number;

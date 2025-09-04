@@ -281,10 +281,10 @@ export default function CourseRecommendationScreen({ navigation }: any) {
       );
       if (!response.ok) throw new Error('API 요청 실패');
       const result = await response.json();
-      return result.documents?.[0]?.address_name || '주소 정보를 찾을 수 없습니다.';
+      return result.documents?.[0]?.address_name || '인천';
     } catch (error) {
       console.error('주소 가져오기 오류:', error);
-      return '주소를 가져오는 중 오류가 발생했습니다.';
+      return '인천';
     }
   };
 

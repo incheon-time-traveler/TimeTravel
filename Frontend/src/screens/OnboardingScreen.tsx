@@ -50,7 +50,7 @@ const OnboardingScreen = () => {
       await AsyncStorage.setItem('@viewedOnboarding', 'true');
       navigation.navigate('RootAfterOnboarding', {
         screen: 'MainTabs',
-        params: { screen: 'Home', params: { screen: 'HomeMain' } }
+        params: { screen: 'Home', params: { screen: 'HomeMain' }}
       });
     }
   };

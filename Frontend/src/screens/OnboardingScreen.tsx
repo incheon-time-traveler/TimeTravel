@@ -48,7 +48,7 @@ const OnboardingScreen = () => {
       // setCurrentPage(currentPage + 1); // onMomentumScrollEnd에서 처리하므로 주석 처리
     } else {
       await AsyncStorage.setItem('@viewedOnboarding', 'true');
-      navigation.navigate('RootAfterOnboarding', {
+      navigation.navigate('Root', {
         screen: 'MainTabs',
         params: { screen: 'Home', params: { screen: 'HomeMain' }}
       });

@@ -19,7 +19,6 @@ import PixelLockIcon from '../../components/ui/PixelLockIcon';
 import { INCHEON_BLUE, INCHEON_BLUE_LIGHT, INCHEON_GRAY, TEXT_STYLES } from '../../styles/fonts';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BACKEND_API } from '../../config/apiKeys';
-import { getSpotDetail } from '../../data/missions';
 import authService from '../../services/authService';
 
 const { width, height } = Dimensions.get('window');
@@ -35,29 +34,8 @@ interface GalleryItem {
   stampUsed: boolean;
   route_id: number;
   spot_id: number;
-  spot_db_id: number;
 }
 
-// 스팟 상세 정보 보기
-const handleViewSpotDetail = async (spotId: number) => {
-  try {
-    console.log("📌 handleViewSpotDetail 호출됨, spotId:", spotId);
-
-    const tokens = await authService.getTokens();
-    if (!tokens?.access) {
-      console.error("❌ access 토큰 없음");
-      return null;
-    }
-
-    const spotDetail = await getSpotDetail(spotId, tokens.access);
-    console.log("📌 getSpotDetail 응답:", spotDetail);
-
-    return spotDetail?.description || null;
-  } catch (error) {
-    console.error('[HomeScreen] 스팟 상세 정보 가져오기 오류:', error);
-    return null;
-  }
-};
 
 // 스탬프 이미지 매핑
 const STAMP_IMAGES: { [key: string]: any } = {
@@ -88,7 +66,7 @@ export default function GalleryScreen({ navigation }: any) {
   const [galleryData, setGalleryData] = useState<GalleryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [foundCount, setFoundCount] = useState(0);
-  const [imageDescription, setImageDescription] = useState<string | null>(null);
+
   const handleImagePress = (item: any) => {
     if (item.completed) {
       setSelectedImage(item);
@@ -104,7 +82,7 @@ export default function GalleryScreen({ navigation }: any) {
         // 토큰과 사용자 정보 모두 확인
         const tokens = await authService.getTokens();
         const user = await authService.getUser();
-  
+
         if (tokens?.access && user) {
           // 토큰이 있고 사용자 정보가 있으면 로그인된 상태
           setIsLoggedIn(true);
@@ -151,7 +129,7 @@ export default function GalleryScreen({ navigation }: any) {
               로그인하면 과거 사진과 함께{`\n`}
               특별한 스탬프도 수집할 수 있어요!
             </Text>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.loginButton}
               onPress={handleLoginPress}
               activeOpacity={0.9}
@@ -186,7 +164,7 @@ export default function GalleryScreen({ navigation }: any) {
       if (response && response.ok) {
         const data = await response.json();
         console.log('[GalleryScreen] 백엔드 갤러리 데이터:', data);
-        
+
         // 백엔드 데이터를 GalleryItem 형식으로 변환
         backendItems = data.map((item: any) => ({
           id: item.id,
@@ -198,14 +176,13 @@ export default function GalleryScreen({ navigation }: any) {
           stampUsed: item.is_used || false,
           route_id: item.route_id,
           spot_id: item.route_spot_id,
-//           spot_db_id: item.route_spot.spot.id
         }));
       }
 
       // 2. 백엔드 데이터만 사용
       const allItems = backendItems;
       console.log('[GalleryScreen] 갤러리 데이터:', allItems);
-    
+
       // 3. 빈 슬롯 생성 (고유한 ID 보장)
       const remainingSlots = TOTAL_COURSE - allItems.length || 0;
       const emptySlots = Array(remainingSlots).fill(null).map((_, index) => ({
@@ -231,30 +208,7 @@ export default function GalleryScreen({ navigation }: any) {
   useEffect(() => {
     checkLoginStatus();
     fetchGalleryData();
-    console.log("image", selectedImage)
   }, []);
-//   // spot description 가져오기
-//   useEffect(() => {
-//     const fetchDescription = async () => {
-//       console.log("id", selectedImage.id)
-//       if (!selectedImage?.id) {
-//         setImageDescription(null);
-//         return;
-//       }
-//       try {
-//         const tokens = await authService.getTokens();
-//         if (!tokens?.access) return;
-//         console.log("spot detail 요청:", selectedImage.spot_db_id, selectedImage.spot_id);
-//         const desc = await handleViewSpotDetail(451);
-//         setImageDescription(desc?.description || null);
-//       } catch (error) {
-//         console.error("Error fetching spot detail:", error);
-//         setImageDescription(null);
-//       }
-//   };
-//
-//   fetchDescription();
-// }, [selectedImage]);
 
   // 화면이 포커스될 때마다 갤러리 데이터 새로고침
   useFocusEffect(
@@ -267,10 +221,10 @@ export default function GalleryScreen({ navigation }: any) {
 
   const handleStampPress = () => {
     if (!selectedImage) return;
-    
+
     Alert.alert(
-      '추후 제휴 서비스가 추가될 예정입니다.',
-      '다음 업데이트를 기다려주세요. 감사합니다.',
+      '아직은 스탬프 사용이 어렵습니다.',
+      '추후 제휴 서비스 추가 예정입니다. 다음 업데이트를 기다려주세요. 감사합니다.',
       [
         {
           text: '돌아가기',
@@ -324,12 +278,15 @@ export default function GalleryScreen({ navigation }: any) {
   };
 
   const renderStamp = () => {
-    if (!selectedImage?.hasStamp || selectedImage.stampUsed) {
+    if (!selectedImage) return null;
+
+    const stampSource = STAMP_IMAGES[selectedImage.title] || require('../../assets/stamps/jaemulpo.png');
+
+    if (selectedImage.stampUsed) {
       return (
         <View style={styles.modalStampContainer}>
-
           <Image
-            source={STAMP_IMAGES[selectedImage.title] || require('../../assets/stamps/jaemulpo.png')}
+            source={stampSource}
             style={styles.modalStampImage}
             resizeMode="contain"
           />
@@ -337,22 +294,24 @@ export default function GalleryScreen({ navigation }: any) {
             <Text style={styles.modalStampImageUsedText}>사용 완료</Text>
           </View>
         </View>
-      )
+      );
     }
 
-    return (
-      <View style={styles.modalStampContainer}>
-        <TouchableOpacity
-          onPress={handleStampPress}
-        >
-          <Image
-            source={STAMP_IMAGES[selectedImage.title] || require('../../assets/stamps/jaemulpo.png')}
-            style={styles.modalStampImage}
-            resizeMode="contain"
-          />
-        </TouchableOpacity>
-      </View>
-    );
+    if (selectedImage.hasStamp) {
+      return (
+        <View style={styles.modalStampContainer}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} onPress={handleStampPress}>
+            <Image
+              source={stampSource}
+              style={styles.modalStampImage}
+              resizeMode="contain"
+            />
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    return null;
   };
 
   return (
@@ -375,9 +334,9 @@ export default function GalleryScreen({ navigation }: any) {
                   activeOpacity={0.8}
                 >
                   <View style={styles.imageContainer}>
-                    <Image 
-                      source={{ uri: item.past_image_url || 'https://via.placeholder.com/300' }} 
-                      style={styles.photo} 
+                    <Image
+                      source={{ uri: item.past_image_url || 'https://via.placeholder.com/300' }}
+                      style={styles.photo}
                       resizeMode="cover"
                       onLoad={() => console.log('[GalleryScreen] 이미지 로드 성공:', item.title, item.past_image_url)}
                     />
@@ -389,9 +348,9 @@ export default function GalleryScreen({ navigation }: any) {
                     )}
                     {item.completed && item.hasStamp && (
                       <View style={styles.stampOverlay}>
-                        <Image 
-                          source={STAMP_IMAGES[item.title] || require('../../assets/stamps/jaemulpo.png')} 
-                          style={styles.stampImage} 
+                        <Image
+                          source={STAMP_IMAGES[item.title] || require('../../assets/stamps/jaemulpo.png')}
+                          style={styles.stampImage}
                           resizeMode="contain"
                         />
                         {item.stampUsed && (
@@ -400,9 +359,7 @@ export default function GalleryScreen({ navigation }: any) {
                           </View>
                         )}
                       </View>
-
                     )}
-
                   </View>
                   <View style={styles.cardFooter}>
                     <Text style={styles.missionTitle} numberOfLines={1}>{item.title}</Text>
@@ -415,7 +372,7 @@ export default function GalleryScreen({ navigation }: any) {
                       )}
                   </View>
                 </TouchableOpacity>
-              ))} 
+              ))}
             </View>
           </ScrollView>
 
@@ -448,9 +405,7 @@ export default function GalleryScreen({ navigation }: any) {
                     resizeMode="contain"
                     onLoad={() => console.log('[GalleryScreen] 모달 이미지 로드 성공:', selectedImage?.title, selectedImage?.image_url)}
                   />
-                  <Text>
-                    {imageDescription}
-                  </Text>
+
                   {renderStamp()}
                 </View>
               </View>

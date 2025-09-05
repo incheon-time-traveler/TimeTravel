@@ -579,7 +579,7 @@ export default function CourseRecommendationScreen({ navigation }: any) {
         <View style={styles.infoSection}>
           <Text style={styles.infoTitle}>나만의 여행 코스를 만들어요!</Text>
           <Text style={styles.infoSubtitle}>
-            최소 한 개 이상의 질문에 답변하면 {'\n'}최적의 여행 코스를 추천해드려요
+            최소 한 개 이상의 질문에 답변하면 {'\n'}조건에 맞는 여행 코스를 추천해드려요
           </Text>
         </View>
 

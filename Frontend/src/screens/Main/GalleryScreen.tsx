@@ -164,7 +164,7 @@ export default function GalleryScreen({ navigation }: any) {
       if (response && response.ok) {
         const data = await response.json();
         console.log('[GalleryScreen] 백엔드 갤러리 데이터:', data);
-
+        if (data.length > 0){
         // 백엔드 데이터를 GalleryItem 형식으로 변환
         backendItems = data.map((item: any) => ({
           id: item.id,
@@ -176,7 +176,8 @@ export default function GalleryScreen({ navigation }: any) {
           stampUsed: item.is_used || false,
           route_id: item.route_id,
           spot_id: item.route_spot_id,
-        }));
+        }));}
+        console.log("갤러리 데이터 세팅 성공")
       }
 
       // 2. 백엔드 데이터만 사용

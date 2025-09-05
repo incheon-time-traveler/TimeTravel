@@ -56,7 +56,7 @@ export default function HomeScreen({ navigation }: any) {
   useEffect(() => {
     checkLoginStatus();
     checkOngoingCourses();
-    fetchRecommendedCourses();
+    // fetchRecommendedCourses는 로그인 상태 확인 후 useEffect에서 호출됨
     fetchVisitedSpots();
 
     // 앱 상태 변화 감지
@@ -86,7 +86,7 @@ export default function HomeScreen({ navigation }: any) {
     const unsubscribe = navigation.addListener('focus', () => {
       checkLoginStatus();
       checkOngoingCourses();
-      fetchRecommendedCourses();
+      // fetchRecommendedCourses는 로그인 상태 확인 후 useEffect에서 호출됨
       fetchVisitedSpots();
     });
 
@@ -103,6 +103,18 @@ export default function HomeScreen({ navigation }: any) {
     });
   }, [isLoggedIn, hasOngoingCourse, ongoingCourses, userProfile]);
 
+  // 로그인 상태가 변경될 때 추천 코스 다시 로드
+  useEffect(() => {
+    if (isLoggedIn) {
+      console.log('[HomeScreen] 로그인됨, 추천 코스 다시 로드');
+      fetchRecommendedCourses();
+    } else {
+      console.log('[HomeScreen] 로그아웃됨, 추천 코스 초기화');
+      setRecommendedCourses([]);
+      setIsLoadingRecommended(false);
+    }
+  }, [isLoggedIn]);
+
   // 컴포넌트 언마운트 시 모든 carousel 정리
   useEffect(() => {
     return () => {
@@ -117,7 +129,7 @@ export default function HomeScreen({ navigation }: any) {
       clearInterval(locationIntervalRef.current);
     }
 
-    // 60초마다 위치 기반 미션 감지 (10초에서 60초로 변경)
+    // 30초마다 위치 기반 미션 감지 (더 빠른 감지)
     locationIntervalRef.current = setInterval(async () => {
       if (currentLocation && isLoggedIn) {
         try {
@@ -131,9 +143,9 @@ export default function HomeScreen({ navigation }: any) {
           console.error('[HomeScreen] 위치 기반 미션 감지 실패:', error);
         }
       }
-    }, 60000); // 60초마다 (10초 → 60초)
+    }, 30000); // 30초마다 (더 빠른 감지)
 
-    console.log('[HomeScreen] 위치 기반 미션 감지 시작 (60초 간격)');
+    console.log('[HomeScreen] 위치 기반 미션 감지 시작 (30초 간격)');
   };
 
   // 위치 기반 미션 감지 중지
@@ -237,15 +249,34 @@ export default function HomeScreen({ navigation }: any) {
         return;
       }
 
-      // UserRouteSpot ID가 필요하지만, 현재 구조에서는 직접적으로 제공되지 않음
-      // 대신 spot ID를 사용하여 방문 완료 처리
-      // 실제로는 UserRouteSpot의 ID가 필요하지만, 임시로 spot ID 사용
+      // UserRouteSpot ID를 사용하여 방문 완료 처리
+      if (currentSpot.user_route_spot_id) {
+        const response = await fetch(`${BACKEND_API.BASE_URL}/v1/courses/use_stamp/`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${tokens.access}`,
+          },
+          body: JSON.stringify({
+            id: currentSpot.user_route_spot_id,
+            is_used: true
+          }),
+        });
 
-      // 방문 완료 알림 표시
-      Alert.alert('방문 완료!', `${mission.location.name} 방문이 완료되었습니다.`);
-
-      // 미션 데이터 새로고침
-      await refreshMissionData();
+        if (response.ok) {
+          console.log('[HomeScreen] 방문 완료 처리 성공');
+          Alert.alert('방문 완료!', `${mission.location.name} 방문이 완료되었습니다.`);
+          
+          // 미션 데이터 새로고침
+          await refreshMissionData();
+        } else {
+          console.error('[HomeScreen] 방문 완료 처리 실패:', response.status);
+          Alert.alert('오류', '방문 완료 처리에 실패했습니다.');
+        }
+      } else {
+        console.error('[HomeScreen] UserRouteSpot ID를 찾을 수 없습니다.');
+        Alert.alert('오류', '방문 완료 처리에 필요한 정보를 찾을 수 없습니다.');
+      }
 
     } catch (error) {
       console.error('[HomeScreen] 방문 완료 처리 오류:', error);
@@ -283,11 +314,7 @@ export default function HomeScreen({ navigation }: any) {
       setCurrentMission(testMission);
       setShowMissionNotification(true);
 
-      // 성공 메시지
-      Alert.alert(
-        '미션 시뮬레이션 성공!',
-        `${testMission.location.name} 미션이 발견되었습니다!\n미션 알림을 확인해보세요.`
-      );
+      // 성공 메시지 제거됨 - 미션 알림만 표시
 
     } catch (error) {
       console.error('[HomeScreen] 미션 시뮬레이션 실패:', error);
@@ -597,6 +624,14 @@ export default function HomeScreen({ navigation }: any) {
       console.log('[HomeScreen] 인기 추천 루트 데이터 가져오기 시작');
       setIsLoadingRecommended(true);
 
+      // 로그인하지 않은 경우 추천 코스를 가져오지 않음
+      if (!isLoggedIn) {
+        console.log('[HomeScreen] 로그인하지 않음, 추천 코스 로딩 건너뜀');
+        setRecommendedCourses([]);
+        setIsLoadingRecommended(false);
+        return;
+      }
+
       // 1. 먼저 spots 데이터를 한 번에 가져오기
       console.log('[HomeScreen] spots 데이터 가져오기 시작...');
       const spotsResponse = await fetch(`${BACKEND_API.BASE_URL}/v1/spots/`, {
@@ -683,7 +718,12 @@ export default function HomeScreen({ navigation }: any) {
                             const spotDetailData = await spotDetailResponse.json();
                             console.log(`[HomeScreen] 스팟 ${spot.id} 상세 데이터:`, spotDetailData);
                             
-                            const imageUrl = spotDetailData.first_image || spotDetailData.past_image_url || '';
+                            // first_image가 없거나 null인 경우 기본 이미지 사용
+                            const imageUrl = (spotDetailData.first_image && spotDetailData.first_image.trim() !== '') 
+                              ? spotDetailData.first_image 
+                              : (spotDetailData.past_image_url && spotDetailData.past_image_url.trim() !== '')
+                                ? spotDetailData.past_image_url
+                                : Image.resolveAssetSource(require('../../assets/images/대동여지도.jpg'))?.uri || '';
                             console.log(`[HomeScreen] 스팟 ${spot.id} 이미지 URL:`, imageUrl);
                             
                             return imageUrl;
@@ -692,7 +732,10 @@ export default function HomeScreen({ navigation }: any) {
                             return '';
                           }
                         } catch (error) {
-                          console.error(`[HomeScreen] 스팟 ${spot.id} 상세 정보 가져오기 에러:`, error);
+                          // 네트워크 에러는 정상적인 fallback 처리이므로 에러 로그를 조건부로 출력
+                          if (error instanceof Error && !error.message.includes('Network request failed')) {
+                            console.error(`[HomeScreen] 스팟 ${spot.id} 상세 정보 가져오기 에러:`, error);
+                          }
                           return '';
                         }
                       })
@@ -740,8 +783,11 @@ export default function HomeScreen({ navigation }: any) {
         await fetchGeneralRoutes(spotsData);
       }
     } catch (error) {
-      console.error('[HomeScreen] 추천 루트 가져오기 에러:', error);
-          setRecommendedCourses([]);
+      // 네트워크 에러는 정상적인 fallback 처리이므로 에러 로그를 조건부로 출력
+      if (error instanceof Error && !error.message.includes('Network request failed')) {
+        console.error('[HomeScreen] 추천 루트 가져오기 에러:', error);
+      }
+      setRecommendedCourses([]);
     } finally {
       setIsLoadingRecommended(false);
     }
@@ -752,6 +798,14 @@ export default function HomeScreen({ navigation }: any) {
     try {
       console.log('[HomeScreen] 일반 루트 데이터 가져오기 시작...');
       setIsLoadingRecommended(true);
+
+      // 로그인하지 않은 경우 일반 루트도 가져오지 않음
+      if (!isLoggedIn) {
+        console.log('[HomeScreen] 로그인하지 않음, 일반 루트 로딩 건너뜀');
+        setRecommendedCourses([]);
+        setIsLoadingRecommended(false);
+        return;
+      }
       const routesResponse = await fetch(`${BACKEND_API.BASE_URL}/v1/routes/`, {
         method: 'GET',
         headers: {
@@ -809,7 +863,12 @@ export default function HomeScreen({ navigation }: any) {
                             const spotDetailData = await spotDetailResponse.json();
                             console.log(`[HomeScreen] 일반 루트 스팟 ${spot.id} 상세 데이터:`, spotDetailData);
                             
-                            const imageUrl = spotDetailData.first_image || spotDetailData.past_image_url || '';
+                            // first_image가 없거나 null인 경우 기본 이미지 사용
+                            const imageUrl = (spotDetailData.first_image && spotDetailData.first_image.trim() !== '') 
+                              ? spotDetailData.first_image 
+                              : (spotDetailData.past_image_url && spotDetailData.past_image_url.trim() !== '')
+                                ? spotDetailData.past_image_url
+                                : Image.resolveAssetSource(require('../../assets/images/대동여지도.jpg'))?.uri || '';
                             console.log(`[HomeScreen] 일반 루트 스팟 ${spot.id} 이미지 URL:`, imageUrl);
                             
                             return imageUrl;
@@ -818,7 +877,10 @@ export default function HomeScreen({ navigation }: any) {
                             return '';
                           }
                         } catch (error) {
-                          console.error(`[HomeScreen] 일반 루트 스팟 ${spot.id} 상세 정보 가져오기 에러:`, error);
+                          // 네트워크 에러는 정상적인 fallback 처리이므로 에러 로그를 조건부로 출력
+                          if (error instanceof Error && !error.message.includes('Network request failed')) {
+                            console.error(`[HomeScreen] 일반 루트 스팟 ${spot.id} 상세 정보 가져오기 에러:`, error);
+                          }
                           return '';
                         }
                       })
@@ -862,7 +924,10 @@ export default function HomeScreen({ navigation }: any) {
         setRecommendedCourses([]);
       }
     } catch (error) {
-      console.error('[HomeScreen] 일반 루트 가져오기 에러:', error);
+      // 네트워크 에러는 정상적인 fallback 처리이므로 에러 로그를 조건부로 출력
+      if (error instanceof Error && !error.message.includes('Network request failed')) {
+        console.error('[HomeScreen] 일반 루트 가져오기 에러:', error);
+      }
       setRecommendedCourses([]);
     } finally {
       setIsLoadingRecommended(false);
@@ -895,21 +960,17 @@ export default function HomeScreen({ navigation }: any) {
 
   // 단순한 carousel 함수들
   const nextImage = useCallback((courseId: number, totalImages: number) => {
-    console.log(`[Carousel] 다음 이미지 - 코스 ${courseId}`);
     setCardImageIndices(prev => {
       const current = prev[courseId] || 0;
       const next = (current + 1) % totalImages;
-      console.log(`[Carousel] 인덱스 변경: ${current} → ${next}`);
       return { ...prev, [courseId]: next };
     });
   }, []);
 
   const prevImage = useCallback((courseId: number, totalImages: number) => {
-    console.log(`[Carousel] 이전 이미지 - 코스 ${courseId}`);
     setCardImageIndices(prev => {
       const current = prev[courseId] || 0;
       const prevIndex = (current - 1 + totalImages) % totalImages;
-      console.log(`[Carousel] 인덱스 변경: ${current} → ${prevIndex}`);
       return { ...prev, [courseId]: prevIndex };
     });
   }, []);
@@ -917,7 +978,6 @@ export default function HomeScreen({ navigation }: any) {
   const startCarousel = useCallback((courseId: number, totalImages: number) => {
     if (totalImages <= 1) return;
     
-    console.log(`[Carousel] 자동 시작 - 코스 ${courseId}, 총 ${totalImages}개`);
     
     // 기존 인터벌 정리
     if (carouselIntervalsRef.current[courseId]) {
@@ -926,7 +986,6 @@ export default function HomeScreen({ navigation }: any) {
     
     // 재귀적 setTimeout 사용
     const scheduleNext = () => {
-      console.log(`[Carousel] 자동 실행 - 코스 ${courseId}`);
       nextImage(courseId, totalImages);
       
       // 다음 실행 예약
@@ -985,7 +1044,9 @@ export default function HomeScreen({ navigation }: any) {
           const spotData = spotsData.find((s: any) => s.id === spot.id);
           return {
             ...spot,
-            first_image: spotData?.first_image || '',
+            first_image: (spotData?.first_image && spotData.first_image.trim() !== '') 
+              ? spotData.first_image 
+              : Image.resolveAssetSource(require('../../assets/images/대동여지도.jpg'))?.uri || '',
             past_image_url: spotData?.past_image_url || ''
           };
         });
@@ -1093,15 +1154,6 @@ export default function HomeScreen({ navigation }: any) {
            </TouchableOpacity>
            <TouchableOpacity style={styles.missionStatusBtn} onPress={checkMissionStatus}>
              <Text style={styles.missionStatusBtnText}>미션 상태 확인</Text>
-           </TouchableOpacity>
-           <TouchableOpacity style={styles.spotInfoBtn} onPress={checkSpotInfo}>
-             <Text style={styles.spotInfoBtnText}>스팟 정보 확인</Text>
-           </TouchableOpacity>
-           <TouchableOpacity style={styles.backendTestBtn} onPress={testBackendConnection}>
-             <Text style={styles.backendTestBtnText}>백엔드 연결 테스트</Text>
-           </TouchableOpacity>
-           <TouchableOpacity style={styles.simpleGetBtn} onPress={testSimpleGetRequest}>
-             <Text style={styles.simpleGetBtnText}>간단한 GET 요청</Text>
            </TouchableOpacity>
          </View>
        </View>

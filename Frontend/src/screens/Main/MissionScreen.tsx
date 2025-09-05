@@ -266,11 +266,6 @@ export default function MissionScreen({ route, navigation }: MissionScreenProps)
                       style={styles.image}
                       resizeMode="cover"
                     />
-                    <View style={styles.imageOverlay}>
-                      <Text style={styles.imageName} numberOfLines={2}>
-                        {image.name}
-                      </Text>
-                    </View>
 
                     {/* 선택 표시 */}
                     {selectedAnswer === image.id && (

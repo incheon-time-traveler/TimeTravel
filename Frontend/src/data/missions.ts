@@ -55,7 +55,9 @@ export const setCurrentLocation = (lat: number, lng: number) => {
 };
 
 // 백엔드에서 사용자의 진행중인 코스 가져오기
-export const fetchUserActiveCourse = async (authToken?: string): Promise<RouteData | null> => {
+export const fetchUserActiveCourse = async (authToken?: string, retryCount = 0): Promise<RouteData | null> => {
+  const maxRetries = 3;
+  
   try {
     // 토큰이 전달되지 않은 경우에만 getAuthToken() 사용
     const token = authToken || await getAuthToken();
@@ -65,6 +67,8 @@ export const fetchUserActiveCourse = async (authToken?: string): Promise<RouteDa
       return null;
     }
 
+    console.log(`[missions] 사용자 코스 조회 시작 (시도 ${retryCount + 1}/${maxRetries + 1})`);
+
     const response = await fetch(`${BACKEND_API.BASE_URL}/v1/courses/user_routes/`, {
       method: 'GET',
       headers: {
@@ -72,6 +76,8 @@ export const fetchUserActiveCourse = async (authToken?: string): Promise<RouteDa
         'Authorization': `Bearer ${token}`,
       },
     });
+
+    console.log(`[missions] 사용자 코스 조회 응답: ${response.status} ${response.statusText}`);
 
     if (response.ok) {
       const data = await response.json();
@@ -84,7 +90,15 @@ export const fetchUserActiveCourse = async (authToken?: string): Promise<RouteDa
     }
     return null;
   } catch (error) {
-    console.error('[missions] 사용자 코스 가져오기 실패:', error);
+    console.error(`[missions] 사용자 코스 가져오기 실패 (시도 ${retryCount + 1}):`, error);
+    
+    // 네트워크 에러인 경우 재시도
+    if (retryCount < maxRetries) {
+      console.log(`[missions] 네트워크 에러, ${retryCount + 1}/${maxRetries} 재시도 중...`);
+      await new Promise(resolve => setTimeout(resolve, 2000 * (retryCount + 1))); // 2초, 4초, 6초 대기
+      return fetchUserActiveCourse(authToken, retryCount + 1);
+    }
+    
     return null;
   }
 };
@@ -139,7 +153,7 @@ const convertSpotToMission = (spot: any, routeId?: number): Mission => {
       lat: spotLat,
       lng: spotLng,
       order: 0, // 기본값
-      radius: 100, // 100m 반경
+      radius: 300, // 300m 반경 (더 넓은 감지 범위)
       completed: false,
     },
     historicalPhotos: spotPastImageUrl ? [{
@@ -163,6 +177,7 @@ const convertSpotToMission = (spot: any, routeId?: number): Mission => {
 // 사용자의 진행중인 코스에서 미션 생성 (past_image_url 유무에 관계없이)
 export const createMissionsFromUserCourse = async (authToken?: string): Promise<Mission[]> => {
   try {
+    console.log('[missions] 미션 생성 시작');
     const userCourse = await fetchUserActiveCourse(authToken);
     if (!userCourse) {
       console.log('[missions] 진행중인 코스가 없습니다.');
@@ -190,27 +205,57 @@ export const createMissionsFromUserCourse = async (authToken?: string): Promise<
     if (cachedSpots.length > 0 && (now - lastFetchTime) < CACHE_DURATION) {
       console.log('[missions] 캐시된 스팟 정보 사용 (캐시 시간:', Math.round((now - lastFetchTime) / 1000), '초)');
     } else {
-      // 전체 스팟 목록 가져오기
-      const allSpotsResponse = await fetch(`${BACKEND_API.BASE_URL}/v1/spots/`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`,
-        },
-      });
+      // 전체 스팟 목록 가져오기 (재시도 로직 포함)
+      let allSpotsResponse;
+      let retryCount = 0;
+      const maxRetries = 3;
       
-      if (!allSpotsResponse.ok) {
-        console.error('[missions] 전체 스팟 정보 가져오기 실패:', allSpotsResponse.status);
+      while (retryCount < maxRetries) {
+        try {
+          console.log(`[missions] spots API 호출 시작 (시도 ${retryCount + 1}/${maxRetries + 1})`);
+          allSpotsResponse = await fetch(`${BACKEND_API.BASE_URL}/v1/spots/`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${authToken}`,
+            },
+          });
+          
+          console.log(`[missions] spots API 응답: ${allSpotsResponse.status} ${allSpotsResponse.statusText}`);
+          
+          if (allSpotsResponse.ok) {
+            cachedSpots = await allSpotsResponse.json();
+            lastFetchTime = now;
+            console.log('[missions] 전체 스팟 개수:', cachedSpots.length);
+            break;
+          } else {
+            console.error(`[missions] spots API 호출 실패 (시도 ${retryCount + 1}):`, allSpotsResponse.status);
+            retryCount++;
+            if (retryCount < maxRetries) {
+              await new Promise(resolve => setTimeout(resolve, 2000 * retryCount));
+              continue;
+            }
+          }
+        } catch (fetchError) {
+          console.error(`[missions] spots API 네트워크 에러 (시도 ${retryCount + 1}):`, fetchError);
+          retryCount++;
+          if (retryCount < maxRetries) {
+            await new Promise(resolve => setTimeout(resolve, 2000 * retryCount));
+            continue;
+          }
+          throw fetchError;
+        }
+      }
+      
+      // 최대 재시도 후에도 실패한 경우
+      if (!allSpotsResponse || !allSpotsResponse.ok) {
+        console.error('[missions] spots API 최종 실패, 캐시된 데이터 확인');
         // 401 에러인 경우 캐시된 데이터가 있으면 사용
-        if (allSpotsResponse.status === 401 && cachedSpots.length > 0) {
+        if (allSpotsResponse?.status === 401 && cachedSpots.length > 0) {
           console.log('[missions] 401 에러로 인해 캐시된 스팟 정보 사용');
         } else {
           return [];
         }
-      } else {
-        cachedSpots = await allSpotsResponse.json();
-        lastFetchTime = now;
-        console.log('[missions] 전체 스팟 개수:', cachedSpots.length);
       }
     }
     

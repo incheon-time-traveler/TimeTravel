@@ -335,7 +335,7 @@ export default function GalleryScreen({ navigation }: any) {
                 >
                   <View style={styles.imageContainer}>
                     <Image
-                      source={{ uri: item.past_image_url || 'https://via.placeholder.com/300' }}
+                      source={{ uri: item.past_image_url || Image.resolveAssetSource(require('../../assets/images/대동여지도.jpg'))?.uri || '' }}
                       style={styles.photo}
                       resizeMode="cover"
                       onLoad={() => console.log('[GalleryScreen] 이미지 로드 성공:', item.title, item.past_image_url)}
@@ -400,7 +400,7 @@ export default function GalleryScreen({ navigation }: any) {
 
                 <View style={styles.imageModalContainer}>
                   <Image
-                    source={{ uri: selectedImage?.image_url || 'https://via.placeholder.com/300' }}
+                    source={{ uri: selectedImage?.image_url || Image.resolveAssetSource(require('../../assets/images/대동여지도.jpg'))?.uri || '' }}
                     style={styles.modalImage}
                     resizeMode="contain"
                     onLoad={() => console.log('[GalleryScreen] 모달 이미지 로드 성공:', selectedImage?.title, selectedImage?.image_url)}
@@ -599,11 +599,6 @@ const styles = StyleSheet.create({
     zIndex: 2,
   },
   stampImage: {
-    width: '100%',
-    height: '100%',
-    transform: [{ rotate: '15deg' }],
-  },
-  stampImage: {
     position: 'absolute',
     top: 0,
     left: 0,
@@ -612,6 +607,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     borderRadius: 100,
     backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    transform: [{ rotate: '15deg' }],
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center'

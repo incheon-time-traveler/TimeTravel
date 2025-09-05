@@ -14,10 +14,10 @@ const FloatingChatBotButton: React.FC<Props> = ({ onPress, style }) => (
     onPress={onPress}
   >
     <Text style={styles.fabText}>
-        AI
+      AI
     </Text>
     <Text style={styles.fabText2}>
-        Chat Bot
+      Chat Bot
     </Text>
   </TouchableOpacity>
 );

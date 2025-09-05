@@ -54,7 +54,7 @@ const TripsScreen: React.FC = () => {
   const navigation = useNavigation();
   const [activeTab, setActiveTab] = useState('progress');
   const [detailModalVisible, setDetailModalVisible] = useState<boolean>(false);
-  const [selectedSpot, setSelectedSpot] = useState(null);
+  const [selectedSpot, setSelectedSpot] = useState<any>(null);
   const [spotDescription, setSpotDescription] = useState<string | null>(null);
   const [selectedCourse, setSelectedCourse] = useState<any>(null);
   const [courseModalVisible, setCourseModalVisible] = useState(false);
@@ -62,13 +62,17 @@ const TripsScreen: React.FC = () => {
   const [userRouteSpot, setUserRouteSpot] = useState<any>(null);
   const [userCourses, setUserCourses] = useState<any[]>([]);
   const [completedCourses, setCompletedCourses] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true); // 초기 로딩 상태를 true로 설정
 
   // 화면이 포커스될 때마다 데이터 새로고침
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
+      console.log('[TripsScreen] 화면 포커스됨, 데이터 새로고침 시작');
       fetchUserCourses();
     });
+
+    // 초기 로딩
+    fetchUserCourses();
 
     return unsubscribe;
   }, [navigation]);
@@ -117,7 +121,9 @@ const TripsScreen: React.FC = () => {
     }
   }
   // 사용자 코스 데이터 가져오기
-  const fetchUserCourses = async () => {
+  const fetchUserCourses = async (retryCount = 0) => {
+    const maxRetries = 3;
+    
     try {
       setIsLoading(true);
       const tokens = await authService.getTokens();
@@ -128,13 +134,31 @@ const TripsScreen: React.FC = () => {
         return;
       }
 
+      console.log(`[TripsScreen] 코스 조회 시작 (시도 ${retryCount + 1}/${maxRetries + 1})`);
+      console.log(`[TripsScreen] 백엔드 URL: ${BACKEND_API.BASE_URL}`);
+
       // 사용자 코스 데이터 가져오기
-      const response = await fetch(`${BACKEND_API.BASE_URL}/v1/courses/user_routes/`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${tokens.access}`,
-        },
-      });
+      let response;
+      try {
+        response = await fetch(`${BACKEND_API.BASE_URL}/v1/courses/user_routes/`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${tokens.access}`,
+          },
+        });
+        console.log(`[TripsScreen] 코스 조회 응답: ${response.status} ${response.statusText}`);
+      } catch (fetchError) {
+        console.error(`[TripsScreen] API 호출 에러 (시도 ${retryCount + 1}):`, fetchError);
+        
+        // 네트워크 에러인 경우 재시도
+        if (retryCount < maxRetries) {
+          console.log(`[TripsScreen] 네트워크 에러, ${retryCount + 1}/${maxRetries} 재시도 중...`);
+          await new Promise(resolve => setTimeout(resolve, 2000 * (retryCount + 1))); // 2초, 4초, 6초 대기
+          return fetchUserCourses(retryCount + 1);
+        }
+        
+        throw fetchError;
+      }
 
       if (response.ok) {
         const data = await response.json();
@@ -142,12 +166,20 @@ const TripsScreen: React.FC = () => {
         console.log('[TripsScreen] 사용자 코스 데이터:', data);
 
         // spots API에서 first_image 데이터 가져오기
-        const spotsResponse = await fetch(`${BACKEND_API.BASE_URL}/v1/spots/`, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${tokens.access}`,
-          },
-        });
+        let spotsResponse;
+        try {
+          spotsResponse = await fetch(`${BACKEND_API.BASE_URL}/v1/spots/`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${tokens.access}`,
+            },
+          });
+          console.log(`[TripsScreen] spots 조회 응답: ${spotsResponse.status} ${spotsResponse.statusText}`);
+        } catch (spotsFetchError) {
+          console.error(`[TripsScreen] spots API 호출 에러:`, spotsFetchError);
+          // spots API 실패는 치명적이지 않으므로 빈 배열로 처리
+          spotsResponse = { ok: false };
+        }
 
         let spotsData: any[] = [];
         if (spotsResponse.ok) {
@@ -168,7 +200,9 @@ const TripsScreen: React.FC = () => {
             const spotData = spotsData.find((s: any) => s.id === spot.id);
             return {
               ...spot,
-              first_image: spotData?.first_image || null
+              first_image: (spotData?.first_image && spotData.first_image.trim() !== '') 
+                ? spotData.first_image 
+                : Image.resolveAssetSource(require('../../assets/images/대동여지도.jpg'))?.uri || ''
             };
           });
 
@@ -199,9 +233,14 @@ const TripsScreen: React.FC = () => {
         setCompletedCourses([]);
       }
     } catch (error) {
-      console.error('[TripsScreen] 코스 조회 에러:', error);
-      setUserCourses([]);
-      setCompletedCourses([]);
+      console.error(`[TripsScreen] 코스 조회 최종 에러 (시도 ${retryCount + 1}):`, error);
+      
+      // 최대 재시도 횟수 초과 시에만 에러 상태로 설정
+      if (retryCount >= maxRetries) {
+        console.error('[TripsScreen] 최대 재시도 횟수 초과, 빈 데이터로 설정');
+        setUserCourses([]);
+        setCompletedCourses([]);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -209,19 +248,38 @@ const TripsScreen: React.FC = () => {
 
   // 핀들을 일렬로 나열하는 HTML 생성 함수
   const generateStaticMapHTML = (spots: any[]) => {
+    console.log('[TripsScreen] generateStaticMapHTML 호출됨, spots:', spots);
+    
     // spot 데이터를 JavaScript 배열로 변환
     const spotsData = spots.map(spot => ({
       title: spot.title,
       completed: spot.completed_at ? true : false,
       first_image: spot.first_image
     }));
+    
+    console.log('[TripsScreen] 원본 spots 데이터:', spots);
+    console.log('[TripsScreen] 변환된 spotsData:', spotsData);
 
     // 현재 진행중인 spot (첫 번째 미완료 spot) 찾기
     const currentSpot = spotsData.find(spot => !spot.completed);
-    const backgroundImage = currentSpot?.first_image ? currentSpot.first_image.replace('http://', 'https://') : '';
+    
+    // first_image가 없거나 null인 경우 기본 이미지 사용 (대동여지도)
+    const defaultImage = require('../../assets/images/대동여지도.jpg');
+    const defaultImageUri = Image.resolveAssetSource(defaultImage)?.uri || '';
+    let backgroundImage = defaultImageUri;
+    
+    if (currentSpot?.first_image && currentSpot.first_image.trim() !== '') {
+      // 이미 대체 이미지 URL인지 확인
+      if (currentSpot.first_image.includes('picsum.photos') || currentSpot.first_image.includes('via.placeholder.com') || currentSpot.first_image.includes('대동여지도.jpg')) {
+        backgroundImage = currentSpot.first_image;
+      } else {
+        backgroundImage = currentSpot.first_image.replace('http://', 'https://');
+      }
+    }
 
     console.log('[TripsScreen] spotsData:', spotsData);
     console.log('[TripsScreen] currentSpot:', currentSpot);
+    console.log('[TripsScreen] currentSpot.first_image:', currentSpot?.first_image);
     console.log('[TripsScreen] backgroundImage:', backgroundImage);
 
     // 자물쇠 이미지 URI 변환
@@ -280,10 +338,7 @@ const TripsScreen: React.FC = () => {
             left: 0;
             right: 0;
             bottom: 0;
-            background: ${backgroundImage ?
-              `linear-gradient(to bottom, transparent 0%, transparent 40%, rgba(255, 255, 255, 0.4) 70%, rgba(255, 255, 255, 0.9) 100%), url('${backgroundImage}')` :
-              '#f8f9fa'
-            };
+            background: linear-gradient(to bottom, transparent 0%, transparent 40%, rgba(255, 255, 255, 0.4) 70%, rgba(255, 255, 255, 0.9) 100%), url('${backgroundImage}');
             background-size: 100% 100%;
             background-position: center;
             background-repeat: no-repeat;
@@ -522,13 +577,11 @@ const TripsScreen: React.FC = () => {
 	                </View>
 
 	                <ScrollView style={styles.modalTextContainer}>
-					          {selectedSpot?.first_image && (
-					            <Image
-					              source={{ uri: selectedSpot.first_image.replace("http://", "https://") }}
-					              style={styles.modalImage}
-					              resizeMode="cover"
+					          <Image
+					            source={{ uri: selectedSpot.first_image.replace("http://", "https://") }}
+					            style={styles.modalImage}
+					            resizeMode="cover"
 					            />
-					          )}
 					          <Text style={styles.modalText}>
 					            {spotDescription ?? "로딩 중..."}
 					          </Text>
@@ -706,7 +759,7 @@ const renderCompletedTab = () => (
           </TouchableOpacity>
         </View>
 
-        <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
+        <ScrollView style={styles.modalTextContainer} showsVerticalScrollIndicator={false}>
           <Text style={styles.modalDescription}>완료된 여행 코스입니다.</Text>
 
           <Text style={styles.modalSectionTitle}>방문 장소</Text>

@@ -218,8 +218,7 @@ export default function MissionScreen({ route, navigation }: MissionScreenProps)
         <ScrollView contentContainerStyle={styles.scrollContent}>
           {/* 헤더 */}
           <View style={styles.header}>
-            <Text style={styles.title}>🎯 {mission.location.name} 미션</Text>
-            <Text style={styles.subtitle}>과거 사진 4개 중 정답을 찾아보세요!</Text>
+            <Text style={styles.title}>🎯 {mission.location.name} 찾기</Text>
           </View>
 
           {!gameStarted ? (
@@ -231,12 +230,12 @@ export default function MissionScreen({ route, navigation }: MissionScreenProps)
 
                 <Text style={styles.missionInfoTitle}>🎯 미션 목표</Text>
                 <Text style={styles.missionInfoText}>
-                  이곳의 과거 모습을 확인하고 시간을 탐험해보세요!
+                  {mission.location.name}의 과거 모습을 찾아주세요!
                 </Text>
 
                 <Text style={styles.missionInfoTitle}>📸 게임 방법</Text>
                 <Text style={styles.missionInfoText}>
-                  4개의 과거 사진 중에서 {mission.location.name}의 과거 모습을 찾아야해요.
+                  4개의 과거 사진 중에서 이곳의 과거일 것 같은 사진을 선택하면 돼요.
                 </Text>
               </View>
 
@@ -266,11 +265,7 @@ export default function MissionScreen({ route, navigation }: MissionScreenProps)
                       style={styles.image}
                       resizeMode="cover"
                     />
-                    <View style={styles.imageOverlay}>
-                      <Text style={styles.imageName} numberOfLines={2}>
-                        {image.name}
-                      </Text>
-                    </View>
+
 
                     {/* 선택 표시 */}
                     {selectedAnswer === image.id && (

@@ -54,7 +54,7 @@ function MapStack() {
 function MainTabs() {
   return (
     <Tab.Navigator
-      initialRouteName="Trips"
+      initialRouteName="Home"
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarShowLabel: false,
@@ -199,7 +199,6 @@ export default function App() {
         </Stack.Navigator>
         {isOnboardingComplete && (
           <>
-            <FloatingChatBotButton onPress={() => setChatVisible(true)} />
             <ChatScreenWrapper visible={chatVisible} onClose={() => setChatVisible(false)} />
           </>
         )}

@@ -199,7 +199,6 @@ export default function App() {
         </Stack.Navigator>
         {isOnboardingComplete && (
           <>
-            <FloatingChatBotButton onPress={() => setChatVisible(true)} />
             <ChatScreenWrapper visible={chatVisible} onClose={() => setChatVisible(false)} />
           </>
         )}

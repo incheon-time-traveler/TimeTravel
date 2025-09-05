@@ -9,10 +9,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   setCurrentLocation,
   startLocationBasedMissionDetection,
-  findMissionByLocation,
-  getActiveMissions,
-  getCompletedMissions,
-  createMissionsFromUserCourse,
   refreshMissionData,
   completeSpotVisit,
   getSpotDetail,
@@ -56,7 +52,7 @@ export default function HomeScreen({ navigation }: any) {
   useEffect(() => {
     checkLoginStatus();
     checkOngoingCourses();
-    // fetchRecommendedCourses는 로그인 상태 확인 후 useEffect에서 호출됨
+    fetchRecommendedCourses(); // 로그인 여부와 관계없이 추천 코스 로드
     fetchVisitedSpots();
 
     // 앱 상태 변화 감지
@@ -86,7 +82,7 @@ export default function HomeScreen({ navigation }: any) {
     const unsubscribe = navigation.addListener('focus', () => {
       checkLoginStatus();
       checkOngoingCourses();
-      // fetchRecommendedCourses는 로그인 상태 확인 후 useEffect에서 호출됨
+      fetchRecommendedCourses(); // 로그인 여부와 관계없이 추천 코스 로드
       fetchVisitedSpots();
     });
 
@@ -105,14 +101,9 @@ export default function HomeScreen({ navigation }: any) {
 
   // 로그인 상태가 변경될 때 추천 코스 다시 로드
   useEffect(() => {
-    if (isLoggedIn) {
-      console.log('[HomeScreen] 로그인됨, 추천 코스 다시 로드');
-      fetchRecommendedCourses();
-    } else {
-      console.log('[HomeScreen] 로그아웃됨, 추천 코스 초기화');
-      setRecommendedCourses([]);
-      setIsLoadingRecommended(false);
-    }
+    // 로그인 여부와 관계없이 추천 코스를 로드
+    console.log('[HomeScreen] 추천 코스 로드');
+    fetchRecommendedCourses();
   }, [isLoggedIn]);
 
   // 컴포넌트 언마운트 시 모든 carousel 정리
@@ -228,6 +219,7 @@ export default function HomeScreen({ navigation }: any) {
   const handleCompleteVisit = async (mission: any) => {
     try {
       setShowMissionNotification(false);
+      console.log('[HomeScreen] 방문 완료 처리 시작:', mission.location.name);
 
       const tokens = await authService.getTokens();
       if (!tokens?.access) {
@@ -251,6 +243,13 @@ export default function HomeScreen({ navigation }: any) {
 
       // UserRouteSpot ID를 사용하여 방문 완료 처리
       if (currentSpot.user_route_spot_id) {
+        console.log('[HomeScreen] 🔗 API 호출: PATCH /v1/courses/use_stamp/');
+        console.log('[HomeScreen] 📋 요청 데이터:', {
+          id: currentSpot.user_route_spot_id,
+          is_used: true
+        });
+        console.log('[HomeScreen] 📋 요청 헤더: Authorization: Bearer', tokens.access.substring(0, 20) + '...');
+        
         const response = await fetch(`${BACKEND_API.BASE_URL}/v1/courses/use_stamp/`, {
           method: 'PATCH',
           headers: {
@@ -262,6 +261,8 @@ export default function HomeScreen({ navigation }: any) {
             is_used: true
           }),
         });
+        
+        console.log('[HomeScreen] ✅ 방문 완료 API 응답:', response.status, response.statusText);
 
         if (response.ok) {
           console.log('[HomeScreen] 방문 완료 처리 성공');
@@ -284,245 +285,10 @@ export default function HomeScreen({ navigation }: any) {
     }
   };
 
-  // 미션 테스트 시뮬레이션 (에뮬레이터용)
-  const simulateMission = async () => {
-    try {
-      console.log('[HomeScreen] 미션 시뮬레이션 시작');
 
-      // 현재 토큰 가져오기
-      const tokens = await authService.getTokens();
-      if (!tokens?.access) {
-        Alert.alert('오류', '로그인이 필요합니다.');
-        return;
-      }
 
-      // 먼저 사용자의 진행중인 코스에서 미션 생성 (토큰 전달)
-      const missions = await createMissionsFromUserCourse(tokens.access);
 
-      if (missions.length === 0) {
-        Alert.alert(
-          '미션 없음',
-          '진행중인 코스가 없거나 미션 가능한 스팟이 없습니다.\n새로운 코스를 생성해보세요!'
-        );
-        return;
-      }
 
-      // 첫 번째 미션을 현재 미션으로 설정
-      const testMission = missions[0];
-      console.log('[HomeScreen] 테스트 미션 설정:', testMission.location.name);
-
-      setCurrentMission(testMission);
-      setShowMissionNotification(true);
-
-      // 성공 메시지 제거됨 - 미션 알림만 표시
-
-    } catch (error) {
-      console.error('[HomeScreen] 미션 시뮬레이션 실패:', error);
-      Alert.alert('오류', '미션 시뮬레이션 중 오류가 발생했습니다.');
-    }
-  };
-
-  // 미션 상태 확인 (디버깅용)
-  const checkMissionStatus = async () => {
-    try {
-      const activeMissions = getActiveMissions();
-      const completedMissions = getCompletedMissions();
-
-      let message = '🎯 미션 상태 확인\n\n';
-      message += `📍 현재 위치: ${currentLocation ? `${currentLocation.lat.toFixed(4)}, ${currentLocation.lng.toFixed(4)}` : '설정되지 않음'}\n\n`;
-      message += `🔄 활성 미션: ${activeMissions.length}개\n`;
-      message += `✅ 완료된 미션: ${completedMissions.length}개\n\n`;
-
-      if (activeMissions.length > 0) {
-        message += '📋 활성 미션 목록:\n';
-        activeMissions.forEach((mission, index) => {
-          // 디버깅: 미션 객체 전체 구조 확인
-          console.log(`[HomeScreen] 미션 ${index + 1} 전체 데이터:`, mission);
-          console.log(`[HomeScreen] 미션 ${index + 1} location:`, mission.location);
-
-          const missionName = mission.location?.name || '이름 없음';
-          const missionLat = mission.location?.lat || 0;
-          const missionLng = mission.location?.lng || 0;
-
-          message += `${index + 1}. ${missionName} (${missionLat.toFixed(4)}, ${missionLng.toFixed(4)})\n`;
-        });
-      }
-
-      Alert.alert('미션 상태', message);
-
-    } catch (error) {
-      console.error('[HomeScreen] 미션 상태 확인 실패:', error);
-      Alert.alert('오류', '미션 상태 확인 중 오류가 발생했습니다.');
-    }
-  };
-
-  // 스팟 정보 확인 (디버깅용)
-  const checkSpotInfo = async () => {
-    try {
-      console.log('[HomeScreen] 스팟 정보 확인 시작');
-
-      // 로그인 상태 확인 및 토큰 가져오기
-      const tokens = await authService.getTokens();
-      if (!tokens?.access) {
-        Alert.alert('오류', '로그인이 필요합니다.');
-        return;
-      }
-
-      // /v1/spots/ API 호출하여 전체 스팟 정보 가져오기 (인증 토큰 포함)
-      const response = await fetch(`${BACKEND_API.BASE_URL}/v1/spots/`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${tokens.access}`,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        console.log('[HomeScreen] 전체 스팟 데이터:', data);
-
-        // past_image_url이 있는 스팟들 필터링
-        const spotsWithPastImage = data.filter((spot: any) =>
-          spot.past_image_url && spot.past_image_url.trim() !== ''
-        );
-
-        // past_image_url이 없는 스팟들
-        const spotsWithoutPastImage = data.filter((spot: any) =>
-          !spot.past_image_url || spot.past_image_url.trim() === ''
-        );
-
-        let message = '🗺️ 스팟 정보 확인\n\n';
-        message += `📊 전체 스팟: ${data.length}개\n`;
-        message += `🖼️ 과거사진 있는 스팟: ${spotsWithPastImage.length}개\n`;
-        message += `❌ 과거사진 없는 스팟: ${spotsWithoutPastImage.length}개\n\n`;
-
-        if (spotsWithPastImage.length > 0) {
-          message += '🖼️ 과거사진 있는 스팟들:\n';
-          spotsWithPastImage.slice(0, 10).forEach((spot: any, index: number) => {
-            message += `${index + 1}. ${spot.name || spot.title || `스팟 ${spot.id}`}\n`;
-            message += `   📍 ${spot.address || '주소 없음'}\n`;
-            message += `   🖼️ ${spot.past_image_url?.substring(0, 50)}...\n\n`;
-          });
-
-          if (spotsWithPastImage.length > 10) {
-            message += `... 외 ${spotsWithPastImage.length - 10}개 더\n\n`;
-          }
-        }
-
-        if (spotsWithoutPastImage.length > 0) {
-          message += '❌ 과거사진 없는 스팟들 (샘플):\n';
-          spotsWithoutPastImage.slice(0, 5).forEach((spot: any, index: number) => {
-            message += `${index + 1}. ${spot.name || spot.title || `스팟 ${spot.id}`}\n`;
-            message += `   📍 ${spot.address || '주소 없음'}\n\n`;
-          });
-
-          if (spotsWithoutPastImage.length > 5) {
-            message += `... 외 ${spotsWithoutPastImage.length - 5}개 더\n\n`;
-          }
-        }
-
-        Alert.alert('스팟 정보', message);
-
-      } else {
-        console.error('[HomeScreen] 스팟 정보 가져오기 실패:', response.status);
-        Alert.alert('오류', '스팟 정보를 가져올 수 없습니다.');
-      }
-
-    } catch (error) {
-      console.error('[HomeScreen] 스팟 정보 확인 실패:', error);
-      Alert.alert('오류', '스팟 정보 확인 중 오류가 발생했습니다.');
-    }
-  };
-
-  // 백엔드 연결 테스트 (상세)
-  const testBackendConnection = async () => {
-    try {
-      console.log('[HomeScreen] 백엔드 연결 테스트 시작');
-      console.log('[HomeScreen] 테스트 URL:', `${BACKEND_API.BASE_URL}/v1/photos/`);
-
-      const startTime = Date.now();
-      const response = await fetch(`${BACKEND_API.BASE_URL}/v1/photos/`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      const endTime = Date.now();
-
-      console.log('[HomeScreen] 백엔드 연결 테스트 결과:', {
-        status: response.status,
-        statusText: response.statusText,
-        responseTime: `${endTime - startTime}ms`,
-        url: `${BACKEND_API.BASE_URL}/v1/photos/`,
-        headers: Object.fromEntries(response.headers.entries())
-      });
-
-      if (response.ok) {
-        Alert.alert(
-          '백엔드 연결 성공! 🎉',
-          `상태: ${response.status}\n응답 시간: ${endTime - startTime}ms\nURL: ${BACKEND_API.BASE_URL}/v1/photos/`
-        );
-      } else {
-        Alert.alert(
-          '백엔드 연결 실패 ❌',
-          `상태: ${response.status} ${response.statusText}\n응답 시간: ${endTime - startTime}ms\nURL: ${BACKEND_API.BASE_URL}/v1/photos/`
-        );
-      }
-
-    } catch (error) {
-      console.error('[HomeScreen] 백엔드 연결 테스트 실패:', error);
-      Alert.alert(
-        '백엔드 연결 실패 ❌',
-        `에러: ${error?.message || '알 수 없는 오류'}\nURL: ${BACKEND_API.BASE_URL}/v1/photos/`
-      );
-    }
-  };
-
-  // 간단한 GET 요청 테스트
-  const testSimpleGetRequest = async () => {
-    try {
-      console.log('[HomeScreen] 간단한 GET 요청 테스트 시작');
-      console.log('[HomeScreen] 테스트 URL:', `${BACKEND_API.BASE_URL}/v1/routes/`);
-
-      const startTime = Date.now();
-      const response = await fetch(`${BACKEND_API.BASE_URL}/v1/routes/`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      const endTime = Date.now();
-
-      console.log('[HomeScreen] 간단한 GET 요청 테스트 결과:', {
-        status: response.status,
-        statusText: response.statusText,
-        responseTime: `${endTime - startTime}ms`,
-        url: `${BACKEND_API.BASE_URL}/v1/routes/`,
-        headers: Object.fromEntries(response.headers.entries())
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        console.log('[HomeScreen] 응답 데이터:', data);
-        Alert.alert(
-          'GET 요청 성공! 🎉',
-          `상태: ${response.status}\n응답 시간: ${endTime - startTime}ms\n데이터 개수: ${Array.isArray(data) ? data.length : 'N/A'}`
-        );
-      } else {
-        Alert.alert(
-          'GET 요청 실패 ❌',
-          `상태: ${response.status} ${response.statusText}\n응답 시간: ${endTime - startTime}ms`
-        );
-      }
-
-    } catch (error) {
-      console.error('[HomeScreen] 간단한 GET 요청 테스트 실패:', error);
-      Alert.alert(
-        'GET 요청 실패 ❌',
-        `에러: ${error?.message || '알 수 없는 오류'}`
-      );
-    }
-  };
 
   const checkLoginStatus = async () => {
     try {
@@ -624,22 +390,22 @@ export default function HomeScreen({ navigation }: any) {
       console.log('[HomeScreen] 인기 추천 루트 데이터 가져오기 시작');
       setIsLoadingRecommended(true);
 
-      // 로그인하지 않은 경우 추천 코스를 가져오지 않음
-      if (!isLoggedIn) {
-        console.log('[HomeScreen] 로그인하지 않음, 추천 코스 로딩 건너뜀');
-        setRecommendedCourses([]);
-        setIsLoadingRecommended(false);
-        return;
-      }
+      // 로그인 여부와 관계없이 추천 코스를 가져옴
 
       // 1. 먼저 spots 데이터를 한 번에 가져오기
       console.log('[HomeScreen] spots 데이터 가져오기 시작...');
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10초 타임아웃
+      
       const spotsResponse = await fetch(`${BACKEND_API.BASE_URL}/v1/spots/`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
         },
+        signal: controller.signal,
       });
+      
+      clearTimeout(timeoutId);
 
       let spotsData: any[] = [];
       if (spotsResponse.ok) {
@@ -696,18 +462,12 @@ export default function HomeScreen({ navigation }: any) {
                         try {
                           console.log(`[HomeScreen] 스팟 ${spot.id} (${spot.title}) 상세 정보 가져오기...`);
                           
-                          // 토큰 가져오기
-                          const tokens = await authService.getTokens();
+                          // 공개 API이므로 인증 토큰 없이 요청
                           const headers: any = {
                             'Content-Type': 'application/json',
                           };
                           
-                          if (tokens?.access) {
-                            headers['Authorization'] = `Bearer ${tokens.access}`;
-                            console.log(`[HomeScreen] 인증 토큰으로 스팟 ${spot.id} 상세 정보 요청`);
-                          } else {
-                            console.log(`[HomeScreen] 인증 토큰 없이 스팟 ${spot.id} 상세 정보 요청`);
-                          }
+                          console.log(`[HomeScreen] 공개 API로 스팟 ${spot.id} 상세 정보 요청`);
                           
                           const spotDetailResponse = await fetch(`${BACKEND_API.BASE_URL}/v1/spots/${spot.id}/`, {
                             method: 'GET',
@@ -799,13 +559,7 @@ export default function HomeScreen({ navigation }: any) {
       console.log('[HomeScreen] 일반 루트 데이터 가져오기 시작...');
       setIsLoadingRecommended(true);
 
-      // 로그인하지 않은 경우 일반 루트도 가져오지 않음
-      if (!isLoggedIn) {
-        console.log('[HomeScreen] 로그인하지 않음, 일반 루트 로딩 건너뜀');
-        setRecommendedCourses([]);
-        setIsLoadingRecommended(false);
-        return;
-      }
+      // 로그인 여부와 관계없이 일반 루트를 가져옴
       const routesResponse = await fetch(`${BACKEND_API.BASE_URL}/v1/routes/`, {
         method: 'GET',
         headers: {
@@ -841,18 +595,12 @@ export default function HomeScreen({ navigation }: any) {
                         try {
                           console.log(`[HomeScreen] 일반 루트 스팟 ${spot.id} (${spot.title}) 상세 정보 가져오기...`);
                           
-                          // 토큰 가져오기
-                          const tokens = await authService.getTokens();
+                          // 공개 API이므로 인증 토큰 없이 요청
                           const headers: any = {
                             'Content-Type': 'application/json',
                           };
                           
-                          if (tokens?.access) {
-                            headers['Authorization'] = `Bearer ${tokens.access}`;
-                            console.log(`[HomeScreen] 인증 토큰으로 일반 루트 스팟 ${spot.id} 상세 정보 요청`);
-      } else {
-                            console.log(`[HomeScreen] 인증 토큰 없이 일반 루트 스팟 ${spot.id} 상세 정보 요청`);
-                          }
+                          console.log(`[HomeScreen] 공개 API로 일반 루트 스팟 ${spot.id} 상세 정보 요청`);
                           
                           const spotDetailResponse = await fetch(`${BACKEND_API.BASE_URL}/v1/spots/${spot.id}/`, {
                             method: 'GET',
@@ -1145,18 +893,6 @@ export default function HomeScreen({ navigation }: any) {
          </TouchableOpacity>
        )}
 
-       {/* 미션 테스트 버튼들 */}
-       <View style={styles.missionTestSection}>
-         <Text style={styles.missionTestTitle}>🧪 미션 테스트 (에뮬레이터용)</Text>
-         <View style={styles.missionTestButtons}>
-           <TouchableOpacity style={styles.missionTestBtn} onPress={simulateMission}>
-             <Text style={styles.missionTestBtnText}>미션 시뮬레이션</Text>
-           </TouchableOpacity>
-           <TouchableOpacity style={styles.missionStatusBtn} onPress={checkMissionStatus}>
-             <Text style={styles.missionStatusBtnText}>미션 상태 확인</Text>
-           </TouchableOpacity>
-         </View>
-       </View>
     </View>
   );
 
@@ -1469,29 +1205,6 @@ export default function HomeScreen({ navigation }: any) {
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.ongoingCardScroll}>
               {ongoingCourses.map(renderOngoingCourseCard)}
             </ScrollView>
-            {/* 진행중인 코스가 있어도 미션 테스트 버튼 표시 */}
-            {isLoggedIn && (
-              <View style={styles.missionTestSection}>
-                <Text style={styles.missionTestTitle}>🧪 미션 테스트 (에뮬레이터용)</Text>
-                <View style={styles.missionTestButtons}>
-                  <TouchableOpacity style={styles.missionTestBtn} onPress={simulateMission}>
-                    <Text style={styles.missionTestBtnText}>미션 시뮬레이션</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.missionStatusBtn} onPress={checkMissionStatus}>
-                    <Text style={styles.missionStatusBtnText}>미션 상태 확인</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.spotInfoBtn} onPress={checkSpotInfo}>
-                    <Text style={styles.spotInfoBtnText}>스팟 정보 확인</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.backendTestBtn} onPress={testBackendConnection}>
-                    <Text style={styles.backendTestBtnText}>백엔드 연결 테스트</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.simpleGetBtn} onPress={testSimpleGetRequest}>
-                    <Text style={styles.simpleGetBtnText}>간단한 GET 요청</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
           </>
         ) : (
           <>
@@ -2031,132 +1744,6 @@ underline: {
     marginLeft: 4,
   },
 
-  // 미션 테스트 버튼 스타일
-  missionTestSection: {
-    marginTop: 20,
-    paddingHorizontal: 20,
-    alignItems: 'center',
-  },
-  missionTestTitle: {
-    ...TEXT_STYLES.small,
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  missionTestButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    width: '100%',
-  },
-  missionTestBtn: {
-    backgroundColor: '#FF6B6B',
-    borderRadius: 20,
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    marginHorizontal: 8,
-    shadowColor: '#FF6B6B',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  missionTestBtnText: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 12,
-    color: '#fff',
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  missionStatusBtn: {
-    backgroundColor: '#4ECDC4',
-    borderRadius: 20,
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    marginHorizontal: 8,
-    shadowColor: '#4ECDC4',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  missionStatusBtnText: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 12,
-    color: '#fff',
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  spotInfoBtn: {
-    backgroundColor: '#9B59B6',
-    borderRadius: 20,
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    marginHorizontal: 8,
-    shadowColor: '#9B59B6',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  spotInfoBtnText: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 12,
-    color: '#fff',
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  backendTestBtn: {
-    backgroundColor: '#2ECC71',
-    borderRadius: 20,
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    marginHorizontal: 8,
-    shadowColor: '#2ECC71',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  backendTestBtnText: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 12,
-    color: '#fff',
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  simpleGetBtn: {
-    backgroundColor: '#3498DB',
-    borderRadius: 20,
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    marginHorizontal: 8,
-    shadowColor: '#3498DB',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  simpleGetBtnText: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 12,
-    color: '#fff',
-    fontWeight: '600',
-    textAlign: 'center',
-  },
   // 루트 정보 섹션
   routeInfoSection: {
     marginBottom: 20,

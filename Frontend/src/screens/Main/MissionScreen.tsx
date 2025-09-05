@@ -77,7 +77,6 @@ export default function MissionScreen({ route, navigation }: MissionScreenProps)
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${tokens.access}`,
         },
       });
 

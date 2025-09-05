@@ -140,12 +140,18 @@ const TripsScreen: React.FC = () => {
       // 사용자 코스 데이터 가져오기
       let response;
       try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10초 타임아웃
+        
         response = await fetch(`${BACKEND_API.BASE_URL}/v1/courses/user_routes/`, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${tokens.access}`,
           },
+          signal: controller.signal,
         });
+        
+        clearTimeout(timeoutId);
         console.log(`[TripsScreen] 코스 조회 응답: ${response.status} ${response.statusText}`);
       } catch (fetchError) {
         console.error(`[TripsScreen] API 호출 에러 (시도 ${retryCount + 1}):`, fetchError);
@@ -168,12 +174,18 @@ const TripsScreen: React.FC = () => {
         // spots API에서 first_image 데이터 가져오기
         let spotsResponse;
         try {
+          const spotsController = new AbortController();
+          const spotsTimeoutId = setTimeout(() => spotsController.abort(), 10000); // 10초 타임아웃
+          
           spotsResponse = await fetch(`${BACKEND_API.BASE_URL}/v1/spots/`, {
             method: 'GET',
             headers: {
-              'Authorization': `Bearer ${tokens.access}`,
+              'Content-Type': 'application/json',
             },
+            signal: spotsController.signal,
           });
+          
+          clearTimeout(spotsTimeoutId);
           console.log(`[TripsScreen] spots 조회 응답: ${spotsResponse.status} ${spotsResponse.statusText}`);
         } catch (spotsFetchError) {
           console.error(`[TripsScreen] spots API 호출 에러:`, spotsFetchError);

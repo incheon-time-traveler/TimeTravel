@@ -68,16 +68,24 @@ export const fetchUserActiveCourse = async (authToken?: string, retryCount = 0):
     }
 
     console.log(`[missions] 사용자 코스 조회 시작 (시도 ${retryCount + 1}/${maxRetries + 1})`);
+    console.log(`[missions] 🔗 API 호출: GET ${BACKEND_API.BASE_URL}/v1/courses/user_routes/`);
+    console.log(`[missions] 📋 요청 헤더: Authorization: Bearer ${token.substring(0, 20)}...`);
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10초 타임아웃
+    
     const response = await fetch(`${BACKEND_API.BASE_URL}/v1/courses/user_routes/`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,
       },
+      signal: controller.signal,
     });
+    
+    clearTimeout(timeoutId);
 
-    console.log(`[missions] 사용자 코스 조회 응답: ${response.status} ${response.statusText}`);
+    console.log(`[missions] ✅ 사용자 코스 조회 응답: ${response.status} ${response.statusText}`);
 
     if (response.ok) {
       const data = await response.json();
@@ -213,15 +221,23 @@ export const createMissionsFromUserCourse = async (authToken?: string): Promise<
       while (retryCount < maxRetries) {
         try {
           console.log(`[missions] spots API 호출 시작 (시도 ${retryCount + 1}/${maxRetries + 1})`);
+          console.log(`[missions] 🔗 API 호출: GET ${BACKEND_API.BASE_URL}/v1/spots/`);
+          console.log(`[missions] 📋 요청 헤더: Content-Type: application/json (공개 API)`);
+          
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 10000); // 10초 타임아웃
+          
           allSpotsResponse = await fetch(`${BACKEND_API.BASE_URL}/v1/spots/`, {
             method: 'GET',
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${authToken}`,
             },
+            signal: controller.signal,
           });
           
-          console.log(`[missions] spots API 응답: ${allSpotsResponse.status} ${allSpotsResponse.statusText}`);
+          clearTimeout(timeoutId);
+          
+          console.log(`[missions] ✅ spots API 응답: ${allSpotsResponse.status} ${allSpotsResponse.statusText}`);
           
           if (allSpotsResponse.ok) {
             cachedSpots = await allSpotsResponse.json();
@@ -328,6 +344,8 @@ export const completeMission = async (missionId: number, authToken?: string) => 
     }
 
     console.log('[missions] 미션 완료 시작, missionId(spot.id):', missionId);
+    console.log('[missions] 🔗 API 호출: GET /v1/courses/user_routes/ (사용자 코스 조회)');
+    console.log('[missions] 📋 요청 헤더: Authorization: Bearer', token.substring(0, 20) + '...');
 
     // 1. 사용자의 UserRouteSpot 정보를 가져와서 해당하는 UserRouteSpot의 id를 찾기
     const userRoutesResponse = await fetch(`${BACKEND_API.BASE_URL}/v1/courses/user_routes/`, {
@@ -337,6 +355,8 @@ export const completeMission = async (missionId: number, authToken?: string) => 
         'Authorization': `Bearer ${token}`,
       },
     });
+    
+    console.log('[missions] ✅ 사용자 코스 조회 응답:', userRoutesResponse.status, userRoutesResponse.statusText);
 
     if (!userRoutesResponse.ok) {
       console.error('[missions] 사용자 코스 정보 가져오기 실패:', userRoutesResponse.status);
@@ -430,8 +450,11 @@ export const completeMission = async (missionId: number, authToken?: string) => 
     // 7. unlock_route_spot API 호출 로그
     const unlockUrl = `${BACKEND_API.BASE_URL}/v1/courses/unlock_route_spot/${userRouteSpot.route_spot_id}/`;
     const unlockPayload = { id: userRouteSpot.id, unlock_at: new Date().toISOString() };
-    console.log('[missions] PATCH unlock_route_spot URL:', unlockUrl);
-    console.log('[missions] PATCH unlock_route_spot Payload:', unlockPayload);
+    console.log('[missions] 🔗 API 호출: PATCH /v1/courses/unlock_route_spot/');
+    console.log('[missions] 📋 요청 URL:', unlockUrl);
+    console.log('[missions] 📋 요청 데이터:', unlockPayload);
+    console.log('[missions] 📋 요청 헤더: Authorization: Bearer', token.substring(0, 20) + '...');
+    
     const response = await fetch(unlockUrl, {
       method: 'PATCH',
       headers: {
@@ -440,6 +463,8 @@ export const completeMission = async (missionId: number, authToken?: string) => 
       },
       body: JSON.stringify(unlockPayload),
     });
+    
+    console.log('[missions] ✅ unlock_route_spot API 응답:', response.status, response.statusText);
 
     if (response.ok) {
       const data = await response.json();
@@ -686,7 +711,6 @@ export const getSpotDetail = async (spotId: number, authToken?: string): Promise
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
       },
     });
 

@@ -667,9 +667,6 @@ const LoginScreen = ({ navigation, route }: any) => {
       </View>
 
       <View style={styles.loginContainer}>
-        <TouchableOpacity onPress={() => handleSocialLogin('google')} style={styles.socialLoginButton}>
-          <Image source={require('../../assets/images/android_light_sq_ctn.png')} style={styles.googleButton} />
-        </TouchableOpacity>
         <TouchableOpacity onPress={() => handleSocialLogin('kakao')} style={styles.socialLoginButton}>
           <Image source={require('../../assets/images/kakao_login_medium_wide.png')} style={styles.kakaoButton} />
         </TouchableOpacity>
@@ -691,7 +688,6 @@ const LoginScreen = ({ navigation, route }: any) => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1, // SafeAreaView가 화면 전체를 차지하도록 설정
-    backgroundColor: '#f0f0f0', // SafeAreaView 자체의 배경색 (선택 사항)
   },
   container: {
 		flex: 1,
@@ -732,8 +728,8 @@ const styles = StyleSheet.create({
 	},
   kakaoButton: {
 		width: 300,
-		height: 55,
-		resizeMode: 'stretch'
+		height: 50,
+		resizeMode: 'contain'
 	},
   // 프로필 관련 스타일
   profileContainer: {
@@ -796,6 +792,7 @@ const styles = StyleSheet.create({
   },
   profileLabelContainer: {
     width: 80,
+    padding: 8,
     alignItems: 'flex-start',
   },
   profileLabel: {

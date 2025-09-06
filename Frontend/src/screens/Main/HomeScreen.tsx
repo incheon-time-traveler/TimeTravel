@@ -964,7 +964,7 @@ export default function HomeScreen({ navigation }: any) {
                   fontWeight: 'bold',
                   color: INCHEON_BLUE,
                 }}>
-                  루트 상세 정보
+                  코스 상세 정보
                 </Text>
               </View>
               <TouchableOpacity
@@ -988,8 +988,8 @@ export default function HomeScreen({ navigation }: any) {
             </View>
 
             {/* 내용 */}
-            <ScrollView 
-              style={{ maxHeight: height - 300 }} 
+            <ScrollView
+              style={{ maxHeight: height - 300 }}
               showsVerticalScrollIndicator={true}
               contentContainerStyle={{ paddingBottom: 20 }}
             >
@@ -1005,66 +1005,66 @@ export default function HomeScreen({ navigation }: any) {
                 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
                     <Ionicons name="location" size={18} color={INCHEON_BLUE} style={{ marginRight: 8 }} />
-                    <Text style={{ 
+                    <Text style={{
                       ...FONT_STYLES.pixel,
-                      fontSize: 18, 
-                      fontWeight: 'bold', 
-                      color: '#333' 
+                      fontSize: 18,
+                      fontWeight: 'bold',
+                      color: '#333'
                     }}>
                       {route.title || '알 수 없는 루트'}
                     </Text>
                   </View>
-                  
+
                   <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
                     <Ionicons name="business" size={16} color="#4ECDC4" style={{ marginRight: 8 }} />
-                    <Text style={{ 
+                    <Text style={{
                       ...FONT_STYLES.pixel,
-                      fontSize: 14, 
-                      color: '#666' 
+                      fontSize: 14,
+                      color: '#666'
                     }}>
                       지역: {route.user_region_name || '인천'}
                     </Text>
                   </View>
-                  
+
                   <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
                     <Ionicons name="map" size={16} color="#45B7D1" style={{ marginRight: 8 }} />
-                    <Text style={{ 
+                    <Text style={{
                       ...FONT_STYLES.pixel,
-                      fontSize: 14, 
-                      color: '#666' 
+                      fontSize: 14,
+                      color: '#666'
                     }}>
                       총 장소 수: {route.total_spots || spots.length}개
                     </Text>
                   </View>
-                  
+
                   {route.mission_available && (
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                       <Ionicons name="target" size={16} color="#96CEB4" style={{ marginRight: 8 }} />
-                      <Text style={{ 
+                      <Text style={{
                         ...FONT_STYLES.pixel,
-                        fontSize: 14, 
-                        color: '#28a745', 
-                        fontWeight: '600' 
+                        fontSize: 14,
+                        color: '#28a745',
+                        fontWeight: '600'
                       }}>
                         미션 가능: 예
                       </Text>
                     </View>
                   )}
                 </View>
-                
+
                 {/* 장소 목록 헤더 */}
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 15 }}>
                   <Ionicons name="list" size={18} color={INCHEON_BLUE} style={{ marginRight: 8 }} />
-                  <Text style={{ 
+                  <Text style={{
                     ...FONT_STYLES.pixel,
-                    fontSize: 18, 
-                    fontWeight: 'bold', 
-                    color: '#333' 
+                    fontSize: 18,
+                    fontWeight: 'bold',
+                    color: '#333'
                   }}>
                     장소 목록
                   </Text>
                 </View>
-              
+
                 {spots.length > 0 ? (
                   spots.map((spot: any, index: number) => (
                     <View key={spot.id} style={{
@@ -1090,19 +1090,19 @@ export default function HomeScreen({ navigation }: any) {
                           alignItems: 'center',
                           marginRight: 12,
                         }}>
-                                                  <Text style={{ 
+                                                  <Text style={{
                           ...FONT_STYLES.pixel,
-                          color: '#fff', 
-                          fontSize: 12, 
-                          fontWeight: 'bold' 
+                          color: '#fff',
+                          fontSize: 12,
+                          fontWeight: 'bold'
                         }}>
                           {index + 1}
                         </Text>
                         </View>
-                        <Text style={{ 
+                        <Text style={{
                           ...FONT_STYLES.pixel,
-                          fontSize: 16, 
-                          fontWeight: 'bold', 
+                          fontSize: 16,
+                          fontWeight: 'bold',
                           color: '#333',
                           flex: 1,
                         }}>
@@ -1112,9 +1112,9 @@ export default function HomeScreen({ navigation }: any) {
                       {spot.address && (
                         <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginLeft: 36 }}>
                           <Ionicons name="location-outline" size={14} color="#666" style={{ marginRight: 6, marginTop: 2 }} />
-                          <Text style={{ 
+                          <Text style={{
                             ...FONT_STYLES.pixel,
-                            fontSize: 13, 
+                            fontSize: 13,
                             color: '#666',
                             flex: 1,
                             lineHeight: 18,
@@ -1136,11 +1136,11 @@ export default function HomeScreen({ navigation }: any) {
                     borderStyle: 'dashed',
                   }}>
                     <Ionicons name="hourglass-outline" size={32} color="#adb5bd" style={{ marginBottom: 10 }} />
-                    <Text style={{ 
+                    <Text style={{
                       ...FONT_STYLES.pixel,
-                      fontSize: 14, 
-                      color: '#6c757d', 
-                      textAlign: 'center' 
+                      fontSize: 14,
+                      color: '#6c757d',
+                      textAlign: 'center'
                     }}>
                       장소 정보를 불러오는 중...
                     </Text>
@@ -1159,7 +1159,7 @@ export default function HomeScreen({ navigation }: any) {
               borderTopWidth: 1,
               borderTopColor: '#e9ecef',
             }}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={{
                   backgroundColor: INCHEON_BLUE,
                   paddingVertical: 14,
@@ -1181,7 +1181,7 @@ export default function HomeScreen({ navigation }: any) {
                     fontSize: 16,
                     fontWeight: 'bold',
                   }}>
-                    확인
+                    다른 코스 보기
                   </Text>
                 </View>
               </TouchableOpacity>
@@ -1208,7 +1208,7 @@ export default function HomeScreen({ navigation }: any) {
           </>
         ) : (
           <>
-            <Text style={styles.sectionTitle}>인기 추천 코스</Text>
+            <Text style={styles.sectionTitle}>코스 생성 예시</Text>
             <View style={styles.underline} />
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.cardScroll}>
               {isLoadingRecommended ? (
@@ -1233,12 +1233,12 @@ export default function HomeScreen({ navigation }: any) {
                     <View style={styles.imageBox}>
 
 
-                      
+
                                             {/* 이미지 Carousel */}
                       {course.images && course.images.length > 0 ? (
                         <View style={styles.cardImageCarousel}>
-                                                <TouchableOpacity 
-                            style={[styles.cardCarouselButton, styles.cardCarouselButtonLeft]} 
+                                                <TouchableOpacity
+                            style={[styles.cardCarouselButton, styles.cardCarouselButtonLeft]}
                             onPress={(e) => {
                               e.stopPropagation();
                               prevImage(course.id, course.images.length);
@@ -1246,19 +1246,19 @@ export default function HomeScreen({ navigation }: any) {
                           >
                             <Ionicons name="chevron-back" size={16} color="#fff" />
                           </TouchableOpacity>
-                          
+
                           <View style={styles.imageContainer}>
-                            <Image 
-                              source={{ 
+                            <Image
+                              source={{
                                 uri: course.images[cardImageIndices[course.id] || 0]
-                              }} 
+                              }}
                               style={styles.courseImage}
                               resizeMode="cover"
                             />
                           </View>
-                          
-                          <TouchableOpacity 
-                            style={[styles.cardCarouselButton, styles.cardCarouselButtonRight]} 
+
+                          <TouchableOpacity
+                            style={[styles.cardCarouselButton, styles.cardCarouselButtonRight]}
                             onPress={(e) => {
                               e.stopPropagation();
                               nextImage(course.id, course.images.length);
@@ -1266,7 +1266,7 @@ export default function HomeScreen({ navigation }: any) {
                           >
                             <Ionicons name="chevron-forward" size={16} color="#fff" />
                           </TouchableOpacity>
-                          
+
                           {/* 이미지 인디케이터 */}
                           {course.images.length > 1 && (
                             <View style={styles.cardImageIndicator}>
@@ -1280,19 +1280,18 @@ export default function HomeScreen({ navigation }: any) {
                         <Ionicons name="image-outline" size={36} color="#bbb" />
                       )}
                     </View>
-                    <Text style={styles.courseTitle} numberOfLines={1}>{course.title}</Text>
                     <View style={styles.locationContainer}>
                       <Ionicons name="location-outline" size={14} color={INCHEON_GRAY} />
                       <Text style={styles.locationText} numberOfLines={1}>{course.location || '위치 정보 없음'}</Text>
                     </View>
                     <TouchableOpacity style={styles.startBtn} disabled>
-                      <Text style={styles.startBtnText}>시작하기</Text>
+                      <Text style={styles.startBtnText}>살펴보기</Text>
                     </TouchableOpacity>
                   </TouchableOpacity>
                 ))
               ) : (
                 <View style={styles.loadingContainer}>
-                  <Text style={styles.loadingText}>추천 코스가 없습니다.</Text>
+                  <Text style={styles.loadingText}>예시 코스가 없습니다.</Text>
                 </View>
               )}
             </ScrollView>
@@ -1393,7 +1392,6 @@ underline: {
   loginBtnText: {
     ...TEXT_STYLES.button,
     color: '#fff',
-    fontWeight: '600',
   },
   cardScroll: {
     marginTop: 8,
@@ -1619,6 +1617,7 @@ underline: {
   userName: {
     ...TEXT_STYLES.subtitle,
     textAlign: 'center',
+    padding: 8,
     marginLeft: 6,
   },
   greetingText: {

@@ -12,21 +12,19 @@ import HomeScreen from './src/screens/Main/HomeScreen';
 import MapScreen from './src/screens/Main/MapScreen';
 import TripsScreen from './src/screens/Main/TripsScreen';
 import GalleryScreen from './src/screens/Main/GalleryScreen';
-import ProfileScreen from './src/screens/Profile/ProfileScreen';
 import CourseRecommendationScreen from './src/screens/Main/CourseRecommendationScreen';
 import CourseDetailScreen from './src/screens/Main/CourseDetailScreen';
 import ProfileSetupScreen from './src/screens/Auth/ProfileSetupScreen';
-import ChatScreen from './src/screens/Chat/ChatScreen';
 import LoginScreen from './src/screens/Auth/LoginScreen';
 import MissionScreen from './src/screens/Main/MissionScreen';
 import CameraScreen from './src/screens/Main/CameraScreen';
-
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // UI Components
-import FloatingChatBotButton from './src/components/ui/FloatingChatBotButton';
 import { INCHEON_BLUE } from './src/styles/fonts';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
+
 
 // ---  nesting navigators ---
 
@@ -50,8 +48,10 @@ function MapStack() {
   );
 }
 
+
 // 탭 네비게이터 (각 탭은 필요에 따라 스택을 가짐)
 function MainTabs() {
+  const insets = useSafeAreaInsets();
   return (
     <Tab.Navigator
       initialRouteName="Home"
@@ -61,10 +61,10 @@ function MainTabs() {
         tabBarStyle: {
           backgroundColor: '#fff',
           borderTopWidth: 0,
-          height: 80,
+          height: 60 + insets.bottom,
           elevation: 0,
           shadowOpacity: 0,
-          paddingBottom: 10,
+          paddingBottom: insets.bottom,
           paddingTop: 14,
         },
         tabBarIcon: ({ focused }) => {
@@ -207,8 +207,3 @@ export default function App() {
   );
 }
 
-// ChatScreen을 위한 래퍼 컴포넌트 (NavigationContainer 내부에서 사용)
-function ChatScreenWrapper({ visible, onClose }: { visible: boolean; onClose: () => void }) {
-  const navigation = useNavigation();
-  return <ChatScreen visible={visible} onClose={onClose} navigation={navigation} />;
-}

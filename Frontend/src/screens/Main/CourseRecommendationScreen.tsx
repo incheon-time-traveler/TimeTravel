@@ -134,26 +134,26 @@ export default function CourseRecommendationScreen({ navigation }: any) {
       (position) => {
         const { latitude, longitude } = position.coords;
         console.log('[CourseRecommendationScreen] 위치 획득 성공:', latitude, longitude);
-        
+
         setUserLocation({ lat: latitude, lng: longitude });
         setIsGettingLocation(false);
       },
       (error) => {
         console.error('[CourseRecommendationScreen] 위치 획득 실패:', error);
-        
+
         // GPS 기반으로 재시도
         console.log('[CourseRecommendationScreen] GPS 기반 위치 재시도...');
         Geolocation.getCurrentPosition(
           (position) => {
             const { latitude, longitude } = position.coords;
             console.log('[CourseRecommendationScreen] GPS 위치 획득:', latitude, longitude);
-            
+
             setUserLocation({ lat: latitude, lng: longitude });
             setIsGettingLocation(false);
           },
           (gpsError) => {
             console.error('[CourseRecommendationScreen] GPS 위치도 실패:', gpsError);
-            
+
             // 마지막으로 기본 위치 사용
             setDefaultLocation();
           },
@@ -173,10 +173,10 @@ export default function CourseRecommendationScreen({ navigation }: any) {
     const defaultLat = 37.4563;
     const defaultLng = 126.7052;
     console.log('[CourseRecommendationScreen] 기본 위치 설정:', defaultLat, defaultLng);
-    
+
     setUserLocation({ lat: defaultLat, lng: defaultLng });
     setIsGettingLocation(false);
-    
+
     Alert.alert(
       '위치 정보',
       '현재 위치를 정확히 가져올 수 없어 기본 위치(인천)를 사용합니다.',
@@ -201,18 +201,18 @@ export default function CourseRecommendationScreen({ navigation }: any) {
 
     try {
       console.log('[CourseRecommendationScreen] 미션 제안 요청 시작');
-      
+
       // 로그인 상태 확인 및 토큰 가져오기
       const tokens = await authService.getTokens();
       const headers: any = {
         'Content-Type': 'application/json',
       };
-      
+
       // 토큰이 있으면 Authorization 헤더 추가
       if (tokens?.access) {
         headers['Authorization'] = `Bearer ${tokens.access}`;
       }
-      
+
       const response = await fetch(
         `${BACKEND_API.BASE_URL}/v1/courses/mission_proposal/?user_lat=${userLocation.lat}&user_lon=${userLocation.lng}&move_to_other_region=${moveToOtherRegion}`,
         {
@@ -229,7 +229,7 @@ export default function CourseRecommendationScreen({ navigation }: any) {
           try {
             const data = await response.json();
             console.log('[CourseRecommendationScreen] 미션 제안 데이터:', data);
-            
+
             if (data.proposal) {
               setMissionProposal(data.proposal);
             } else {
@@ -247,7 +247,7 @@ export default function CourseRecommendationScreen({ navigation }: any) {
         }
       } else {
         console.log('[CourseRecommendationScreen] 미션 제안 응답 실패:', response.status, response.statusText);
-        
+
         // 에러 응답 상세 정보 확인
         try {
           const errorData = await response.json();
@@ -279,12 +279,12 @@ export default function CourseRecommendationScreen({ navigation }: any) {
     try {
       console.log('[CourseRecommendationScreen] 코스 생성 요청 시작');
       console.log('[CourseRecommendationScreen] 선택된 선호도:', selectedPreferences);
-      
+
       // 데이터베이스 연결 한계 문제에 대한 재시도 로직
       let retryCount = 0;
       const maxRetries = 3;
       let response;
-      
+
       while (retryCount < maxRetries) {
         try {
 
@@ -335,12 +335,12 @@ export default function CourseRecommendationScreen({ navigation }: any) {
           });
 
           console.log('[CourseRecommendationScreen] 코스 생성 응답:', response.status, response.statusText);
-          
+
           // 성공하면 재시도 루프 종료
           if (response.ok) {
             break;
           }
-          
+
           // 데이터베이스 연결 에러인 경우 재시도
           if (response.status >= 500) {
             const errorText = await response.text();
@@ -353,10 +353,10 @@ export default function CourseRecommendationScreen({ navigation }: any) {
               }
             }
           }
-          
+
           // 다른 에러는 즉시 종료
           break;
-          
+
         } catch (fetchError) {
           console.error(`[CourseRecommendationScreen] API 호출 에러 (시도 ${retryCount + 1}):`, fetchError);
           retryCount++;
@@ -368,11 +368,11 @@ export default function CourseRecommendationScreen({ navigation }: any) {
           throw fetchError;
         }
       }
-      
+
       // 최대 재시도 횟수 초과 시 에러 처리
       if (retryCount >= maxRetries) {
         Alert.alert(
-          '서버 과부하', 
+          '서버 과부하',
           '현재 서버가 과부하 상태입니다. 잠시 후 다시 시도해주세요.',
           [
             { text: '확인', style: 'default' },
@@ -390,11 +390,11 @@ export default function CourseRecommendationScreen({ navigation }: any) {
           try {
             const data = await response.json();
             console.log('[CourseRecommendationScreen] 코스 생성 성공 데이터:', data);
-            
+
             // 성공적인 코스 생성
             if (data.success && data.course_spots) {
               const totalSpots = data.total_spots || data.course_spots.length;
-              
+
               Alert.alert(
                 '코스 생성 완료! 🎉',
                 `${totalSpots}개의 장소로 구성된 코스가 생성되었습니다!`,
@@ -428,7 +428,7 @@ export default function CourseRecommendationScreen({ navigation }: any) {
         }
       } else {
         console.log('[CourseRecommendationScreen] 코스 생성 HTTP 에러:', response.status, response.statusText);
-        
+
         // HTTP 에러 응답 처리
         try {
           const contentType = response.headers.get('content-type');
@@ -456,14 +456,13 @@ export default function CourseRecommendationScreen({ navigation }: any) {
 	// 현재 위치 간단한 주소 요청
   const getAddressFromCoords = async (lat: number, lng: number): Promise<string | null> => {
     try {
-			console.log(KAKAO_REST_API_KEY);
       const response = await fetch(
         `https://dapi.kakao.com/v2/local/geo/coord2regioncode.json?x=${lng}&y=${lat}`,
         { headers: { Authorization: `KakaoAK ${KAKAO_REST_API_KEY}` } }
       );
       if (!response.ok) throw new Error('API 요청 실패');
       const result = await response.json();
-      return result.documents?.[0]?.address_name || '인천';
+      return result.documents?.[0]?.address_name || `위도: ${lat} 경도: ${lng}`;
     } catch (error) {
       console.error('주소 가져오기 오류:', error);
       return '인천';

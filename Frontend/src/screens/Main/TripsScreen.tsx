@@ -44,7 +44,8 @@ const handleViewSpotDetail = async (spotId: number) => {
 // 자물쇠 이미지 import
 const lockedIcon = require('../../assets/icons/locked.png');
 const unlockedIcon = require('../../assets/icons/unlocked.png');
-
+const lockedBase64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAwAAAAOCAYAAAAbvf3sAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAC0SURBVHgBrVCxDQIxDHRCAxItJexAS5U1mAF6WlLSwwyskYqWFRIoaZGgC9h6R/d8EEL6k6KczmefE0NtZKrDdAib3xASQigic+998Ro0cxHNCGzShuycy81a5XzoZOn7zqZWGBA8NKVEMUam2+Z0dJ6Sb7u5FMbLhdz346k2nCabs8Tmx2VVxOF0L/fzum4187DR7EDVBC4wVMcEq0Y1awIOQG41VqN1FVwHeT9v+PlL9AdeQLdshK47lHUAAAAASUVORK5CYII=';
+const unlockedBase64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABEAAAAOCAYAAADJ7fe0AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAADDSURBVHgBtZExDsIwDEXtigEkVka4AytTrsEZYGdMVnY4Azdh5Q4wsiLBFuq0ttLEVdqhX0qTfsWv3y7CMPkeH+VRAlhrwRgjBp8RG0YJEgCaCEQLsZzD1xc9CZqWZMV+BeOEoIxgBv1DEznnJFkMYZ8M/z5vw8tyvwv753ZXYavTQ2rSeP77PIgxX1/C/nsdO0D6wGJz5RrIIGmS9jKwryTpqOJiBnCSGJqeVQhF5tjcBvvaWW1nkpkM+Ds5BMYpg/wBwNpZg8S0BsUAAAAASUVORK5CYII=';
 const TABS = [
   { key: 'progress', label: '진행 중' },
   { key: 'completed', label: '진행 완료' },
@@ -123,7 +124,7 @@ const TripsScreen: React.FC = () => {
   // 사용자 코스 데이터 가져오기
   const fetchUserCourses = async (retryCount = 0) => {
     const maxRetries = 3;
-    
+
     try {
       setIsLoading(true);
       const tokens = await authService.getTokens();
@@ -142,7 +143,7 @@ const TripsScreen: React.FC = () => {
       try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 10000); // 10초 타임아웃
-        
+
         response = await fetch(`${BACKEND_API.BASE_URL}/v1/courses/user_routes/`, {
           method: 'GET',
           headers: {
@@ -150,19 +151,19 @@ const TripsScreen: React.FC = () => {
           },
           signal: controller.signal,
         });
-        
+
         clearTimeout(timeoutId);
         console.log(`[TripsScreen] 코스 조회 응답: ${response.status} ${response.statusText}`);
       } catch (fetchError) {
         console.error(`[TripsScreen] API 호출 에러 (시도 ${retryCount + 1}):`, fetchError);
-        
+
         // 네트워크 에러인 경우 재시도
         if (retryCount < maxRetries) {
           console.log(`[TripsScreen] 네트워크 에러, ${retryCount + 1}/${maxRetries} 재시도 중...`);
           await new Promise(resolve => setTimeout(resolve, 2000 * (retryCount + 1))); // 2초, 4초, 6초 대기
           return fetchUserCourses(retryCount + 1);
         }
-        
+
         throw fetchError;
       }
 
@@ -176,7 +177,7 @@ const TripsScreen: React.FC = () => {
         try {
           const spotsController = new AbortController();
           const spotsTimeoutId = setTimeout(() => spotsController.abort(), 10000); // 10초 타임아웃
-          
+
           spotsResponse = await fetch(`${BACKEND_API.BASE_URL}/v1/spots/`, {
             method: 'GET',
             headers: {
@@ -184,7 +185,7 @@ const TripsScreen: React.FC = () => {
             },
             signal: spotsController.signal,
           });
-          
+
           clearTimeout(spotsTimeoutId);
           console.log(`[TripsScreen] spots 조회 응답: ${spotsResponse.status} ${spotsResponse.statusText}`);
         } catch (spotsFetchError) {
@@ -212,8 +213,8 @@ const TripsScreen: React.FC = () => {
             const spotData = spotsData.find((s: any) => s.id === spot.id);
             return {
               ...spot,
-              first_image: (spotData?.first_image && spotData.first_image.trim() !== '') 
-                ? spotData.first_image 
+              first_image: (spotData?.first_image && spotData.first_image.trim() !== '')
+                ? spotData.first_image
                 : Image.resolveAssetSource(require('../../assets/images/대동여지도.jpg'))?.uri || ''
             };
           });
@@ -246,7 +247,7 @@ const TripsScreen: React.FC = () => {
       }
     } catch (error) {
       console.error(`[TripsScreen] 코스 조회 최종 에러 (시도 ${retryCount + 1}):`, error);
-      
+
       // 최대 재시도 횟수 초과 시에만 에러 상태로 설정
       if (retryCount >= maxRetries) {
         console.error('[TripsScreen] 최대 재시도 횟수 초과, 빈 데이터로 설정');
@@ -261,25 +262,25 @@ const TripsScreen: React.FC = () => {
   // 핀들을 일렬로 나열하는 HTML 생성 함수
   const generateStaticMapHTML = (spots: any[]) => {
     console.log('[TripsScreen] generateStaticMapHTML 호출됨, spots:', spots);
-    
+
     // spot 데이터를 JavaScript 배열로 변환
     const spotsData = spots.map(spot => ({
       title: spot.title,
       completed: spot.completed_at ? true : false,
       first_image: spot.first_image
     }));
-    
+
     console.log('[TripsScreen] 원본 spots 데이터:', spots);
     console.log('[TripsScreen] 변환된 spotsData:', spotsData);
 
     // 현재 진행중인 spot (첫 번째 미완료 spot) 찾기
     const currentSpot = spotsData.find(spot => !spot.completed);
-    
+
     // first_image가 없거나 null인 경우 기본 이미지 사용 (대동여지도)
     const defaultImage = require('../../assets/images/대동여지도.jpg');
     const defaultImageUri = Image.resolveAssetSource(defaultImage)?.uri || '';
     let backgroundImage = defaultImageUri;
-    
+
     if (currentSpot?.first_image && currentSpot.first_image.trim() !== '') {
       // 이미 대체 이미지 URL인지 확인
       if (currentSpot.first_image.includes('picsum.photos') || currentSpot.first_image.includes('via.placeholder.com') || currentSpot.first_image.includes('대동여지도.jpg')) {
@@ -295,8 +296,8 @@ const TripsScreen: React.FC = () => {
     console.log('[TripsScreen] backgroundImage:', backgroundImage);
 
     // 자물쇠 이미지 URI 변환
-    const lockedResolved = Image.resolveAssetSource(lockedIcon);
-    const unlockedResolved = Image.resolveAssetSource(unlockedIcon);
+    const lockedResolved = Image.resolveAssetSource(lockedBase64);
+    const unlockedResolved = Image.resolveAssetSource(unlockedBase64);
     const lockedUri = lockedResolved?.uri || '';
     const unlockedUri = unlockedResolved?.uri || '';
 
@@ -467,7 +468,7 @@ const TripsScreen: React.FC = () => {
             return `
               <div class="pin-item">
                 <div class="pin ${pinClass}">
-                  <img src="${iconSrc}" class="pin-icon" alt="pin" />
+                  <img src="${spot.completed ? unlockedBase64 : lockedBase64}" class="pin-icon" alt="pin" />
                 </div>
                 <div class="pin-label">${spot.title}</div>
               </div>

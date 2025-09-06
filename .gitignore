@@ -653,4 +653,9 @@ fabric.properties
 
 !/gradle/wrapper/gradle-wrapper.jar
 
+# ubuntu
+ubuntu/
+# aws
+.aws/
+
 # End of https://www.toptal.com/developers/gitignore/api/django,python,reactnative,android,androidstudio

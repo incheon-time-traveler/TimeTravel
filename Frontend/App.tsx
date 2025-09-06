@@ -199,7 +199,6 @@ export default function App() {
         </Stack.Navigator>
         {isOnboardingComplete && (
           <>
-            <ChatScreenWrapper visible={chatVisible} onClose={() => setChatVisible(false)} />
           </>
         )}
       </NavigationContainer>

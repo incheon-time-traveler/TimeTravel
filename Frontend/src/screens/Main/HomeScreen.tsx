@@ -696,11 +696,14 @@ export default function HomeScreen({ navigation }: any) {
   };
 
   const handleNextDestination = (spot: any) => {
-    // MapScreen으로 이동하여 길찾기
+    // MapScreen으로 이동하여 길찾기 (TripsScreen과 동일한 방식)
     navigation.navigate('Map', {
-      destination: spot.title || spot.name || '알 수 없는 장소',
-      destinationLat: spot.lat,
-      destinationLng: spot.lng
+      screen: 'MapMain',
+      params: {
+        destination: spot.title || spot.name || '알 수 없는 장소',
+        destinationLat: spot.lat,
+        destinationLng: spot.lng,
+      }
     });
   };
 

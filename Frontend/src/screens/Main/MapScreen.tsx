@@ -4,9 +4,10 @@ import {
   StyleSheet,
   Dimensions,
   Text,
+  BackHandler,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
-import { useRoute } from '@react-navigation/native';
+import { useRoute, useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const { width, height } = Dimensions.get('window');
@@ -22,6 +23,7 @@ interface RouteParams {
 
 const MapScreen: React.FC = () => {
   const route = useRoute();
+  const navigation = useNavigation();
   const [mapUrl, setMapUrl] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
 
@@ -59,6 +61,19 @@ const MapScreen: React.FC = () => {
     setMapUrl(url);
     setIsLoading(false);
   }, [route.params]);
+
+  // 하드웨어 뒤로가기 버튼 처리
+  useEffect(() => {
+    const backAction = () => {
+      // 홈 탭으로 이동
+      navigation.navigate('Home', { screen: 'HomeMain' });
+      return true; // 기본 뒤로가기 동작을 막음
+    };
+
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
+
+    return () => backHandler.remove();
+  }, [navigation]);
 
 
 

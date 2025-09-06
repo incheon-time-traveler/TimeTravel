@@ -45,6 +45,6 @@ urlpatterns = [
     # 추가: courses 앱을 v1/courses/로도 접근 가능하도록
     path('v1/courses/', include('courses.urls')),
     path('v1/chatbot/', include('chatbot.urls')),
-    path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
-    path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
+    path('v1/swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
+    path('v1/redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
 ]

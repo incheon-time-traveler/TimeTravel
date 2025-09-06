@@ -8,6 +8,8 @@ from .utils import generate_course, save_course
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.db.models import Count
 from spots.models import Spot
+from photos.models import Photo
+from photos.serializers import PhotoSerializer
 
 # Create your views here.
 """
@@ -28,6 +30,7 @@ def routes(request):
         serializer = RouteSerializer(routes, many=True)
         return Response(serializer.data, status=200)
 
+# 코스 인기순 조회회
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def best_routes(request):
@@ -259,6 +262,24 @@ def user_routes(request, route_id=None):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
+# 유저 코스 삭제
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_user_route_spot(request, route_id):
+    """
+    유저 코스 삭제 API
+    프론트엔드에서 사용자가 코스를 삭제합니다.
+    route_id를 받아, user_id와 route_id를 가진 UserRouteSpot을 전부 삭제합니다.
+    """
+    if request.method == "DELETE":
+        user = request.user
+        user_route_spot = UserRouteSpot.objects.filter(user_id=user, route_id_id=route_id)
+        user_route_spot.delete()
+        return Response({'success': '사용자 코스가 삭제되었습니다.'}, status=status.HTTP_204_NO_CONTENT)
+    else:
+        return Response({'error': 'DELETE 메서드만 지원됩니다.'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+
 # 잠금 해제
 @api_view(['PATCH'])
 @permission_classes([IsAuthenticated])
@@ -272,6 +293,15 @@ def unlock_route_spot(request, route_spot_id):
         print("requset.data:", request.data)
         user_route_spot = UserRouteSpot.objects.get(user_id=user, id=request.data['id'])
         serializer = UserRouteSpotUpdateSerializer(user_route_spot, data=request.data, partial=True)
+        request.data['spot_id'] = user_route_spot.route_spot_id.spot_id.id
+        request.data['user_id'] = user.id
+        request.data['route_id'] = user_route_spot.route_spot_id.route_id.id
+        past_photo_url = Spot.objects.get(id=user_route_spot.route_spot_id.spot_id.id).past_image_url
+        request.data['image_url'] = past_photo_url
+        photoserializer = PhotoSerializer(data=request.data)
+        if photoserializer.is_valid(raise_exception=True):
+            print("photoserializer valid")
+            photoserializer.save()
         if serializer.is_valid(raise_exception=True):
             serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
@@ -289,13 +319,21 @@ def unlock_spots(request):
     if request.method == "GET":
         user = request.user
         user_route_spots = UserRouteSpot.objects.filter(user_id=user.id, unlock_at__isnull=False)
+        data = []
+        if not user_route_spots.exists():
+            return Response({
+                'message': '해당 사용자의 루트 스팟이 없습니다.',
+                'data': data
+            }, status=status.HTTP_200_OK)
         serializer = UserRouteSpotSerializer(user_route_spots, many=True)
         for spot in serializer.data:
             spot_id = RouteSpot.objects.get(id=spot['route_spot_id'])
-            past_photo_url = Spot.objects.get(id=spot_id.spot_id.id).past_image_url
-            spot['past_photo_url'] = past_photo_url
-            spot['spot_name'] = spot_id.spot_id.name
-        return Response(serializer.data, status=status.HTTP_200_OK)
+            if spot_id.spot_id.past_image_url:
+                past_photo_url = Spot.objects.get(id=spot_id.spot_id.id).past_image_url
+                spot['past_photo_url'] = past_photo_url
+                spot['spot_name'] = spot_id.spot_id.name
+                data.append(spot)
+        return Response(data, status=status.HTTP_200_OK)
     else:
         return Response({'error': 'GET 메서드만 지원됩니다.'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 

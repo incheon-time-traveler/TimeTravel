@@ -4,12 +4,10 @@ import {
   StyleSheet,
   Dimensions,
   Text,
-  TouchableOpacity,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
-import { useRoute, useNavigation } from '@react-navigation/native';
-import Ionicons from 'react-native-vector-icons/Ionicons';
-import { INCHEON_BLUE, INCHEON_GRAY } from '../../styles/fonts';
+import { useRoute } from '@react-navigation/native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const { width, height } = Dimensions.get('window');
 
@@ -17,23 +15,33 @@ interface RouteParams {
   destination: string;
   destinationLat?: number;
   destinationLng?: number;
+  type?: 'place' | 'map';
+  placeId?: string;
+  searchQuery?: string;
 }
 
 const MapScreen: React.FC = () => {
   const route = useRoute();
-  const navigation = useNavigation();
   const [mapUrl, setMapUrl] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const params = route.params as RouteParams;
     console.log('[MapScreen] 받은 파라미터:', params);
+    console.log('[MapScreen] destination:', params?.destination);
+    console.log('[MapScreen] type:', params?.type);
+    console.log('[MapScreen] placeId:', params?.placeId);
 
     let url = '';
 
     if (params?.destination) {
       const destName = encodeURIComponent(params.destination);
-      if (params.destinationLat && params.destinationLng) {
+      
+      if (params.type === 'place' && params.placeId) {
+        // 카카오맵 장소 ID가 있는 경우 - 장소 상세 정보 페이지로 직접 이동
+        url = `https://place.map.kakao.com/${params.placeId}`;
+        console.log('[MapScreen] 카카오맵 장소 상세 정보 URL:', url);
+      } else if (params.destinationLat && params.destinationLng) {
         // 좌표가 있는 경우: WebView에서 직접 지도 표시
         url = `https://map.kakao.com/link/map/${destName},${params.destinationLat},${params.destinationLng}`;
         console.log('[MapScreen] 목적지 지도 링크(URL):', url);
@@ -52,75 +60,51 @@ const MapScreen: React.FC = () => {
     setIsLoading(false);
   }, [route.params]);
 
-  const handleBackPress = () => {
-    navigation.goBack();
-  };
 
-  const handleRefresh = () => {
-    setIsLoading(true);
-    // WebView 새로고침을 위해 URL 재설정
-    setTimeout(() => {
-      setIsLoading(false);
-    }, 1000);
-  };
 
   return (
-    <View style={styles.container}>
-      {/* 헤더 */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
-          <Ionicons name="arrow-back" size={24} color="#fff" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>
-          {(route.params as RouteParams)?.destination
-            ? `${(route.params as RouteParams).destination} 길찾기`
-            : '지도'
-          }
-        </Text>
-        <TouchableOpacity style={styles.refreshButton} onPress={handleRefresh}>
-          <Ionicons name="refresh" size={24} color="#fff" />
-        </TouchableOpacity>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+      <View style={styles.container}>
+        {/* 카카오맵 WebView */}
+        {mapUrl && (
+          <WebView
+            source={{ uri: mapUrl }}
+            style={styles.map}
+            javaScriptEnabled={true}
+            domStorageEnabled={true}
+            startInLoadingState={true}
+            scalesPageToFit={false}
+            allowsInlineMediaPlayback={true}
+            mediaPlaybackRequiresUserAction={false}
+            mixedContentMode="always"
+            allowsBackForwardNavigationGestures={false}
+            cacheEnabled={false}
+            incognito={false}
+            androidLayerType="hardware"
+            onLoadStart={() => {
+              console.log('[MapScreen] 지도 로딩 시작');
+              setIsLoading(true);
+            }}
+            onLoadEnd={() => {
+              console.log('[MapScreen] 지도 로딩 완료');
+              setIsLoading(false);
+            }}
+            onError={(syntheticEvent) => {
+              const { nativeEvent } = syntheticEvent;
+              console.error('[MapScreen] WebView 에러:', nativeEvent);
+              setIsLoading(false);
+            }}
+          />
+        )}
+
+        {/* 로딩 인디케이터 */}
+        {isLoading && (
+          <View style={styles.loadingContainer}>
+            <Text style={styles.loadingText}>지도를 불러오는 중...</Text>
+          </View>
+        )}
       </View>
-
-      {/* 카카오맵 WebView */}
-      {mapUrl && (
-        <WebView
-          source={{ uri: mapUrl }}
-          style={styles.map}
-          javaScriptEnabled={true}
-          domStorageEnabled={true}
-          startInLoadingState={true}
-          scalesPageToFit={false}
-          allowsInlineMediaPlayback={true}
-          mediaPlaybackRequiresUserAction={false}
-          mixedContentMode="always"
-          allowsBackForwardNavigationGestures={false}
-          cacheEnabled={false}
-          incognito={false}
-          androidLayerType="hardware"
-          onLoadStart={() => {
-            console.log('[MapScreen] 지도 로딩 시작');
-            setIsLoading(true);
-          }}
-          onLoadEnd={() => {
-            console.log('[MapScreen] 지도 로딩 완료');
-            setIsLoading(false);
-          }}
-          onError={(syntheticEvent) => {
-            const { nativeEvent } = syntheticEvent;
-            console.error('[MapScreen] WebView 에러:', nativeEvent);
-            setIsLoading(false);
-          }}
-        />
-      )}
-
-      {/* 로딩 인디케이터 */}
-      {isLoading && (
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>지도를 불러오는 중...</Text>
-        </View>
-      )}
-    </View>
+    </SafeAreaView>
   );
 };
 
@@ -133,37 +117,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 15,
-    paddingVertical: 12,
-    backgroundColor: INCHEON_BLUE,
-    borderBottomLeftRadius: 15,
-    borderBottomRightRadius: 15,
-    elevation: 4,
-    shadowColor: INCHEON_BLUE,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-  },
-  backButton: {
-    padding: 8,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#fff',
-    flex: 1,
-    textAlign: 'center',
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-  },
-  refreshButton: {
-    padding: 8,
-  },
   map: {
-      paddingTop: 16,
     flex: 1,
     width: width,
     height: height,

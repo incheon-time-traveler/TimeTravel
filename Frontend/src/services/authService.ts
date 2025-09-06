@@ -51,7 +51,7 @@ class AuthService {
       const refresh = await AsyncStorage.getItem('refresh_token');
       
       console.log('[authService.getTokens] access 존재:', !!access, 'refresh 존재:', !!refresh);
-      
+      // console.log("access :", access)
       // access 토큰이 있으면 로그인 상태로 간주 (refresh 토큰은 선택사항)
       if (access) {
         return { 
@@ -141,6 +141,7 @@ class AuthService {
     try {
       const refresh = await AsyncStorage.getItem('refresh_token');
       if (!refresh) {
+        console.log('[authService.refreshToken] refresh 토큰이 없음');
         return null;
       }
 
@@ -159,13 +160,65 @@ class AuthService {
           refresh: data.refresh || refresh, // 새로운 refresh 토큰이 없으면 기존 것 사용
         };
         await this.saveTokens(tokens);
+        console.log('[authService.refreshToken] 토큰 갱신 성공');
         return tokens;
       }
+      console.log('[authService.refreshToken] 토큰 갱신 실패:', response.status);
       return null;
     } catch (error) {
       console.error('토큰 갱신 오류:', error);
       return null;
     }
+  }
+
+  // 인증이 필요한 API 호출을 위한 헬퍼 함수
+  async authenticatedFetch(url: string, options: RequestInit = {}): Promise<Response> {
+    const tokens = await this.getTokens();
+    
+    if (!tokens?.access) {
+      console.log('[authService.authenticatedFetch] 토큰이 없음, 로그아웃 처리');
+      await this.logout();
+      // 사용자 친화적인 오류 발생
+      throw new Error('SESSION_EXPIRED');
+    }
+
+    // Authorization 헤더 추가
+    const headers = {
+      ...options.headers,
+      'Authorization': `Bearer ${tokens.access}`,
+    };
+
+    let response = await fetch(url, {
+      ...options,
+      headers,
+    });
+
+    // 401 오류 시 토큰 갱신 시도
+    if (response.status === 401) {
+      console.log('[authService.authenticatedFetch] 401 오류, 토큰 갱신 시도');
+      
+      const newTokens = await this.refreshToken();
+      if (newTokens) {
+        // 토큰 갱신 성공 시 원래 요청 재시도
+        const newHeaders = {
+          ...options.headers,
+          'Authorization': `Bearer ${newTokens.access}`,
+        };
+        
+        response = await fetch(url, {
+          ...options,
+          headers: newHeaders,
+        });
+      } else {
+        // 토큰 갱신 실패 시 로그아웃
+        console.log('[authService.authenticatedFetch] 토큰 갱신 실패, 로그아웃 처리');
+        await this.logout();
+        // 사용자 친화적인 오류 발생
+        throw new Error('SESSION_EXPIRED');
+      }
+    }
+
+    return response;
   }
 
   // 사용자 프로필 업데이트

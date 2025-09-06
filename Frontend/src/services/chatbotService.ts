@@ -3,6 +3,10 @@ import { CHATBOT_API } from '../config/apiKeys';
 export interface ChatbotRequest {
   user_question: string;
   user_id: string;
+  user_location?: {
+    lat: number;
+    lng: number;
+  };
 }
 
 export interface ChatbotResponse {
@@ -21,12 +25,14 @@ export class ChatbotService {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
         body: JSON.stringify(request),
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorText = await response.text();
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
       }
 
       const data = await response.json();
@@ -43,4 +49,6 @@ export class ChatbotService {
   static generateUserId(): string {
     return `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }
+
+
 }

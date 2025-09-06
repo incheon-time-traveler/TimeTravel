@@ -59,7 +59,7 @@ def propose_mission(spots_queryset, user_lat, user_lon):
         if dist < min_dist:
             min_dist = dist
     
-    proposal = f"과거 사진 촬영 미션에 도전해보시겠어요?\n가장 가까운 미션 장소는 약 {min_dist:.1f}km 거리에 있습니다."
+    proposal = f"현재와 과거를 동시에 볼 수 있는 가장 가까운 장소는 {min_dist:.1f}km 거리에 있습니다."
     return proposal, True, mission_spots.count()
 
 

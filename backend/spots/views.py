@@ -4,11 +4,12 @@ from .serializers import SpotSerializer
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.decorators import permission_classes
 import random
 # Create your views here.
 @api_view(['GET'])
+@permission_classes([AllowAny])
 def spots(request):
     """
     스팟 조회 API
@@ -25,6 +26,7 @@ def spots(request):
         )
 
 @api_view(['GET'])
+@permission_classes([AllowAny])
 def spot_detail(request, spot_id):
     """
     스팟 상세 조회 API

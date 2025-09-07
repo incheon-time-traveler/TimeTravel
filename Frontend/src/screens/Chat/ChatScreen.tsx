@@ -96,7 +96,8 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ visible, onClose, navigation })
       const response = await ChatbotService.chatWithBot({
         user_question: currentInput,
         user_id: userId,
-        user_location: userLocation || undefined,
+        lat: userLocation?.lat || undefined,
+        lng: userLocation?.lng || undefined,
       });
 
       const botMessage: ChatMessage = {

@@ -425,7 +425,15 @@ export default function GalleryScreen({ navigation }: any) {
           ) : (
             <Text style={styles.subtitle}>로그인해 과거 모습을 찾아보세요.</Text>
           )}
-          <View style={styles.gridWrap}>
+          
+          {/* 로딩 상태 표시 */}
+          {isLoading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={INCHEON_BLUE} />
+              <Text style={styles.loadingText}>갤러리를 불러오는 중...</Text>
+            </View>
+          ) : (
+            <View style={styles.gridWrap}>
               {galleryData.map((item) => (
                 <TouchableOpacity
                   key={item.id}
@@ -460,12 +468,6 @@ export default function GalleryScreen({ navigation }: any) {
                         )}
                       </View>
                     )}
-                    {item.completed && item.isUserPhoto && (
-                      <View style={styles.userPhotoOverlay}>
-                        <Ionicons name="camera" size={20} color="white" />
-                        <Text style={styles.userPhotoText}>내가 촬영</Text>
-                      </View>
-                    )}
                   </View>
                   <View style={styles.cardFooter}>
                     <Text style={styles.missionTitle} numberOfLines={1}>{item.title}</Text>
@@ -480,7 +482,8 @@ export default function GalleryScreen({ navigation }: any) {
                 </TouchableOpacity>
               ))}
             </View>
-          </ScrollView>
+          )}
+        </ScrollView>
 
           {/* 로그인 안내 모달 */}
           {renderLoginModal()}
@@ -497,9 +500,7 @@ export default function GalleryScreen({ navigation }: any) {
                 <View style={styles.modalHeader}>
                   <View style={styles.modalTitleContainer}>
                     <Text style={styles.modalTitle}>{selectedImage?.title}</Text>
-                    <Text style={styles.modalSubtitle}>
-                      Spot ID: {selectedImage?.spot_id} | Route ID: {selectedImage?.route_id}
-                    </Text>
+
                   </View>
                   <TouchableOpacity
                     onPress={() => setImageModalVisible(false)}
@@ -856,5 +857,20 @@ const styles = StyleSheet.create({
   modalImage: {
     width: '100%',
     height: '100%',
+  },
+  // 로딩 스타일
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+    minHeight: height * 0.6,
+  },
+  loadingText: {
+    ...TEXT_STYLES.body,
+    fontFamily: 'NeoDunggeunmoPro-Regular',
+    color: INCHEON_GRAY,
+    marginTop: 16,
+    textAlign: 'center',
   },
 });

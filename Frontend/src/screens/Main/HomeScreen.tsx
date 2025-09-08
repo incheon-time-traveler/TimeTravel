@@ -896,34 +896,41 @@ export default function HomeScreen({ navigation }: any) {
       </View>
 
       <View style={styles.spotsList}>
-        {course.spots && course.spots.map((spot: any, index: number) => (
-          <View key={spot.id} style={styles.spotItem}>
-            <View style={styles.spotOrderContainer}>
-              <Text style={styles.spotOrder}>{spot.order || index + 1}</Text>
-            </View>
-            <View style={styles.spotStatus}>
-              {index === 0 ? (
-                <TouchableOpacity
-                  style={styles.spotInfo}
-                  activeOpacity={0.7}
-                  onPress={() => handleNextDestination(spot)}
-                >
-                  <Text style={styles.spotTitle} numberOfLines={1}>{spot.title || spot.name || '알 수 없는 장소'}</Text>
-                  <View style={styles.nextDestinationBtn}>
-                    <Text style={styles.nextDestinationText}>📍</Text>
+        {course.spots && course.spots.map((spot: any, index: number) => {
+          // 완료된 스팟인지 확인 (completed_at 또는 unlock_at이 있으면 완료)
+          const isCompleted = spot.completed_at || spot.unlock_at;
+          
+          // 다음 목적지인지 확인 (첫 번째 미완료 스팟)
+          const isNextDestination = !isCompleted && index === course.spots.findIndex((s: any) => !s.completed_at && !s.unlock_at);
+          
+          return (
+            <View key={spot.id} style={styles.spotItem}>
+              <View style={styles.spotOrderContainer}>
+                <Text style={styles.spotOrder}>{spot.order || index + 1}</Text>
+              </View>
+              <View style={styles.spotStatus}>
+                {isNextDestination ? (
+                  // 현재 목적지: 핀 버튼
+                  <TouchableOpacity
+                    style={styles.spotInfo}
+                    activeOpacity={0.7}
+                    onPress={() => handleNextDestination(spot)}
+                  >
+                    <Text style={styles.spotTitle} numberOfLines={1}>{spot.title || spot.name || '알 수 없는 장소'}</Text>
+                    <View style={styles.nextDestinationBtn}>
+                      <Text style={styles.nextDestinationText}>📍</Text>
+                    </View>
+                  </TouchableOpacity>
+                ) : (
+                  // 나머지 스팟들: 아이콘 없이 텍스트만
+                  <View style={styles.spotInfo}>
+                    <Text style={styles.spotTitle} numberOfLines={1}>{spot.title || spot.name || '알 수 없는 장소'}</Text>
                   </View>
-                </TouchableOpacity>
-              ) : (
-                <View style={styles.spotInfo}>
-                  <Text style={styles.spotTitle} numberOfLines={1}>{spot.title || spot.name || '알 수 없는 장소'}</Text>
-                  <View style={styles.lockedIcon}>
-                    <Ionicons name="lock-closed" size={16} color="#FFD700" />
-                  </View>
-                </View>
-              )}
+                )}
+              </View>
             </View>
-          </View>
-        ))}
+          );
+        })}
       </View>
 
       <TouchableOpacity style={styles.continueBtn} onPress={handleContinueCourse}>
@@ -1809,10 +1816,6 @@ underline: {
   },
   nextDestinationText: {
     ...TEXT_STYLES.button,
-  },
-  lockedIcon: {
-    marginTop: 8,
-    marginRight: 24,
   },
   bookmarkIcon: {
     position: 'absolute',

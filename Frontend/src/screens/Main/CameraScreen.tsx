@@ -413,13 +413,19 @@ const CameraScreen: React.FC<CameraScreenProps> = ({ route, navigation }) => {
               {
                 text: '갤러리 보기',
                 onPress: () => {
-                  navigation.navigate('MainTabs', { screen: 'Gallery' });
+                  navigation.reset({
+                    index: 0,
+                    routes: [{ name: 'MainTabs', params: { screen: 'Gallery' } }],
+                  });
                 }
               },
               {
                 text: '홈으로',
                 onPress: () => {
-                  navigation.navigate('MainTabs', { screen: 'Home' });
+                  navigation.reset({
+                    index: 0,
+                    routes: [{ name: 'MainTabs', params: { screen: 'Home' } }],
+                  });
                 }
               }
             ]
@@ -433,13 +439,19 @@ const CameraScreen: React.FC<CameraScreenProps> = ({ route, navigation }) => {
               {
                 text: '갤러리 보기',
                 onPress: () => {
-                  navigation.navigate('MainTabs', { screen: 'Gallery' });
+                  navigation.reset({
+                    index: 0,
+                    routes: [{ name: 'MainTabs', params: { screen: 'Gallery' } }],
+                  });
                 }
               },
               {
                 text: '홈으로',
                 onPress: () => {
-                  navigation.navigate('MainTabs', { screen: 'Home' });
+                  navigation.reset({
+                    index: 0,
+                    routes: [{ name: 'MainTabs', params: { screen: 'Home' } }],
+                  });
                 }
               }
             ]

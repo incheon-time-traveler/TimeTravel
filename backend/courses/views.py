@@ -274,9 +274,24 @@ def delete_user_route_spot(request, route_id):
     """
     if request.method == "DELETE":
         user = request.user
-        user_route_spot = UserRouteSpot.objects.filter(user_id=user, route_id_id=route_id)
-        user_route_spot.delete()
-        return Response({'success': '사용자 코스가 삭제되었습니다.'}, status=status.HTTP_204_NO_CONTENT)
+        # 1) 사용자 코스(UserRouteSpot) 삭제
+        user_route_spots_qs = UserRouteSpot.objects.filter(user_id=user, route_id_id=route_id)
+        deleted_user_routes = user_route_spots_qs.count()
+        user_route_spots_qs.delete()
+
+        # 2) 사용자 촬영 사진(Photo)도 함께 삭제 (route_id, user_id 기준)
+        photos_qs = Photo.objects.filter(user_id=user, route_id_id=route_id)
+        deleted_photos, _ = photos_qs.delete()
+
+        return Response(
+            {
+                'success': True,
+                'message': '사용자 코스와 관련 사진이 삭제되었습니다.',
+                'deleted_user_routes': deleted_user_routes,
+                'deleted_photos': deleted_photos,
+            },
+            status=status.HTTP_200_OK
+        )
     else:
         return Response({'error': 'DELETE 메서드만 지원됩니다.'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 

@@ -252,3 +252,6 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Custom User Model
 AUTH_USER_MODEL = 'accounts.CustomUser'
+
+# FastAPI AI 서버 설정
+FASTAPI_AI_SERVER_URL = os.getenv('FASTAPI_AI_SERVER_URL')

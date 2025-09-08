@@ -28,7 +28,8 @@ export const BACKEND_API = {
 
 // 챗봇 API 설정 (별도 서버)
 export const CHATBOT_API = {
-  CHAT_URL: 'https://timetravel.ddnsfree.com/v1/chatbot',
+  // CHAT_URL: 'https://timetravel.ddnsfree.com/v1/chatbot',
+  CHAT_URL: 'http://localhost:8000/v1/chatbot/',
 };
 
 // OAuth URL (소셜 로그인은 항상 운영 서버 사용)

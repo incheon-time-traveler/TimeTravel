@@ -19,8 +19,12 @@ import LoginScreen from './src/screens/Auth/LoginScreen';
 import MissionScreen from './src/screens/Main/MissionScreen';
 import CameraScreen from './src/screens/Main/CameraScreen';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import ChatScreenWrapper from './src/screens/Chat/ChatScreen';
+
+
 // UI Components
 import { INCHEON_BLUE } from './src/styles/fonts';
+import FloatingChatBotButton from './src/components/ui/FloatingChatBotButton';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -199,6 +203,8 @@ export default function App() {
         </Stack.Navigator>
         {isOnboardingComplete && (
           <>
+            <FloatingChatBotButton onPress={() => setChatVisible(true)} />
+            <ChatScreenWrapper visible={chatVisible} onClose={() => setChatVisible(false)} />
           </>
         )}
       </NavigationContainer>

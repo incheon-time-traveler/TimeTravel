@@ -1,12 +1,10 @@
-import { CHATBOT_API } from '../config/apiKeys';
+import { BACKEND_API, CHATBOT_API } from '../config/apiKeys';
 
 export interface ChatbotRequest {
   user_question: string;
   user_id: string;
-  user_location?: {
-    lat: number;
-    lng: number;
-  };
+  lat?: number;  // ← 변경
+  lng?: number;  // ← 변경
 }
 
 export interface ChatbotResponse {
@@ -14,14 +12,14 @@ export interface ChatbotResponse {
 }
 
 export class ChatbotService {
-  private static baseUrl = CHATBOT_API.CHAT_URL;
+  private static baseUrl = BACKEND_API.BASE_URL;
 
   /**
    * 챗봇과 대화하기
    */
   static async chatWithBot(request: ChatbotRequest): Promise<ChatbotResponse> {
     try {
-      const response = await fetch(this.baseUrl, {
+      const response = await fetch(`${this.baseUrl}/v1/chatbot/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

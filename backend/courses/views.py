@@ -287,25 +287,38 @@ def unlock_route_spot(request, route_spot_id):
     """
     유저 코스 잠금 해제 API
     프론트엔드에서 사용자가 이동하는 코스의 특정 스팟의 잠금을 해제합니다.
+    unlock_at을 현재 시간으로 설정합니다.
     """
     if request.method == "PATCH":
-        user = request.user
-        print("requset.data:", request.data)
-        user_route_spot = UserRouteSpot.objects.get(user_id=user, id=request.data['id'])
-        serializer = UserRouteSpotUpdateSerializer(user_route_spot, data=request.data, partial=True)
-        request.data['spot_id'] = user_route_spot.route_spot_id.spot_id.id
-        request.data['user_id'] = user.id
-        request.data['route_id'] = user_route_spot.route_spot_id.route_id.id
-        past_photo_url = Spot.objects.get(id=user_route_spot.route_spot_id.spot_id.id).past_image_url
-        request.data['image_url'] = past_photo_url
-        photoserializer = PhotoSerializer(data=request.data)
-        if photoserializer.is_valid(raise_exception=True):
-            print("photoserializer valid")
-            photoserializer.save()
-        if serializer.is_valid(raise_exception=True):
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            user = request.user
+            print("requset.data:", request.data)
+            user_route_spot = UserRouteSpot.objects.get(user_id=user, id=request.data['id'])
+            
+            # unlock_at을 현재 시간으로 설정
+            from django.utils import timezone
+            request.data['unlock_at'] = timezone.now()
+            
+            serializer = UserRouteSpotUpdateSerializer(user_route_spot, data=request.data, partial=True)
+            request.data['spot_id'] = user_route_spot.route_spot_id.spot_id.id
+            request.data['user_id'] = user.id
+            request.data['route_id'] = user_route_spot.route_spot_id.route_id.id
+            past_photo_url = Spot.objects.get(id=user_route_spot.route_spot_id.spot_id.id).past_image_url
+            request.data['image_url'] = past_photo_url
+            photoserializer = PhotoSerializer(data=request.data)
+            if photoserializer.is_valid(raise_exception=True):
+                print("photoserializer valid")
+                photoserializer.save()
+            if serializer.is_valid(raise_exception=True):
+                serializer.save()
+                print(f"[unlock_route_spot] UserRouteSpot {user_route_spot.id} 방문 완료 처리됨 - unlock_at: {request.data['unlock_at']}")
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except UserRouteSpot.DoesNotExist:
+            return Response({'error': 'UserRouteSpot을 찾을 수 없습니다.'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            print(f"[unlock_route_spot] 오류: {e}")
+            return Response({'error': f'잠금 해제 중 오류가 발생했습니다: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 # 해금 장소 조회
 @api_view(['GET'])

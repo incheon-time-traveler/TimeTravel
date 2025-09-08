@@ -721,10 +721,10 @@ const TripsScreen: React.FC = () => {
               ) : index === currentCourse.spots.findIndex((s: any) => !s.completed_at && !s.unlock_at) ? (
                  // 다음 목적지 (첫 번째 미완료 스팟)
                  <View style={styles.hotelCard}>
-                   {/* ✅ 2. 다음 목적지: Text가 아닌 View 전체를 누를 수 있도록 TouchableOpacity 추가 */}
-                   <TouchableOpacity onPress={() => setSelectedSpot(spot)}>
+                   {/* ✅ 2. 다음 목적지: 정보 모달 열기 금지 (완료된 스팟만 허용) */}
+                   <View>
                      <Text style={styles.hotelCardText}>{spot.title}</Text>
-                   </TouchableOpacity>
+                   </View>
                    <TouchableOpacity
                      onPress={() => (navigation as any).navigate('Map', {
                        screen: 'MapMain',
@@ -741,16 +741,15 @@ const TripsScreen: React.FC = () => {
                    </TouchableOpacity>
                  </View>
               ) : (
-                // ✅ 3. 잠긴 스팟: View를 TouchableOpacity로 바꾸고 onPress 추가
-                <TouchableOpacity
+                // ✅ 3. 잠긴 스팟: 정보 모달 열기 금지
+                <View
                   style={styles.lockedCard}
-                  onPress={() => setSelectedSpot(spot)}
                 >
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     <Text style={styles.lockedCardText}>{spot.title}</Text>
                   </View>
                   <PixelLockIcon />
-                </TouchableOpacity>
+                </View>
               )}
             </View>
           ))}

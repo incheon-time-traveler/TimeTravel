@@ -279,9 +279,19 @@ def delete_user_route_spot(request, route_id):
         deleted_user_routes = user_route_spots_qs.count()
         user_route_spots_qs.delete()
 
-        # 2) 사용자 촬영 사진(Photo)도 함께 삭제 (route_id, user_id 기준)
+        # 2) 사용자 촬영 사진(Photo)도 함께 삭제
+        #    - 기본: user + route_id 일치
+        #    - 보강: 해당 route에 속한 spot들(Spot IDs)로도 삭제 (초기 저장 시 route_id가 비어있던 사진 대비)
         photos_qs = Photo.objects.filter(user_id=user, route_id_id=route_id)
-        deleted_photos, _ = photos_qs.delete()
+
+        # 보강 삭제: route에 포함된 스팟의 사진까지 제거
+        route_spot_ids = RouteSpot.objects.filter(route_id=route_id).values_list('spot_id', flat=True)
+        extra_qs = Photo.objects.filter(user_id=user, spot_id_id__in=list(route_spot_ids))
+        # 합쳐서 삭제
+        deleted_photos = photos_qs.count() + extra_qs.exclude(id__in=photos_qs.values_list('id', flat=True)).count()
+        # 실제 삭제 실행
+        photos_qs.delete()
+        extra_qs.delete()
 
         return Response(
             {

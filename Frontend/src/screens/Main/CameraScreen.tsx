@@ -400,27 +400,51 @@ const CameraScreen: React.FC<CameraScreenProps> = ({ route, navigation }) => {
         const responseData = await response.json();
         console.log('[CameraScreen] 저장 성공:', responseData);
         
-        // 미션 완료 처리는 갤러리에서 자동으로 처리됨 (사진 저장 시 자동 완료)
-        console.log('[CameraScreen] 사진 저장 완료 - 미션 완료는 갤러리에서 자동 처리');
+        // 미션 완료 처리
+        console.log('[CameraScreen] 사진 저장 완료 - 미션 완료 처리 시작');
+        const missionCompleted = await completeMission(mission.id);
         
-        Alert.alert(
-          '저장 완료! 🎉',
-          '사진이 갤러리에 저장되고 미션이 완료되었습니다!',
-          [
-            {
-              text: '갤러리 보기',
-              onPress: () => {
-                navigation.navigate('MainTabs', { screen: 'Gallery' });
+        if (missionCompleted) {
+          console.log('[CameraScreen] 미션 완료 처리 성공');
+          Alert.alert(
+            '저장 완료! 🎉',
+            '사진이 갤러리에 저장되고 미션이 완료되었습니다!',
+            [
+              {
+                text: '갤러리 보기',
+                onPress: () => {
+                  navigation.navigate('MainTabs', { screen: 'Gallery' });
+                }
+              },
+              {
+                text: '홈으로',
+                onPress: () => {
+                  navigation.navigate('MainTabs', { screen: 'Home' });
+                }
               }
-            },
-            {
-              text: '홈으로',
-              onPress: () => {
-                navigation.navigate('MainTabs', { screen: 'Home' });
+            ]
+          );
+        } else {
+          console.log('[CameraScreen] 미션 완료 처리 실패 - 사진만 저장됨');
+          Alert.alert(
+            '저장 완료! ⚠️',
+            '사진이 갤러리에 저장되었습니다. 미션 완료 처리는 실패했습니다.',
+            [
+              {
+                text: '갤러리 보기',
+                onPress: () => {
+                  navigation.navigate('MainTabs', { screen: 'Gallery' });
+                }
+              },
+              {
+                text: '홈으로',
+                onPress: () => {
+                  navigation.navigate('MainTabs', { screen: 'Home' });
+                }
               }
-            }
-          ]
-        );
+            ]
+          );
+        }
       } else {
         const errorText = await response.text();
         console.error('[CameraScreen] 저장 실패:', {

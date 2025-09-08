@@ -307,8 +307,7 @@ export default function HomeScreen({ navigation }: any) {
       if (currentSpot.user_route_spot_id && currentSpot.route_spot_id) {
         console.log('[HomeScreen] 🔗 API 호출: PATCH /v1/courses/unlock_route_spot/');
         console.log('[HomeScreen] 📋 요청 데이터:', {
-          id: currentSpot.user_route_spot_id,
-          unlock_at: new Date().toISOString()
+          id: currentSpot.user_route_spot_id
         });
         console.log('[HomeScreen] 📋 요청 헤더: Authorization: Bearer', tokens.access.substring(0, 20) + '...');
         
@@ -319,8 +318,7 @@ export default function HomeScreen({ navigation }: any) {
             'Authorization': `Bearer ${tokens.access}`,
           },
           body: JSON.stringify({
-            id: currentSpot.user_route_spot_id,
-            unlock_at: new Date().toISOString()
+            id: currentSpot.user_route_spot_id
           }),
         });
         

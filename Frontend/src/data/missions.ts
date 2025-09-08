@@ -449,7 +449,7 @@ export const completeMission = async (missionId: number, authToken?: string) => 
 
     // 7. unlock_route_spot API 호출 로그
     const unlockUrl = `${BACKEND_API.BASE_URL}/v1/courses/unlock_route_spot/${userRouteSpot.route_spot_id}/`;
-    const unlockPayload = { id: userRouteSpot.id, unlock_at: new Date().toISOString() };
+    const unlockPayload = { id: userRouteSpot.id }; // unlock_at은 백엔드에서 자동 설정
     console.log('[missions] 🔗 API 호출: PATCH /v1/courses/unlock_route_spot/');
     console.log('[missions] 📋 요청 URL:', unlockUrl);
     console.log('[missions] 📋 요청 데이터:', unlockPayload);

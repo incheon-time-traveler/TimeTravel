@@ -157,21 +157,11 @@ export default function GalleryScreen({ navigation }: any) {
     try {
       setIsLoading(true);
       const tokens = await authService.getTokens();
-      let unlockSpotsResponse;
       let photosResponse;
       let spotsResponse;
       
       if (tokens?.access) {
-          // 1. 백엔드에서 unlock_spots 데이터 가져오기
-        unlockSpotsResponse = await fetch(`${BACKEND_API.BASE_URL}/v1/courses/unlock_spots/`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${tokens.access}`,
-          },
-        });
-
-        // 2. 백엔드에서 사용자가 촬영한 사진들 가져오기
+        // 1. 백엔드에서 사용자가 촬영한 사진들 가져오기
         console.log('[GalleryScreen] photos API 호출 시작:', `${BACKEND_API.BASE_URL}/v1/photos/`);
         photosResponse = await fetch(`${BACKEND_API.BASE_URL}/v1/photos/`, {
           method: 'GET',
@@ -182,7 +172,7 @@ export default function GalleryScreen({ navigation }: any) {
         });
         console.log('[GalleryScreen] photos API 응답:', photosResponse.status, photosResponse.statusText);
 
-        // 3. 백엔드에서 spots 정보 가져오기 (spot_id로 이름 조회용)
+        // 2. 백엔드에서 spots 정보 가져오기 (spot_id로 이름 조회용)
         spotsResponse = await fetch(`${BACKEND_API.BASE_URL}/v1/spots/`, {
             method: 'GET',
             headers: {
@@ -192,30 +182,8 @@ export default function GalleryScreen({ navigation }: any) {
         });
       }
 
-      let unlockSpotsItems: GalleryItem[] = [];
       let photosItems: GalleryItem[] = [];
       let spotsData: any[] = [];
-
-      // unlock_spots 데이터 처리 - 미션 완료된 장소 정보만 가져옴
-      if (unlockSpotsResponse && unlockSpotsResponse.ok) {
-        const data = await unlockSpotsResponse.json();
-        console.log('[GalleryScreen] unlock_spots 데이터:', data);
-        if (data.length > 0) {
-          unlockSpotsItems = data.map((item: any) => ({
-            id: item.id,
-            title: item.spot_name || `장소 ${item.spot_id}`,
-            image_url: '', // 과거 이미지 사용하지 않음
-            past_image_url: '', // 과거 이미지 사용하지 않음
-            completed: true, // unlock_spots에 있으면 완료된 것으로 간주
-            hasStamp: true,
-            stampUsed: item.is_used || false,
-            route_id: item.route_id,
-            spot_id: item.route_spot_id,
-            isUnlockSpot: true, // unlock_spots에서 온 데이터임을 표시
-          }));
-        }
-        console.log('[GalleryScreen] unlock_spots 데이터 세팅 성공');
-      }
 
       // photos 데이터 처리
       if (photosResponse && photosResponse.ok) {

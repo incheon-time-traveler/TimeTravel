@@ -300,15 +300,6 @@ def unlock_route_spot(request, route_spot_id):
             request.data['unlock_at'] = timezone.now()
             
             serializer = UserRouteSpotUpdateSerializer(user_route_spot, data=request.data, partial=True)
-            request.data['spot_id'] = user_route_spot.route_spot_id.spot_id.id
-            request.data['user_id'] = user.id
-            request.data['route_id'] = user_route_spot.route_spot_id.route_id.id
-            past_photo_url = Spot.objects.get(id=user_route_spot.route_spot_id.spot_id.id).past_image_url
-            request.data['image_url'] = past_photo_url
-            photoserializer = PhotoSerializer(data=request.data)
-            if photoserializer.is_valid(raise_exception=True):
-                print("photoserializer valid")
-                photoserializer.save()
             if serializer.is_valid(raise_exception=True):
                 serializer.save()
                 print(f"[unlock_route_spot] UserRouteSpot {user_route_spot.id} 방문 완료 처리됨 - unlock_at: {request.data['unlock_at']}")

@@ -328,7 +328,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ visible, onClose, navigation })
         <View style={styles.suggestionsContainer}>
           <Text style={styles.suggestionsTitle}>추천 질문</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {['관광지 주변 맛집&카페', '맛집&카페 후기', '○○에서 □□까지 가는 법'].map((suggestion, index) => (
+            {['관광지 주변 맛집&카페', '맛집&카페 후기', '인천 차이나타운에서 월미도까지 가는 법'].map((suggestion, index) => (
               <TouchableOpacity
                 key={index}
                 style={[styles.suggestionButton, isLoading && styles.suggestionButtonDisabled]}

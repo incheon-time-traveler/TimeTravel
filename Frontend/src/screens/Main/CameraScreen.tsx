@@ -16,6 +16,7 @@ import { INCHEON_BLUE, INCHEON_GRAY } from '../../styles/fonts';
 import { Mission } from '../../types/mission';
 import { BACKEND_API } from '../../config/apiKeys';
 import authService from '../../services/authService';
+import { completeMission } from '../../data/missions';
 
 const { width, height } = Dimensions.get('window');
 
@@ -192,341 +193,106 @@ const CameraScreen: React.FC<CameraScreenProps> = ({ route, navigation }) => {
         return;
       }
 
-      console.log('[CameraScreen] 토큰 확인:', {
-        hasAccessToken: !!tokens.access,
-        tokenLength: tokens.access?.length,
-        tokenPreview: tokens.access?.substring(0, 20) + '...'
-      });
-
-      // FormData 구성 확인
+      // 사진이 있는지 확인
       if (!currentPhoto) {
-        console.error('[CameraScreen] 현재 사진이 없습니다.');
         Alert.alert('오류', '촬영된 사진이 없습니다.');
         return;
       }
 
-      console.log('[CameraScreen] 사진 정보:', {
+      console.log('[CameraScreen] 사진 저장 시작:', {
         photoUri: currentPhoto,
-        photoType: typeof currentPhoto,
-        photoLength: currentPhoto?.length,
-        // 🖼️ 추가된 상세 사진 정보
-        fileName: currentPhoto?.split('/').pop() || '알 수 없음',
-        fileExtension: currentPhoto?.split('.').pop() || '알 수 없음',
-        cachePath: currentPhoto?.includes('/cache/') ? '캐시 경로' : '다른 경로',
-        // 📏 파일 경로 분석
-        pathInfo: {
-          isFileUri: currentPhoto?.startsWith('file://'),
-          isCacheFile: currentPhoto?.includes('rn_image_picker_lib_temp'),
-          isJpgFile: currentPhoto?.endsWith('.jpg'),
-          isPngFile: currentPhoto?.endsWith('.png'),
-        }
+        photoLength: currentPhoto.length,
+        missionId: mission.id
       });
-      
-      // 🖼️ 추가: Image.getSize로 실제 이미지 크기 가져오기
-      if (currentPhoto) {
-        console.log('📏 [CameraScreen] 이미지 크기 정보 가져오기 시작...');
-        
-        // Image.getSize를 Promise로 감싸기
-        const getImageSize = (uri: string): Promise<{width: number, height: number}> => {
-          return new Promise((resolve, reject) => {
-            Image.getSize(uri, (width, height) => {
-              resolve({ width, height });
-            }, (error) => {
-              reject(error);
-            });
-          });
-        };
-        
-        try {
-          const { width, height } = await getImageSize(currentPhoto);
-          console.log('📏 [CameraScreen] 🎯 실제 이미지 크기 정보:', {
-            width: width,
-            height: height,
-            aspectRatio: (width / height).toFixed(2),
-            megapixels: ((width * height) / 1000000).toFixed(2),
-            orientation: width > height ? '가로' : '세로',
-            totalPixels: width * height
-          });
-        } catch (error) {
-          console.log('📏 [CameraScreen] 이미지 크기 가져오기 실패:', error);
-        }
-      }
-      
-      // 🔍 추가: 파일 시스템에서 파일 정보 가져오기 시도
-      try {
-        const { stat } = require('react-native-fs');
-        if (currentPhoto && currentPhoto.startsWith('file://')) {
-          const filePath = currentPhoto.replace('file://', '');
-          stat(filePath).then((fileStats: any) => {
-            console.log('📁 [CameraScreen] 파일 시스템 정보:', {
-              size: fileStats.size ? `${(fileStats.size / 1024 / 1024).toFixed(2)} MB` : '알 수 없음',
-              sizeBytes: fileStats.size || '알 수 없음',
-              lastModified: fileStats.lastModified ? new Date(fileStats.lastModified).toISOString() : '알 수 없음',
-              isFile: fileStats.isFile,
-              isDirectory: fileStats.isDirectory,
-              path: filePath
-            });
-          }).catch((fsError: any) => {
-            console.log('📁 [CameraScreen] 파일 시스템 정보 가져오기 실패:', fsError);
-          });
-        }
-      } catch (fsError) {
-        console.log('📁 [CameraScreen] react-native-fs 모듈 없음, 파일 시스템 정보 생략');
-      }
-      
-      // 백엔드에서 사용자의 현재 진행 중인 코스 정보 가져오기
-      console.log('[CameraScreen] 사용자 코스 정보 가져오기 시작 (올바른 엔드포인트: /v1/routes/user_routes/)');
-      let routeId = null;
-      
-      // 토큰 갱신 시도
-      console.log('[CameraScreen] 토큰 갱신 시도...');
-      try {
-        await authService.refreshToken();
-        const refreshedTokens = await authService.getTokens();
-        if (refreshedTokens?.access) {
-          console.log('[CameraScreen] 토큰 갱신 성공');
-        } else {
-          console.log('[CameraScreen] 토큰 갱신 실패, 기존 토큰 사용');
-        }
-      } catch (refreshError) {
-        console.log('[CameraScreen] 토큰 갱신 중 오류 (기존 토큰 사용):', refreshError);
-      }
-      
-      try {
-        const userRoutesResponse = await fetch(`${BACKEND_API.BASE_URL}/v1/routes/user_routes/`, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${tokens.access}`,
-            'Content-Type': 'application/json',
-          },
-        });
 
-        if (userRoutesResponse.ok) {
-          const userRoutesData = await userRoutesResponse.json();
-          console.log('[CameraScreen] 사용자 코스 데이터:', userRoutesData);
-          
-          if (userRoutesData && userRoutesData.length > 0) {
-            // 가장 최근에 생성된 코스의 route_id 사용
-            routeId = userRoutesData[0].route_id;
-            console.log('[CameraScreen] 현재 진행 중인 코스 ID:', routeId);
-          } else {
-            console.warn('[CameraScreen] 사용자의 진행 중인 코스가 없습니다.');
-            Alert.alert('오류', '진행 중인 코스가 없습니다. 먼저 코스를 생성해주세요.');
-            return;
-          }
-        } else {
-          console.error('[CameraScreen] 사용자 코스 조회 실패:', {
-            status: userRoutesResponse.status,
-            statusText: userRoutesResponse.statusText,
-            headers: Object.fromEntries(userRoutesResponse.headers.entries())
-          });
-          
-          if (userRoutesResponse.status === 401) {
-            console.error('[CameraScreen] 401 인증 실패 상세:', {
-              tokenExists: !!tokens.access,
-              tokenLength: tokens.access?.length,
-              tokenPreview: tokens.access?.substring(0, 50) + '...',
-              authorizationHeader: `Bearer ${tokens.access}`,
-              requestUrl: `${BACKEND_API.BASE_URL}/v1/routes/user_routes/`
-            });
-            Alert.alert('인증 오류', '로그인이 만료되었습니다. 다시 로그인해주세요.');
-          } else {
-            Alert.alert('오류', '사용자 코스 정보를 가져올 수 없습니다.');
-          }
-          return;
-        }
-      } catch (routeError) {
-        console.error('[CameraScreen] 사용자 코스 조회 중 에러:', routeError);
-        Alert.alert('오류', '사용자 코스 정보를 가져오는 중 오류가 발생했습니다.');
+      // 미션에서 가져온 실제 route_id와 spot_id 사용
+      const routeId = mission.routeId || 1; // 미션의 routeId 사용
+      const spotId = mission.id; // mission.id는 spot_id
+
+      // 사진 URL 길이 확인 (DB 제약조건: 100자)
+      if (currentPhoto.length > 100) {
+        console.warn('[CameraScreen] 사진 URL이 100자를 초과합니다:', currentPhoto.length);
+        Alert.alert(
+          'URL 길이 초과',
+          '사진 URL이 너무 깁니다. 다른 사진을 촬영해주세요.',
+          [{ text: '확인' }]
+        );
         return;
       }
 
-      // ✅ 수정 완료: 백엔드에서 가져온 실제 route_id 사용
-      const spotId = mission.id; // mission.id는 실제로 spot_id
-      
-      // 단순 JSON 방식: 사진 URI를 문자열로 전송
+      // API 요청 데이터 구성
       const requestData = {
-        image_url: currentPhoto, // 로컬 file:// URI를 그대로 문자열로 전송
+        image_url: currentPhoto,
         route_id: routeId,
         spot_id: spotId
       };
-      
-      console.log('[CameraScreen] JSON 데이터 구성:', {
-        requestData: requestData,
-        imageUri: currentPhoto,
-        imageUriType: typeof currentPhoto,
-        imageUriLength: currentPhoto?.length
-      });
-      
-      // 백엔드 엔드포인트는 트레일링 슬래시 포함: '<int:route_id>/<int:spot_id>/'
+
       const apiUrl = `${BACKEND_API.BASE_URL}/v1/photos/${routeId}/${spotId}/`;
-      console.log('[CameraScreen] API 요청 정보 (수정됨):', {
+      
+      console.log('[CameraScreen] API 요청:', {
         url: apiUrl,
-        method: 'POST',
-        routeId: routeId,
-        spotId: spotId,
-        baseUrl: BACKEND_API.BASE_URL,
-        fullUrl: apiUrl
+        data: requestData
       });
 
-      // URL 구성 요소별 상세 로그 (백엔드 연동)
-      console.log('[CameraScreen] URL 구성 상세 (백엔드 연동):', {
-        'BACKEND_API.BASE_URL': BACKEND_API.BASE_URL,
-        'routeId (백엔드에서 가져옴)': routeId,
-        'spotId (mission.id)': spotId,
-        '경로 조각': '/v1/photos/',
-        '최종 URL': `${BACKEND_API.BASE_URL}/v1/photos/${routeId}/${spotId}`,
-        'URL 타입': typeof apiUrl,
-        'URL 길이': apiUrl.length
-      });
-
-      // URL 유효성 사전 체크 (백엔드 연동)
-      console.log('[CameraScreen] URL 유효성 사전 체크 (백엔드 연동):', {
-        baseUrlEmpty: !BACKEND_API.BASE_URL,
-        baseUrlType: typeof BACKEND_API.BASE_URL,
-        baseUrlValue: `"${BACKEND_API.BASE_URL}"`,
-        routeIdEmpty: !routeId,
-        routeIdType: typeof routeId,
-        routeIdValue: `"${routeId}"`,
-        spotIdEmpty: !spotId,
-        spotIdType: typeof spotId,
-        spotIdValue: `"${spotId}"`,
-        finalUrl: `"${apiUrl}"`
-      });
-
-      // ✅ 수정 완료: 백엔드 연동 URL 구성
-      console.log('[CameraScreen] ✅ 백엔드 연동 URL 구성 완료:', {
-        '이전 하드코딩된 URL': `${BACKEND_API.BASE_URL}/v1/photos/1/${mission.id}`,
-        '현재 백엔드 연동 URL': `"${apiUrl}"`,
-        '수정 내용': {
-          'route_id': `하드코딩 (1) → 백엔드 API (${routeId})`,
-          'spot_id': `mission.id (${mission.id})`
-        }
-      });
-
-      // 요청 헤더 확인
-      const headers: any = {
-        'Authorization': `Bearer ${tokens.access}`,
-        'Content-Type': 'application/json',
-      };
-      
-      console.log('[CameraScreen] 요청 헤더:', headers);
-      
-      // 연결 확인 (간단 GET)
-      try {
-        console.log('[CameraScreen] 서버 연결 확인 시작');
-        const ping = await fetch(`${BACKEND_API.BASE_URL}/v1/photos/`, {
-          method: 'GET',
-          headers: { 'Authorization': `Bearer ${tokens.access}` },
-        });
-        console.log('[CameraScreen] 서버 연결 확인 응답:', { status: ping.status, ok: ping.ok });
-      } catch (pingErr) {
-        console.error('[CameraScreen] 서버 연결 확인 실패:', pingErr);
-      }
-
-      // 네트워크 요청 시작 시간 기록
-      const startTime = Date.now();
-      console.log('[CameraScreen] 네트워크 요청 시작:', new Date(startTime).toISOString());
-      console.log('[CameraScreen] 실제 요청할 URL:', apiUrl);
-      
       const response = await fetch(apiUrl, {
         method: 'POST',
-        headers,
+        headers: {
+          'Authorization': `Bearer ${tokens.access}`,
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify(requestData),
       });
 
-      const endTime = Date.now();
-      console.log('[CameraScreen] 네트워크 요청 완료:', {
-        duration: endTime - startTime,
-        timestamp: new Date(endTime).toISOString()
-      });
-
-      console.log('[CameraScreen] 응답 정보:', {
+      console.log('[CameraScreen] 응답:', {
         status: response.status,
-        statusText: response.statusText,
-        ok: response.ok,
-        headers: Object.fromEntries(response.headers.entries())
+        ok: response.ok
       });
 
       if (response.ok) {
-        const responseData = await response.text();
-        console.log('[CameraScreen] 응답 데이터:', responseData);
+        const responseData = await response.json();
+        console.log('[CameraScreen] 저장 성공:', responseData);
+        
+        // 미션 완료 처리
+        try {
+          const missionCompleteSuccess = await completeMission(mission.id);
+          if (missionCompleteSuccess) {
+            console.log('[CameraScreen] 미션 완료 처리 성공');
+          } else {
+            console.warn('[CameraScreen] 미션 완료 처리 실패');
+          }
+        } catch (error) {
+          console.error('[CameraScreen] 미션 완료 처리 오류:', error);
+        }
         
         Alert.alert(
-          '갤러리 저장 완료! 🎉',
-          '과거와 현재가 합쳐진 사진이 갤러리에 저장되었습니다!',
+          '저장 완료! 🎉',
+          '사진이 갤러리에 저장되고 미션이 완료되었습니다!',
           [
             {
               text: '갤러리 보기',
               onPress: () => {
-                navigation.navigate('Gallery');
+                navigation.navigate('MainTabs', { screen: 'Gallery' });
               }
             },
             {
               text: '홈으로',
               onPress: () => {
-                navigation.navigate('MainTabs');
+                navigation.navigate('MainTabs', { screen: 'Home' });
               }
             }
           ]
         );
       } else {
         const errorText = await response.text();
-        console.error('[CameraScreen] 갤러리 저장 실패:', {
+        console.error('[CameraScreen] 저장 실패:', {
           status: response.status,
-          statusText: response.statusText,
-          errorText: errorText,
-          headers: Object.fromEntries(response.headers.entries())
+          error: errorText
         });
-        Alert.alert('오류', `갤러리 저장에 실패했습니다. (${response.status})`);
+        Alert.alert('오류', `저장에 실패했습니다. (${response.status})`);
       }
     } catch (error) {
-      console.error('[CameraScreen] 갤러리 저장 에러 상세:', {
-        error: error,
-        errorType: typeof error,
-        errorMessage: error?.message,
-        errorStack: error?.stack,
-        errorName: error?.name,
-        errorCode: error?.code,
-        errorCause: error?.cause
-      });
-      
-      // 모든 에러에서 URL 정보 출력
-      console.error('[CameraScreen] 에러 발생 시 URL 정보:', {
-        'BACKEND_API.BASE_URL 값': `"${BACKEND_API.BASE_URL}"`,
-        // routeId/spotId는 try 블록 내 지역변수이므로 여기서는 출력 생략
-        '전체 URL (백엔드 연동)': 'try 블록 로그 참고',
-        'URL 유효성': {
-          baseUrlEmpty: !BACKEND_API.BASE_URL,
-          baseUrlType: typeof BACKEND_API.BASE_URL,
-          // routeId/spotId 검증은 요청 직전에 이미 로그로 출력됨
-        }
-      });
-      
-              // 네트워크 관련 에러인지 확인
-        if (error?.message?.includes('Network request failed')) {
-          console.error('[CameraScreen] 네트워크 요청 실패 상세:', {
-            apiUrl: '요청 URL은 try 블록 상단 로그 참고',
-            baseUrl: BACKEND_API.BASE_URL,
-            networkState: '네트워크 연결 상태 확인 필요',
-            errorDetails: {
-              message: error.message,
-              name: error.name,
-              stack: error.stack
-            }
-          });
-        
-        // 네트워크 상태 추가 확인
-        console.log('[CameraScreen] 네트워크 상태 확인:', {
-          userAgent: navigator.userAgent,
-          onLine: navigator.onLine,
-          connection: (navigator as any).connection,
-          platform: Platform.OS,
-          version: Platform.Version
-        });
-      }
-      
-      Alert.alert('오류', '갤러리 저장 중 오류가 발생했습니다: ' + (error?.message || '알 수 없는 오류'));
+      console.error('[CameraScreen] 저장 에러:', error);
+      Alert.alert('오류', '저장 중 오류가 발생했습니다: ' + (error?.message || '알 수 없는 오류'));
     }
   };
 

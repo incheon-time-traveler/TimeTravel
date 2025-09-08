@@ -169,19 +169,39 @@ export default function MissionScreen({ route, navigation }: MissionScreenProps)
     const isCorrect = imageId === correctAnswer?.id;
     
     if (isCorrect) {
-      // 미션 완료 처리
-      const success = await completeMission(mission.id);
+      setGameCompleted(true);
       
-      if (success) {
-        // 갤러리 화면으로 이동 (탭 네비게이터로 이동)
-        navigation.navigate('MainTabs', { screen: 'Gallery' });
-      } else {
-        Alert.alert(
-          '오류',
-          '미션 완료 처리에 실패했습니다. 다시 시도해주세요.',
-          [{ text: '확인' }]
-        );
-      }
+      // 정답 선택 시 카메라로 이동할지 선택
+      Alert.alert(
+        '정답입니다! 🎉',
+        '과거 사진을 성공적으로 선택했습니다!\n이제 현재 모습을 촬영해보세요.',
+        [
+          {
+            text: '나중에',
+            onPress: async () => {
+              // 미션 완료 처리 후 갤러리로 이동
+              const success = await completeMission(mission.id);
+              if (success) {
+                navigation.navigate('MainTabs', { screen: 'Gallery' });
+              }
+            }
+          },
+          {
+            text: '카메라로 이동',
+            onPress: () => {
+              // 카메라 화면으로 이동
+              const selectedPhoto = selectedImages.find(img => img.id === imageId);
+              if (selectedPhoto) {
+                navigation.navigate('Camera', {
+                  mission: mission,
+                  selectedPhotoId: selectedPhoto.id,
+                  selectedPhoto: selectedPhoto
+                });
+              }
+            }
+          }
+        ]
+      );
     } else {
       Alert.alert(
         '❌ 틀렸습니다',

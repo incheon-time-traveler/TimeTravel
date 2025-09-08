@@ -304,15 +304,15 @@ export default function HomeScreen({ navigation }: any) {
       }
 
       // UserRouteSpot ID를 사용하여 방문 완료 처리
-      if (currentSpot.user_route_spot_id) {
-        console.log('[HomeScreen] 🔗 API 호출: PATCH /v1/courses/use_stamp/');
+      if (currentSpot.user_route_spot_id && currentSpot.route_spot_id) {
+        console.log('[HomeScreen] 🔗 API 호출: PATCH /v1/courses/unlock_route_spot/');
         console.log('[HomeScreen] 📋 요청 데이터:', {
           id: currentSpot.user_route_spot_id,
-          is_used: true
+          unlock_at: new Date().toISOString()
         });
         console.log('[HomeScreen] 📋 요청 헤더: Authorization: Bearer', tokens.access.substring(0, 20) + '...');
         
-        const response = await fetch(`${BACKEND_API.BASE_URL}/v1/courses/use_stamp/`, {
+        const response = await fetch(`${BACKEND_API.BASE_URL}/v1/courses/unlock_route_spot/${currentSpot.route_spot_id}/`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
@@ -320,7 +320,7 @@ export default function HomeScreen({ navigation }: any) {
           },
           body: JSON.stringify({
             id: currentSpot.user_route_spot_id,
-            is_used: true
+            unlock_at: new Date().toISOString()
           }),
         });
         

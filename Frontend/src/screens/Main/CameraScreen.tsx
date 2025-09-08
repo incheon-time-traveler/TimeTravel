@@ -12,6 +12,7 @@ import {
   Platform,
 } from 'react-native';
 import { launchCamera, launchImageLibrary, ImagePickerResponse, CameraOptions } from 'react-native-image-picker';
+import ViewShot from 'react-native-view-shot';
 import { INCHEON_BLUE, INCHEON_GRAY } from '../../styles/fonts';
 import { Mission } from '../../types/mission';
 import { BACKEND_API } from '../../config/apiKeys';
@@ -46,6 +47,11 @@ const CameraScreen: React.FC<CameraScreenProps> = ({ route, navigation }) => {
   const [currentPhoto, setCurrentPhoto] = useState<string | null>(null);
   const [currentPhotoFileName, setCurrentPhotoFileName] = useState<string | null>(null);
   const [currentPhotoMimeType, setCurrentPhotoMimeType] = useState<string | null>(null);
+  const [compositePhoto, setCompositePhoto] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  
+  // ViewShot ref for capturing composite image
+  const viewShotRef = useRef<ViewShot>(null);
 
   useEffect(() => {
     requestCameraPermission();
@@ -168,6 +174,19 @@ const CameraScreen: React.FC<CameraScreenProps> = ({ route, navigation }) => {
           setCurrentPhotoFileName(photoAsset.fileName || 'photo.jpg');
           setCurrentPhotoMimeType(photoAsset.type || 'image/jpeg');
           setPhotoTaken(true);
+          
+          // 합성 이미지 생성
+          setTimeout(async () => {
+            console.log('[CameraScreen] 합성 이미지 생성 시작...');
+            const compositeUri = await generateCompositeImage();
+            if (compositeUri) {
+              console.log('[CameraScreen] 합성 이미지 생성 성공:', compositeUri);
+              console.log('[CameraScreen] 합성 이미지 URL 길이:', compositeUri.length);
+            } else {
+              console.warn('[CameraScreen] 합성 이미지 생성 실패');
+            }
+          }, 1000); // 1초 후 합성 이미지 생성
+          
           Alert.alert('사진 촬영 완료!', '과거와 현재가 합쳐진 사진이 촬영되었습니다.');
         }
       }
@@ -182,10 +201,61 @@ const CameraScreen: React.FC<CameraScreenProps> = ({ route, navigation }) => {
     setCurrentPhoto(null);
     setCurrentPhotoFileName(null);
     setCurrentPhotoMimeType(null);
+    setCompositePhoto(null);
+  };
+
+  // 합성 이미지 생성 함수
+  const generateCompositeImage = async () => {
+    try {
+      if (!viewShotRef.current) {
+        console.error('[CameraScreen] ViewShot ref가 없습니다.');
+        return null;
+      }
+
+      console.log('[CameraScreen] 합성 이미지 생성 시작...');
+      
+      // ViewShot에서 fileName 옵션을 제거하고 기본 파일명 사용
+      const uri = await viewShotRef.current.capture({
+        format: "jpg",
+        quality: 0.8
+      });
+      
+      console.log('[CameraScreen] 합성 이미지 생성 완료:', uri);
+      console.log('[CameraScreen] 합성 이미지 URL 길이:', uri.length);
+      
+      // 파일명을 수동으로 정리
+      let cleanUri = uri;
+      if (uri && uri.includes('composite_')) {
+        // composite_로 시작하는 파일명을 찾아서 정리
+        const match = uri.match(/composite_\d+\.jpg/);
+        if (match) {
+          const cleanFileName = match[0];
+          cleanUri = uri.replace(/composite_\d+\.jpg.*\.jpg$/, cleanFileName);
+          console.log('[CameraScreen] 파일명 정리:', {
+            original: uri,
+            cleaned: cleanUri
+          });
+        }
+      }
+      
+      setCompositePhoto(cleanUri);
+      return cleanUri;
+    } catch (error) {
+      console.error('[CameraScreen] 합성 이미지 생성 실패:', error);
+      return null;
+    }
   };
 
   const handleSaveToGallery = async () => {
+    // 중복 저장 방지
+    if (isSaving) {
+      console.log('[CameraScreen] 이미 저장 중입니다.');
+      return;
+    }
+
     try {
+      setIsSaving(true);
+      
       // 인증 토큰 가져오기
       const tokens = await authService.getTokens();
       if (!tokens?.access) {
@@ -199,41 +269,113 @@ const CameraScreen: React.FC<CameraScreenProps> = ({ route, navigation }) => {
         return;
       }
 
+      // 합성 이미지가 있으면 우선 사용, 없으면 원본 사진 사용
+      // selectedPhoto.past_image_url은 절대 사용하지 않음!
+      let photoToSave;
+      if (compositePhoto && compositePhoto.trim() !== '' && compositePhoto.startsWith('file://')) {
+        photoToSave = compositePhoto;
+        console.log('[CameraScreen] 합성 이미지 사용:', compositePhoto);
+      } else if (currentPhoto && currentPhoto.trim() !== '' && currentPhoto.startsWith('file://')) {
+        photoToSave = currentPhoto;
+        console.log('[CameraScreen] 원본 사진 사용:', currentPhoto);
+      } else {
+        Alert.alert('오류', '저장할 수 있는 사진이 없습니다.');
+        return;
+      }
+      
       console.log('[CameraScreen] 사진 저장 시작:', {
-        photoUri: currentPhoto,
-        photoLength: currentPhoto.length,
-        missionId: mission.id
+        originalPhoto: currentPhoto,
+        compositePhoto: compositePhoto,
+        photoToSave: photoToSave,
+        photoLength: photoToSave ? photoToSave.length : 0,
+        missionId: mission.id,
+        isComposite: !!compositePhoto,
+        selectedPhoto: selectedPhoto?.past_image_url
       });
 
       // 미션에서 가져온 실제 route_id와 spot_id 사용
       const routeId = mission.routeId || 1; // 미션의 routeId 사용
       const spotId = mission.id; // mission.id는 spot_id
+      
+      console.log('[CameraScreen] 저장할 ID 정보:', {
+        missionId: mission.id,
+        routeId: routeId,
+        spotId: spotId,
+        missionTitle: mission.title
+      });
 
-      // 사진 URL 길이 확인 (DB 제약조건: 100자)
-      if (currentPhoto.length > 100) {
-        console.warn('[CameraScreen] 사진 URL이 100자를 초과합니다:', currentPhoto.length);
-        Alert.alert(
-          'URL 길이 초과',
-          '사진 URL이 너무 깁니다. 다른 사진을 촬영해주세요.',
-          [{ text: '확인' }]
-        );
+      // 사진 URL 유효성 검증
+      if (!photoToSave || photoToSave.trim() === '') {
+        Alert.alert('오류', '저장할 사진이 없습니다.');
         return;
+      }
+
+      // 사진 URL 길이 확인 및 처리 (DB 제약조건: 100자)
+      let processedPhotoUrl = photoToSave;
+      
+      if (photoToSave.length > 100) {
+        console.warn('[CameraScreen] 사진 URL이 100자를 초과합니다:', photoToSave.length);
+        
+        // 로컬 파일 경로인 경우 파일명만 추출하여 단축
+        if (photoToSave.startsWith('file://')) {
+          const fileName = photoToSave.split('/').pop() || 'composite_photo.jpg';
+          processedPhotoUrl = `file://${fileName}`;
+          console.log('[CameraScreen] URL 단축:', {
+            original: photoToSave,
+            processed: processedPhotoUrl,
+            originalLength: photoToSave.length,
+            processedLength: processedPhotoUrl.length
+          });
+        } else {
+          // 다른 URL인 경우 처음 97자 + '...'로 단축
+          processedPhotoUrl = photoToSave.substring(0, 97) + '...';
+          console.log('[CameraScreen] URL 단축:', {
+            original: photoToSave,
+            processed: processedPhotoUrl,
+            originalLength: photoToSave.length,
+            processedLength: processedPhotoUrl.length
+          });
+        }
+        
+        // 여전히 100자를 초과하면 에러
+        if (processedPhotoUrl.length > 100) {
+          Alert.alert(
+            'URL 길이 초과',
+            '사진 URL이 너무 깁니다. 다른 사진을 촬영해주세요.',
+            [{ text: '확인' }]
+          );
+          return;
+        }
       }
 
       // API 요청 데이터 구성
       const requestData = {
-        image_url: currentPhoto,
+        image_url: processedPhotoUrl,
         route_id: routeId,
         spot_id: spotId
       };
-
+      
       const apiUrl = `${BACKEND_API.BASE_URL}/v1/photos/${routeId}/${spotId}/`;
       
-      console.log('[CameraScreen] API 요청:', {
+      console.log('[CameraScreen] API 요청 상세:', {
         url: apiUrl,
-        data: requestData
+        requestData: requestData,
+        processedPhotoUrl: processedPhotoUrl,
+        processedPhotoUrlLength: processedPhotoUrl.length,
+        routeId: routeId,
+        spotId: spotId
       });
-
+      
+      console.log('[CameraScreen] 최종 API 요청:', {
+        url: apiUrl,
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${tokens.access?.substring(0, 20)}...`,
+          'Content-Type': 'application/json',
+        },
+        body: requestData
+      });
+      
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
@@ -241,6 +383,12 @@ const CameraScreen: React.FC<CameraScreenProps> = ({ route, navigation }) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(requestData),
+      });
+      
+      console.log('[CameraScreen] API 응답:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
       });
 
       console.log('[CameraScreen] 응답:', {
@@ -252,17 +400,8 @@ const CameraScreen: React.FC<CameraScreenProps> = ({ route, navigation }) => {
         const responseData = await response.json();
         console.log('[CameraScreen] 저장 성공:', responseData);
         
-        // 미션 완료 처리
-        try {
-          const missionCompleteSuccess = await completeMission(mission.id);
-          if (missionCompleteSuccess) {
-            console.log('[CameraScreen] 미션 완료 처리 성공');
-          } else {
-            console.warn('[CameraScreen] 미션 완료 처리 실패');
-          }
-        } catch (error) {
-          console.error('[CameraScreen] 미션 완료 처리 오류:', error);
-        }
+        // 미션 완료 처리는 갤러리에서 자동으로 처리됨 (사진 저장 시 자동 완료)
+        console.log('[CameraScreen] 사진 저장 완료 - 미션 완료는 갤러리에서 자동 처리');
         
         Alert.alert(
           '저장 완료! 🎉',
@@ -293,6 +432,8 @@ const CameraScreen: React.FC<CameraScreenProps> = ({ route, navigation }) => {
     } catch (error) {
       console.error('[CameraScreen] 저장 에러:', error);
       Alert.alert('오류', '저장 중 오류가 발생했습니다: ' + (error?.message || '알 수 없는 오류'));
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -323,8 +464,15 @@ const CameraScreen: React.FC<CameraScreenProps> = ({ route, navigation }) => {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
       
-      {/* 카메라 프리뷰 영역 */}
-      <View style={styles.cameraPreview}>
+      {/* 카메라 프리뷰 영역 - ViewShot으로 감싸서 합성 이미지 캡처 가능 */}
+      <ViewShot
+        ref={viewShotRef}
+        options={{ 
+          format: "jpg", 
+          quality: 0.8
+        }}
+        style={styles.cameraPreview}
+      >
         {currentPhoto ? (
           // 촬영된 사진 표시
           <Image source={{ uri: currentPhoto }} style={styles.capturedImage} resizeMode="cover" />
@@ -385,7 +533,7 @@ const CameraScreen: React.FC<CameraScreenProps> = ({ route, navigation }) => {
             </View>
           </View>
         )}
-      </View>
+      </ViewShot>
 
       {/* 줌 컨트롤 */}
       <View style={styles.zoomControl}>
@@ -446,8 +594,14 @@ const CameraScreen: React.FC<CameraScreenProps> = ({ route, navigation }) => {
           )}
           
           {photoTaken && (
-            <TouchableOpacity style={styles.saveButton} onPress={handleSaveToGallery}>
-              <Text style={styles.saveButtonText}>저장하기</Text>
+            <TouchableOpacity 
+              style={[styles.saveButton, isSaving && styles.saveButtonDisabled]} 
+              onPress={handleSaveToGallery}
+              disabled={isSaving}
+            >
+              <Text style={styles.saveButtonText}>
+                {isSaving ? '저장 중...' : '저장하기'}
+              </Text>
             </TouchableOpacity>
           )}
         </View>
@@ -653,6 +807,10 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  saveButtonDisabled: {
+    backgroundColor: '#ccc',
+    opacity: 0.6,
   },
 });
 

@@ -11,6 +11,7 @@ import {
   Modal,
   Alert,
   Linking,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
@@ -63,6 +64,8 @@ const TripsScreen: React.FC = () => {
   const [userRouteSpot, setUserRouteSpot] = useState<any>(null);
   const [userCourses, setUserCourses] = useState<any[]>([]);
   const [completedCourses, setCompletedCourses] = useState<any[]>([]);
+  const [userPhotos, setUserPhotos] = useState<any[]>([]); // 사용자 촬영 사진
+  const [spotsData, setSpotsData] = useState<any[]>([]); // 스팟 상세 정보
   const [isLoading, setIsLoading] = useState(true); // 초기 로딩 상태를 true로 설정
 
   // 화면이 포커스될 때마다 데이터 새로고침
@@ -171,6 +174,25 @@ const TripsScreen: React.FC = () => {
         const data = await response.json();
         setUserRouteSpot(data);
         console.log('[TripsScreen] 사용자 코스 데이터:', data);
+        
+        // 각 코스의 스팟 데이터 상세 로그
+        data.forEach((course: any, courseIndex: number) => {
+          console.log(`[TripsScreen] 코스 ${courseIndex + 1} (${course.user_region_name}):`, {
+            route_id: course.route_id,
+            total_spots: course.total_spots,
+            spots_count: course.spots.length
+          });
+          
+          course.spots.forEach((spot: any, spotIndex: number) => {
+            console.log(`[TripsScreen] 스팟 ${spotIndex + 1} (${spot.title}):`, {
+              id: spot.id,
+              title: spot.title,
+              completed_at: spot.completed_at,
+              unlock_at: spot.unlock_at,
+              is_completed: !!(spot.completed_at || spot.unlock_at)
+            });
+          });
+        });
 
         // spots API에서 first_image 데이터 가져오기
         let spotsResponse;
@@ -198,6 +220,37 @@ const TripsScreen: React.FC = () => {
         if (spotsResponse.ok) {
           spotsData = await spotsResponse.json();
           console.log('[TripsScreen] spots 데이터:', spotsData);
+          setSpotsData(spotsData);
+        }
+
+        // 사용자 촬영 사진 가져오기
+        let photosResponse;
+        try {
+          const photosController = new AbortController();
+          const photosTimeoutId = setTimeout(() => photosController.abort(), 10000); // 10초 타임아웃
+
+          photosResponse = await fetch(`${BACKEND_API.BASE_URL}/v1/photos/`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${tokens.access}`,
+            },
+            signal: photosController.signal,
+          });
+
+          clearTimeout(photosTimeoutId);
+          console.log(`[TripsScreen] photos 조회 응답: ${photosResponse.status} ${photosResponse.statusText}`);
+        } catch (photosFetchError) {
+          console.error(`[TripsScreen] photos API 호출 에러:`, photosFetchError);
+          // photos API 실패는 치명적이지 않으므로 빈 배열로 처리
+          photosResponse = { ok: false };
+        }
+
+        let photosData: any[] = [];
+        if (photosResponse.ok) {
+          photosData = await photosResponse.json();
+          console.log('[TripsScreen] 사용자 촬영 사진 데이터:', photosData);
+          setUserPhotos(photosData);
         }
 
         // 진행중인 코스와 완료된 코스 분리
@@ -205,7 +258,8 @@ const TripsScreen: React.FC = () => {
         const completed: any[] = [];
 
         data.forEach((course: any) => {
-          const completedSpots = course.spots.filter((spot: any) => spot.completed_at);
+          // completed_at 또는 unlock_at이 있는 스팟을 완료된 것으로 간주
+          const completedSpots = course.spots.filter((spot: any) => spot.completed_at || spot.unlock_at);
           const totalSpots = course.spots.length;
 
           // spots 데이터에서 first_image 매핑
@@ -266,7 +320,7 @@ const TripsScreen: React.FC = () => {
     // spot 데이터를 JavaScript 배열로 변환
     const spotsData = spots.map(spot => ({
       title: spot.title,
-      completed: spot.completed_at ? true : false,
+      completed: spot.completed_at || spot.unlock_at ? true : false,
       first_image: spot.first_image
     }));
 
@@ -495,7 +549,7 @@ const TripsScreen: React.FC = () => {
 
     // 첫 번째 진행중인 코스의 진행률 계산
     const currentCourse = userCourses[0];
-    const completedSpots = currentCourse.spots.filter((spot: any) => spot.completed_at);
+    const completedSpots = currentCourse.spots.filter((spot: any) => spot.completed_at || spot.unlock_at);
     const totalSpots = currentCourse.spots.length;
     const progressPercentage = totalSpots > 0 ? (completedSpots.length / totalSpots) * 100 : 0;
 
@@ -569,57 +623,102 @@ const TripsScreen: React.FC = () => {
         </View>
 
         <View style={styles.cardContainer}>
-            {selectedSpot && (
+            {selectedSpot && (() => {
+              // spots 데이터에서 해당 스팟의 상세 정보 찾기
+              const spotDetail = spotsData.find((spot: any) => spot.id === selectedSpot.id);
+              const userPhoto = userPhotos.find((photo: any) => photo.spot_id === selectedSpot.id);
+              
+              return (
+                <Modal
+                  visible={!!selectedSpot}
+                  transparent={true}
+                  animationType="fade"
+                  onRequestClose={() => setSelectedSpot(null)}
+                >
+                  <View style={styles.modalOverlay}>
+                    <View style={styles.modalContainer}>
+                      <View style={styles.modalHeader}>
+                        <Text style={styles.modalTitle}>{selectedSpot.title}</Text>
+                        <TouchableOpacity
+                          onPress={() => setSelectedSpot(null)}
+                          style={styles.modalCloseButton}
+                        >
+                          <Text style={styles.modalCloseButtonText}>✕</Text>
+                        </TouchableOpacity>
+                      </View>
 
-	          <Modal
-	            visible={!!selectedSpot}
-	            transparent={true}
-	            animationType="fade"
-	            onRequestClose={() => setSelectedSpot(null)}
-	          >
-	            <View style={styles.modalOverlay}>
-	              <View style={styles.modalContainer}>
-	                <View style={styles.modalHeader}>
-	                  <Text style={styles.modalTitle}>{selectedSpot.title}</Text>
-	                  <TouchableOpacity
-	                    onPress={() => setSelectedSpot(null)}
-	                    style={styles.modalCloseButton}
-	                  >
-	                    <Text style={styles.modalCloseButtonText}>✕</Text>
-	                  </TouchableOpacity>
-	                </View>
+                      <ScrollView style={styles.modalTextContainer}>
+                        {/* 사용자 촬영 사진이 있으면 우선 표시, 없으면 기본 이미지 */}
+                        {userPhoto && userPhoto.image_url ? (
+                          <Image
+                            source={{ uri: userPhoto.image_url }}
+                            style={styles.modalImage}
+                            resizeMode="cover"
+                          />
+                        ) : spotDetail && spotDetail.first_image ? (
+                          <Image
+                            source={{ uri: spotDetail.first_image.replace("http://", "https://") }}
+                            style={styles.modalImage}
+                            resizeMode="cover"
+                          />
+                        ) : null}
+                        
+                        {/* 방문 상태 표시 */}
+                        <View style={styles.visitStatusContainer}>
+                          <Text style={styles.visitStatusText}>
+                            {selectedSpot.completed_at || selectedSpot.unlock_at ? '✅ 방문 완료' : '🔒 미방문'}
+                          </Text>
+                          {(selectedSpot.completed_at || selectedSpot.unlock_at) && (
+                            <Text style={styles.visitDateText}>
+                              방문일: {new Date(selectedSpot.completed_at || selectedSpot.unlock_at).toLocaleDateString('ko-KR')}
+                            </Text>
+                          )}
+                        </View>
 
-	                <ScrollView style={styles.modalTextContainer}>
-					          <Image
-					            source={{ uri: selectedSpot.first_image.replace("http://", "https://") }}
-					            style={styles.modalImage}
-					            resizeMode="cover"
-					            />
-					          <Text style={styles.modalText}>
-					            {spotDescription ?? "로딩 중..."}
-					          </Text>
-	                </ScrollView>
-	              </View>
-	            </View>
-	          </Modal>
-
-            )}
+                        {/* 스팟 상세 정보 */}
+                        {spotDetail && (
+                          <View style={styles.spotDetailContainer}>
+                            <Text style={styles.spotDetailTitle}>장소 정보</Text>
+                            <Text style={styles.spotDetailText}>
+                              {spotDetail.description || '상세 정보가 없습니다.'}
+                            </Text>
+                            
+                            {spotDetail.address && (
+                              <Text style={styles.spotDetailLabel}>주소: {spotDetail.address}</Text>
+                            )}
+                            
+                            {spotDetail.lat && spotDetail.lng && (
+                              <Text style={styles.spotDetailLabel}>
+                                위치: {spotDetail.lat.toFixed(6)}, {spotDetail.lng.toFixed(6)}
+                              </Text>
+                            )}
+                          </View>
+                        )}
+                      </ScrollView>
+                    </View>
+                  </View>
+                </Modal>
+              );
+            })()}
           {/* 실제 코스 스팟들 렌더링 */}
           {currentCourse.spots.map((spot: any, index: number) => (
             <View key={spot.id} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-              {spot.completed_at ? (
+              {spot.completed_at || spot.unlock_at ? (
                 // ✅ 1. 완료된 스팟: TouchableOpacity로 감싸고 onPress 추가
                 <TouchableOpacity
                   style={styles.hotelCard}
                   activeOpacity={0.8}
                   onPress={() => setSelectedSpot(spot)}
                 >
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
                     <Text style={styles.hotelCardText}>{spot.title}</Text>
                   </View>
-                  <CheckIcon />
+                  <View style={{ flexDirection: 'row', alignItems: 'center', position: 'relative', paddingRight: 0 }}>
+                    <Text style={styles.arrowText}>></Text>
+                    <CheckIcon />
+                  </View>
                 </TouchableOpacity>
-              ) : index === currentCourse.spots.findIndex((s: any) => !s.completed_at) ? (
+              ) : index === currentCourse.spots.findIndex((s: any) => !s.completed_at && !s.unlock_at) ? (
                  // 다음 목적지 (첫 번째 미완료 스팟)
                  <View style={styles.hotelCard}>
                    {/* ✅ 2. 다음 목적지: Text가 아닌 View 전체를 누를 수 있도록 TouchableOpacity 추가 */}
@@ -661,15 +760,28 @@ const TripsScreen: React.FC = () => {
         {/* 사진 섹션 */}
         <Text style={[styles.photoSectionTitle, { fontFamily: 'NeoDunggeunmoPro-Regular' }]}>미션 완료</Text>
         <View style={styles.photoGrid}>
-          {currentCourse.spots.map((spot: any, idx: number) => (
-            <View key={idx} style={styles.photoSlot}>
-              {spot.completed_at ? (
-                <Image source={require('../../assets/icons/대불호텔.jpg')} style={styles.photo} resizeMode="cover" />
-              ) : (
-                <PixelLockIcon />
-              )}
-            </View>
-          ))}
+          {currentCourse.spots.map((spot: any, idx: number) => {
+            // 해당 스팟의 사용자 촬영 사진 찾기
+            const userPhoto = userPhotos.find((photo: any) => photo.spot_id === spot.id);
+            
+            return (
+              <View key={idx} style={styles.photoSlot}>
+                {spot.completed_at || spot.unlock_at ? (
+                  userPhoto && userPhoto.image_url ? (
+                    <Image 
+                      source={{ uri: userPhoto.image_url }} 
+                      style={styles.photo} 
+                      resizeMode="cover" 
+                    />
+                  ) : (
+                    <Image source={require('../../assets/icons/대불호텔.jpg')} style={styles.photo} resizeMode="cover" />
+                  )
+                ) : (
+                  <PixelLockIcon />
+                )}
+              </View>
+            );
+          })}
         </View>
 
         {/* 하단 버튼 */}
@@ -829,9 +941,19 @@ const renderCompletedTab = () => (
             })}
           </View>
 
-          {/* 탭별 콘텐츠 */}
-          {activeTab === 'progress' && renderProgressTab()}
-          {activeTab === 'completed' && renderCompletedTab()}
+          {/* 로딩 상태 표시 */}
+          {isLoading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={INCHEON_BLUE} />
+              <Text style={styles.loadingText}>데이터를 불러오는 중...</Text>
+            </View>
+          ) : (
+            <>
+              {/* 탭별 콘텐츠 */}
+              {activeTab === 'progress' && renderProgressTab()}
+              {activeTab === 'completed' && renderCompletedTab()}
+            </>
+          )}
         </View>
       </SafeAreaView>
 
@@ -960,12 +1082,20 @@ const styles = StyleSheet.create({
     borderColor: '#e0e0e0',
     backgroundColor: '#fff',
     paddingVertical: 12,
-    paddingHorizontal: 18,
+    paddingLeft: 18,
+    paddingRight: 0,
     marginBottom: 10,
     borderRadius: 10,
   },
   hotelCardText: {
     ...TEXT_STYLES.body,
+  },
+  arrowText: {
+    fontFamily: 'NeoDunggeunmoPro-Regular',
+    fontSize: 18,
+    color: INCHEON_GRAY,
+    marginRight: 0,
+    marginLeft: 'auto',
   },
   hotelCardArrow: {
     fontFamily: 'NeoDunggeunmoPro-Regular',
@@ -977,6 +1107,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     backgroundColor: INCHEON_BLUE,
     borderRadius: 8,
+    marginRight: 8,
   },
   nextDestinationButtonText: {
     color: '#fff',
@@ -1114,6 +1245,54 @@ const styles = StyleSheet.create({
     height: 250,
     borderRadius: 8,
     marginBottom: 12,
+  },
+  visitStatusContainer: {
+    backgroundColor: '#f8f9fa',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: INCHEON_BLUE,
+  },
+  visitStatusText: {
+    fontFamily: 'NeoDunggeunmoPro-Regular',
+    fontSize: 16,
+    color: INCHEON_BLUE,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  visitDateText: {
+    fontFamily: 'NeoDunggeunmoPro-Regular',
+    fontSize: 14,
+    color: INCHEON_GRAY,
+  },
+  spotDetailContainer: {
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    marginBottom: 16,
+  },
+  spotDetailTitle: {
+    fontFamily: 'NeoDunggeunmoPro-Regular',
+    fontSize: 18,
+    color: INCHEON_BLUE,
+    fontWeight: 'bold',
+    marginBottom: 12,
+  },
+  spotDetailText: {
+    fontFamily: 'NeoDunggeunmoPro-Regular',
+    fontSize: 14,
+    color: '#333',
+    lineHeight: 20,
+    marginBottom: 12,
+  },
+  spotDetailLabel: {
+    fontFamily: 'NeoDunggeunmoPro-Regular',
+    fontSize: 13,
+    color: INCHEON_GRAY,
+    marginBottom: 4,
   },
 
   modalSectionTitle: {
@@ -1316,7 +1495,22 @@ const styles = StyleSheet.create({
   },
   modalDescription: {
     ...TEXT_STYLES.small,
-  }
+  },
+  // 로딩 스타일
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+    minHeight: height * 0.6,
+  },
+  loadingText: {
+    ...TEXT_STYLES.body,
+    fontFamily: 'NeoDunggeunmoPro-Regular',
+    color: INCHEON_GRAY,
+    marginTop: 16,
+    textAlign: 'center',
+  },
 });
 
 export default TripsScreen;

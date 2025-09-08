@@ -110,7 +110,21 @@ export default function CourseDetailScreen({ navigation, route }: CourseDetailSc
             {
               text: '홈으로',
               onPress: () => {
-                navigation.navigate('MainTabs');
+                // 네비게이션 스택을 완전히 리셋하고 홈으로 이동
+                navigation.reset({
+                  index: 0,
+                  routes: [
+                    {
+                      name: 'MainTabs',
+                      state: {
+                        routes: [
+                          { name: 'Home' }
+                        ],
+                        index: 0
+                      }
+                    }
+                  ]
+                });
               }
             }
           ]

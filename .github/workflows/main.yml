@@ -23,7 +23,8 @@ jobs:
             cd /home/ubuntu/TimeTravel
 
             echo "📦 Pull latest code"
-            git pull origin main
+            git fetch origin main # origin/main을 가져옴
+            git reset --hard origin/main  # origin/main을 현재 HEAD로 설정
 
             echo "🧹 Stop existing containers"
             cd /home/ubuntu/TimeTravel/backend

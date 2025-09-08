@@ -24,40 +24,90 @@ def photos(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def photo(request, route_id, spot_id):
-    user_id = request.user.id
-    
-    print(f"[photos] POST 요청 받음: route_id={route_id}, spot_id={spot_id}")
-    print(f"[photos] 요청 데이터: {request.data}")
-    print(f"[photos] 사용자 ID: {user_id}")
-    
-    # 요청 데이터에 route_id와 spot_id 추가
-    data = request.data.copy()
-    data['route_id'] = route_id
-    data['spot_id'] = spot_id
-    print(f"[photos] 요청 데이터: {request.data}")  # 일반 폼 데이터
-    print(f"[photos] 파일 데이터: {request.FILES}")  # 파일 데이터
-    print(f"[photos] 요청 헤더: {request.headers}")  # 요청 헤더 확인
-    
-    # JSON 방식: image_url을 문자열로 받음
-    if 'image_url' in data and data['image_url']:
-        print(f"[photos] 받은 이미지 URL: {data['image_url']}")
-    else:
+    try:
+        user_id = request.user.id
+        
+        print(f"[photos] POST 요청 받음: route_id={route_id}, spot_id={spot_id}")
+        print(f"[photos] 요청 데이터: {request.data}")
+        print(f"[photos] 사용자 ID: {user_id}")
+        
+        # route_id와 spot_id 유효성 검사
+        try:
+            route = Route.objects.get(pk=route_id)
+            spot = Spot.objects.get(pk=spot_id)
+            user = CustomUser.objects.get(pk=user_id)
+            print(f"[photos] 데이터 검증 성공: route={route.id}, spot={spot.id}, user={user.id}")
+        except Route.DoesNotExist:
+            print(f"[photos] Route {route_id} 존재하지 않음")
+            return Response(
+                {"error": f"Route ID {route_id}가 존재하지 않습니다."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Spot.DoesNotExist:
+            print(f"[photos] Spot {spot_id} 존재하지 않음")
+            return Response(
+                {"error": f"Spot ID {spot_id}가 존재하지 않습니다."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except CustomUser.DoesNotExist:
+            print(f"[photos] User {user_id} 존재하지 않음")
+            return Response(
+                {"error": f"User ID {user_id}가 존재하지 않습니다."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # 이미지 URL 검증
+        image_url = request.data.get('image_url')
+        if not image_url:
+            print(f"[photos] 이미지 URL이 없음")
+            return Response(
+                {"error": "이미지 URL이 필요합니다."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        print(f"[photos] 받은 이미지 URL: {image_url}")
+        print(f"[photos] 이미지 URL 길이: {len(image_url)}")
+        
+        # Photo 객체 직접 생성
+        try:
+            photo_instance = Photo.objects.create(
+                user_id=user,
+                route_id=route,
+                spot_id=spot,
+                image_url=image_url,
+                is_used=False
+            )
+            print(f"[photos] 사진 저장 완료: ID={photo_instance.id}")
+            
+            # 응답 데이터 구성
+            response_data = {
+                "id": photo_instance.id,
+                "image_url": photo_instance.image_url,
+                "is_used": photo_instance.is_used,
+                "created_at": photo_instance.created_at,
+                "used_at": photo_instance.used_at,
+                "route_id": photo_instance.route_id.id,
+                "spot_id": photo_instance.spot_id.id,
+                "user_id": photo_instance.user_id.id
+            }
+            
+            return Response(response_data, status=status.HTTP_201_CREATED)
+            
+        except Exception as save_error:
+            print(f"[photos] 사진 저장 실패: {str(save_error)}")
+            return Response(
+                {"error": f"사진 저장 중 오류가 발생했습니다: {str(save_error)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+            
+    except Exception as e:
+        print(f"[photos] 예상치 못한 오류: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return Response(
-            {"error": "이미지 URL이 필요합니다."},
-            status=status.HTTP_400_BAD_REQUEST
+            {"error": f"서버 내부 오류가 발생했습니다: {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
-    
-    serializer = PhotoDetailSerializer(data=data)
-    if serializer.is_valid():
-        print(f"[photos] 시리얼라이저 유효함")
-        serializer.save(user_id=CustomUser.objects.get(pk=user_id),  # ✅ 인스턴스 대입
-                        route_id=Route.objects.get(pk=route_id),
-                        spot_id=Spot.objects.get(pk=spot_id),
-                        )
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
-    else:
-        print(f"[photos] 시리얼라이저 에러: {serializer.errors}")
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 # patch, api/v1/photos/{photo_id}
 @api_view(['PATCH', 'DELETE'])

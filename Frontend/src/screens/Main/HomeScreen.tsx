@@ -215,6 +215,68 @@ export default function HomeScreen({ navigation }: any) {
     setShowMissionNotification(false);
   };
 
+  // 미션 시뮬레이션 버튼 클릭 (개발용 테스트)
+  const handleMissionSimulation = async () => {
+    console.log('[HomeScreen] 미션 시뮬레이션 시작');
+    
+    try {
+      // 스팟들 조회
+      const spotsResponse = await fetch(`${BACKEND_API.BASE_URL}/v1/spots/`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (spotsResponse.ok) {
+        const spotsData = await spotsResponse.json();
+        console.log('[HomeScreen] 스팟 데이터:', spotsData);
+        
+        // 부평향교 찾기
+        const bupyeongSpot = spotsData.find((spot: any) => 
+          spot.name && spot.name.includes('부평향교')
+        );
+
+        if (bupyeongSpot && bupyeongSpot.past_image_url) {
+          const testMission = {
+            id: bupyeongSpot.id,
+            location: {
+              id: bupyeongSpot.id,
+              name: bupyeongSpot.name,
+              lat: bupyeongSpot.lat || 37.4563,
+              lng: bupyeongSpot.lng || 126.7052,
+              order: 1,
+              radius: 300,
+              completed: false,
+            },
+            historicalPhotos: [{
+              id: bupyeongSpot.id,
+              title: `${bupyeongSpot.name} 과거 사진`,
+              description: `${bupyeongSpot.name}의 과거 모습`,
+              imageUrl: bupyeongSpot.past_image_url,
+              year: '과거',
+              location: bupyeongSpot.address || bupyeongSpot.name || '주소 정보 없음',
+            }],
+            completed: false,
+            routeId: 1, // 테스트용
+          };
+          
+          console.log('[HomeScreen] 부평향교 미션 생성:', testMission);
+          setCurrentMission(testMission);
+          setShowMissionNotification(true);
+        } else {
+          Alert.alert('시뮬레이션 오류', '부평향교의 과거사진을 찾을 수 없습니다.');
+        }
+      } else {
+        console.error('[HomeScreen] 스팟 데이터 가져오기 실패:', spotsResponse.status);
+        Alert.alert('시뮬레이션 오류', '스팟 데이터를 가져올 수 없습니다.');
+      }
+    } catch (error) {
+      console.error('[HomeScreen] 미션 시뮬레이션 오류:', error);
+      Alert.alert('시뮬레이션 오류', '미션 시뮬레이션 중 오류가 발생했습니다.');
+    }
+  };
+
   // 방문 완료 처리 (미션이 없는 spot용)
   const handleCompleteVisit = async (mission: any) => {
     try {
@@ -242,23 +304,21 @@ export default function HomeScreen({ navigation }: any) {
       }
 
       // UserRouteSpot ID를 사용하여 방문 완료 처리
-      if (currentSpot.user_route_spot_id) {
-        console.log('[HomeScreen] 🔗 API 호출: PATCH /v1/courses/use_stamp/');
+      if (currentSpot.user_route_spot_id && currentSpot.route_spot_id) {
+        console.log('[HomeScreen] 🔗 API 호출: PATCH /v1/courses/unlock_route_spot/');
         console.log('[HomeScreen] 📋 요청 데이터:', {
-          id: currentSpot.user_route_spot_id,
-          is_used: true
+          id: currentSpot.user_route_spot_id
         });
         console.log('[HomeScreen] 📋 요청 헤더: Authorization: Bearer', tokens.access.substring(0, 20) + '...');
         
-        const response = await fetch(`${BACKEND_API.BASE_URL}/v1/courses/use_stamp/`, {
+        const response = await fetch(`${BACKEND_API.BASE_URL}/v1/courses/unlock_route_spot/${currentSpot.route_spot_id}/`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${tokens.access}`,
           },
           body: JSON.stringify({
-            id: currentSpot.user_route_spot_id,
-            is_used: true
+            id: currentSpot.user_route_spot_id
           }),
         });
         
@@ -696,11 +756,14 @@ export default function HomeScreen({ navigation }: any) {
   };
 
   const handleNextDestination = (spot: any) => {
-    // MapScreen으로 이동하여 길찾기
+    // MapScreen으로 이동하여 길찾기 (TripsScreen과 동일한 방식)
     navigation.navigate('Map', {
-      destination: spot.title || spot.name || '알 수 없는 장소',
-      destinationLat: spot.lat,
-      destinationLng: spot.lng
+      screen: 'MapMain',
+      params: {
+        destination: spot.title || spot.name || '알 수 없는 장소',
+        destinationLat: spot.lat,
+        destinationLng: spot.lng,
+      }
     });
   };
 
@@ -833,34 +896,41 @@ export default function HomeScreen({ navigation }: any) {
       </View>
 
       <View style={styles.spotsList}>
-        {course.spots && course.spots.map((spot: any, index: number) => (
-          <View key={spot.id} style={styles.spotItem}>
-            <View style={styles.spotOrderContainer}>
-              <Text style={styles.spotOrder}>{spot.order || index + 1}</Text>
-            </View>
-            <View style={styles.spotStatus}>
-              {index === 0 ? (
-                <TouchableOpacity
-                  style={styles.spotInfo}
-                  activeOpacity={0.7}
-                  onPress={() => handleNextDestination(spot)}
-                >
-                  <Text style={styles.spotTitle} numberOfLines={1}>{spot.title || spot.name || '알 수 없는 장소'}</Text>
-                  <View style={styles.nextDestinationBtn}>
-                    <Text style={styles.nextDestinationText}>📍</Text>
+        {course.spots && course.spots.map((spot: any, index: number) => {
+          // 완료된 스팟인지 확인 (completed_at 또는 unlock_at이 있으면 완료)
+          const isCompleted = spot.completed_at || spot.unlock_at;
+          
+          // 다음 목적지인지 확인 (첫 번째 미완료 스팟)
+          const isNextDestination = !isCompleted && index === course.spots.findIndex((s: any) => !s.completed_at && !s.unlock_at);
+          
+          return (
+            <View key={spot.id} style={styles.spotItem}>
+              <View style={styles.spotOrderContainer}>
+                <Text style={styles.spotOrder}>{spot.order || index + 1}</Text>
+              </View>
+              <View style={styles.spotStatus}>
+                {isNextDestination ? (
+                  // 현재 목적지: 핀 버튼
+                  <TouchableOpacity
+                    style={styles.spotInfo}
+                    activeOpacity={0.7}
+                    onPress={() => handleNextDestination(spot)}
+                  >
+                    <Text style={styles.spotTitle} numberOfLines={1}>{spot.title || spot.name || '알 수 없는 장소'}</Text>
+                    <View style={styles.nextDestinationBtn}>
+                      <Text style={styles.nextDestinationText}>📍</Text>
+                    </View>
+                  </TouchableOpacity>
+                ) : (
+                  // 나머지 스팟들: 아이콘 없이 텍스트만
+                  <View style={styles.spotInfo}>
+                    <Text style={styles.spotTitle} numberOfLines={1}>{spot.title || spot.name || '알 수 없는 장소'}</Text>
                   </View>
-                </TouchableOpacity>
-              ) : (
-                <View style={styles.spotInfo}>
-                  <Text style={styles.spotTitle} numberOfLines={1}>{spot.title || spot.name || '알 수 없는 장소'}</Text>
-                  <View style={styles.lockedIcon}>
-                    <Ionicons name="lock-closed" size={16} color="#FFD700" />
-                  </View>
-                </View>
-              )}
+                )}
+              </View>
             </View>
-          </View>
-        ))}
+          );
+        })}
       </View>
 
       <TouchableOpacity style={styles.continueBtn} onPress={handleContinueCourse}>
@@ -892,6 +962,7 @@ export default function HomeScreen({ navigation }: any) {
            <Text style={styles.recommendCourseBtnText}>지금 코스를 추천받아 보세요!</Text>
          </TouchableOpacity>
        )}
+
 
     </View>
   );
@@ -1298,6 +1369,13 @@ export default function HomeScreen({ navigation }: any) {
             {isLoggedIn ? renderLoggedInHeader() : renderLoggedOutHeader()}
           </>
         )}
+
+        {/* 미션 시뮬레이션 버튼 (개발용) - 항상 표시 */}
+        <View style={styles.simulationSection}>
+          <TouchableOpacity style={styles.simulationBtn} onPress={handleMissionSimulation}>
+            <Text style={styles.simulationBtnText}>🎯 미션 시뮬레이션 (개발용)</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
 
       {/* 미션 알림 컴포넌트 */}
@@ -1665,6 +1743,33 @@ underline: {
     ...TEXT_STYLES.button,
     color: '#fff',
   },
+  simulationBtn: {
+    backgroundColor: '#FF6B6B',
+    borderRadius: 24,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    marginTop: 8,
+    shadowColor: '#FF6B6B',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  simulationBtnText: {
+    ...TEXT_STYLES.button,
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  simulationSection: {
+    alignItems: 'center',
+    marginTop: 20,
+    marginBottom: 20,
+    paddingHorizontal: 20,
+  },
   spotsList: {
     width: '100%',
     marginBottom: 12,
@@ -1711,10 +1816,6 @@ underline: {
   },
   nextDestinationText: {
     ...TEXT_STYLES.button,
-  },
-  lockedIcon: {
-    marginTop: 8,
-    marginRight: 24,
   },
   bookmarkIcon: {
     position: 'absolute',

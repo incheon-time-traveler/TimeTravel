@@ -245,7 +245,8 @@ def user_routes(request, route_id=None):
                     'lng': spot.lng,
                     'order': user_route_spot.order,
                     'is_unlocked': user_route_spot.is_unlocked if hasattr(user_route_spot, 'is_unlocked') else True,
-                    'completed_at': user_route_spot.completed_at if hasattr(user_route_spot, 'completed_at') else None
+                    'completed_at': user_route_spot.completed_at if hasattr(user_route_spot, 'completed_at') else None,
+                    'unlock_at': user_route_spot.unlock_at
                 })
             
             # 코스 목록을 생성일 기준으로 정렬
@@ -273,9 +274,34 @@ def delete_user_route_spot(request, route_id):
     """
     if request.method == "DELETE":
         user = request.user
-        user_route_spot = UserRouteSpot.objects.filter(user_id=user, route_id_id=route_id)
-        user_route_spot.delete()
-        return Response({'success': '사용자 코스가 삭제되었습니다.'}, status=status.HTTP_204_NO_CONTENT)
+        # 1) 사용자 코스(UserRouteSpot) 삭제
+        user_route_spots_qs = UserRouteSpot.objects.filter(user_id=user, route_id_id=route_id)
+        deleted_user_routes = user_route_spots_qs.count()
+        user_route_spots_qs.delete()
+
+        # 2) 사용자 촬영 사진(Photo)도 함께 삭제
+        #    - 기본: user + route_id 일치
+        #    - 보강: 해당 route에 속한 spot들(Spot IDs)로도 삭제 (초기 저장 시 route_id가 비어있던 사진 대비)
+        photos_qs = Photo.objects.filter(user_id=user, route_id_id=route_id)
+
+        # 보강 삭제: route에 포함된 스팟의 사진까지 제거
+        route_spot_ids = RouteSpot.objects.filter(route_id=route_id).values_list('spot_id', flat=True)
+        extra_qs = Photo.objects.filter(user_id=user, spot_id_id__in=list(route_spot_ids))
+        # 합쳐서 삭제
+        deleted_photos = photos_qs.count() + extra_qs.exclude(id__in=photos_qs.values_list('id', flat=True)).count()
+        # 실제 삭제 실행
+        photos_qs.delete()
+        extra_qs.delete()
+
+        return Response(
+            {
+                'success': True,
+                'message': '사용자 코스와 관련 사진이 삭제되었습니다.',
+                'deleted_user_routes': deleted_user_routes,
+                'deleted_photos': deleted_photos,
+            },
+            status=status.HTTP_200_OK
+        )
     else:
         return Response({'error': 'DELETE 메서드만 지원됩니다.'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
@@ -287,25 +313,29 @@ def unlock_route_spot(request, route_spot_id):
     """
     유저 코스 잠금 해제 API
     프론트엔드에서 사용자가 이동하는 코스의 특정 스팟의 잠금을 해제합니다.
+    unlock_at을 현재 시간으로 설정합니다.
     """
     if request.method == "PATCH":
-        user = request.user
-        print("requset.data:", request.data)
-        user_route_spot = UserRouteSpot.objects.get(user_id=user, id=request.data['id'])
-        serializer = UserRouteSpotUpdateSerializer(user_route_spot, data=request.data, partial=True)
-        request.data['spot_id'] = user_route_spot.route_spot_id.spot_id.id
-        request.data['user_id'] = user.id
-        request.data['route_id'] = user_route_spot.route_spot_id.route_id.id
-        past_photo_url = Spot.objects.get(id=user_route_spot.route_spot_id.spot_id.id).past_image_url
-        request.data['image_url'] = past_photo_url
-        photoserializer = PhotoSerializer(data=request.data)
-        if photoserializer.is_valid(raise_exception=True):
-            print("photoserializer valid")
-            photoserializer.save()
-        if serializer.is_valid(raise_exception=True):
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            user = request.user
+            print("requset.data:", request.data)
+            user_route_spot = UserRouteSpot.objects.get(user_id=user, id=request.data['id'])
+            
+            # unlock_at을 현재 시간으로 설정
+            from django.utils import timezone
+            request.data['unlock_at'] = timezone.now()
+            
+            serializer = UserRouteSpotUpdateSerializer(user_route_spot, data=request.data, partial=True)
+            if serializer.is_valid(raise_exception=True):
+                serializer.save()
+                print(f"[unlock_route_spot] UserRouteSpot {user_route_spot.id} 방문 완료 처리됨 - unlock_at: {request.data['unlock_at']}")
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except UserRouteSpot.DoesNotExist:
+            return Response({'error': 'UserRouteSpot을 찾을 수 없습니다.'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            print(f"[unlock_route_spot] 오류: {e}")
+            return Response({'error': f'잠금 해제 중 오류가 발생했습니다: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 # 해금 장소 조회
 @api_view(['GET'])

@@ -171,6 +171,25 @@ const TripsScreen: React.FC = () => {
         const data = await response.json();
         setUserRouteSpot(data);
         console.log('[TripsScreen] 사용자 코스 데이터:', data);
+        
+        // 각 코스의 스팟 데이터 상세 로그
+        data.forEach((course: any, courseIndex: number) => {
+          console.log(`[TripsScreen] 코스 ${courseIndex + 1} (${course.user_region_name}):`, {
+            route_id: course.route_id,
+            total_spots: course.total_spots,
+            spots_count: course.spots.length
+          });
+          
+          course.spots.forEach((spot: any, spotIndex: number) => {
+            console.log(`[TripsScreen] 스팟 ${spotIndex + 1} (${spot.title}):`, {
+              id: spot.id,
+              title: spot.title,
+              completed_at: spot.completed_at,
+              unlock_at: spot.unlock_at,
+              is_completed: !!(spot.completed_at || spot.unlock_at)
+            });
+          });
+        });
 
         // spots API에서 first_image 데이터 가져오기
         let spotsResponse;
@@ -205,7 +224,8 @@ const TripsScreen: React.FC = () => {
         const completed: any[] = [];
 
         data.forEach((course: any) => {
-          const completedSpots = course.spots.filter((spot: any) => spot.completed_at);
+          // completed_at 또는 unlock_at이 있는 스팟을 완료된 것으로 간주
+          const completedSpots = course.spots.filter((spot: any) => spot.completed_at || spot.unlock_at);
           const totalSpots = course.spots.length;
 
           // spots 데이터에서 first_image 매핑
@@ -266,7 +286,7 @@ const TripsScreen: React.FC = () => {
     // spot 데이터를 JavaScript 배열로 변환
     const spotsData = spots.map(spot => ({
       title: spot.title,
-      completed: spot.completed_at ? true : false,
+      completed: spot.completed_at || spot.unlock_at ? true : false,
       first_image: spot.first_image
     }));
 
@@ -495,7 +515,7 @@ const TripsScreen: React.FC = () => {
 
     // 첫 번째 진행중인 코스의 진행률 계산
     const currentCourse = userCourses[0];
-    const completedSpots = currentCourse.spots.filter((spot: any) => spot.completed_at);
+    const completedSpots = currentCourse.spots.filter((spot: any) => spot.completed_at || spot.unlock_at);
     const totalSpots = currentCourse.spots.length;
     const progressPercentage = totalSpots > 0 ? (completedSpots.length / totalSpots) * 100 : 0;
 
@@ -607,7 +627,7 @@ const TripsScreen: React.FC = () => {
           {/* 실제 코스 스팟들 렌더링 */}
           {currentCourse.spots.map((spot: any, index: number) => (
             <View key={spot.id} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-              {spot.completed_at ? (
+              {spot.completed_at || spot.unlock_at ? (
                 // ✅ 1. 완료된 스팟: TouchableOpacity로 감싸고 onPress 추가
                 <TouchableOpacity
                   style={styles.hotelCard}
@@ -619,7 +639,7 @@ const TripsScreen: React.FC = () => {
                   </View>
                   <CheckIcon />
                 </TouchableOpacity>
-              ) : index === currentCourse.spots.findIndex((s: any) => !s.completed_at) ? (
+              ) : index === currentCourse.spots.findIndex((s: any) => !s.completed_at && !s.unlock_at) ? (
                  // 다음 목적지 (첫 번째 미완료 스팟)
                  <View style={styles.hotelCard}>
                    {/* ✅ 2. 다음 목적지: Text가 아닌 View 전체를 누를 수 있도록 TouchableOpacity 추가 */}
@@ -663,7 +683,7 @@ const TripsScreen: React.FC = () => {
         <View style={styles.photoGrid}>
           {currentCourse.spots.map((spot: any, idx: number) => (
             <View key={idx} style={styles.photoSlot}>
-              {spot.completed_at ? (
+              {spot.completed_at || spot.unlock_at ? (
                 <Image source={require('../../assets/icons/대불호텔.jpg')} style={styles.photo} resizeMode="cover" />
               ) : (
                 <PixelLockIcon />

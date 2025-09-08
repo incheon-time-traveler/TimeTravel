@@ -245,7 +245,8 @@ def user_routes(request, route_id=None):
                     'lng': spot.lng,
                     'order': user_route_spot.order,
                     'is_unlocked': user_route_spot.is_unlocked if hasattr(user_route_spot, 'is_unlocked') else True,
-                    'completed_at': user_route_spot.completed_at if hasattr(user_route_spot, 'completed_at') else None
+                    'completed_at': user_route_spot.completed_at if hasattr(user_route_spot, 'completed_at') else None,
+                    'unlock_at': user_route_spot.unlock_at
                 })
             
             # 코스 목록을 생성일 기준으로 정렬

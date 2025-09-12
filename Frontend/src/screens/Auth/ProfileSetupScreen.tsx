@@ -10,7 +10,7 @@ import {
   ActivityIndicator
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
-import Ionicons from 'react-native-vector-icons/Ionicons';
+import Ionicons from '@react-native-vector-icons/ionicons';
 import { INCHEON_BLUE, INCHEON_BLUE_LIGHT, INCHEON_GRAY, TEXT_STYLES } from '../../styles/fonts';
 import { authService } from '../../services/authService';
 import { BACKEND_API } from '../../config/apiKeys';

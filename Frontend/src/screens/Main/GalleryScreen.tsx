@@ -13,7 +13,7 @@ import {
   TouchableWithoutFeedback
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import Ionicons from 'react-native-vector-icons/Ionicons';
+import Ionicons from '@react-native-vector-icons/ionicons';
 import CheckIcon from '../../components/ui/CheckIcon';
 import PixelLockIcon from '../../components/ui/PixelLockIcon';
 import { INCHEON_BLUE, INCHEON_BLUE_LIGHT, INCHEON_GRAY, TEXT_STYLES } from '../../styles/fonts';
@@ -34,6 +34,9 @@ interface GalleryItem {
   stampUsed: boolean;
   route_id: number;
   spot_id: number;
+  isUnlockSpot?: boolean; // unlock_spots에서 온 데이터인지
+  isUserPhoto?: boolean; // 사용자가 촬영한 사진인지
+  created_at?: string; // 촬영 날짜
 }
 
 
@@ -69,6 +72,12 @@ export default function GalleryScreen({ navigation }: any) {
 
   const handleImagePress = (item: any) => {
     if (item.completed) {
+      console.log('[GalleryScreen] 사진 클릭:', {
+        title: item.title,
+        spot_id: item.spot_id,
+        route_id: item.route_id,
+        image_url: item.image_url
+      });
       setSelectedImage(item);
       setImageModalVisible(true);
     }
@@ -148,10 +157,23 @@ export default function GalleryScreen({ navigation }: any) {
     try {
       setIsLoading(true);
       const tokens = await authService.getTokens();
-      let response;
+      let photosResponse;
+      let spotsResponse;
+      
       if (tokens?.access) {
-          // 1. 백엔드에서 unlock_spots 데이터 가져오기
-          response = await fetch(`${BACKEND_API.BASE_URL}/v1/courses/unlock_spots/`, {
+        // 1. 백엔드에서 사용자가 촬영한 사진들 가져오기
+        console.log('[GalleryScreen] photos API 호출 시작:', `${BACKEND_API.BASE_URL}/v1/photos/`);
+        photosResponse = await fetch(`${BACKEND_API.BASE_URL}/v1/photos/`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${tokens.access}`,
+          },
+        });
+        console.log('[GalleryScreen] photos API 응답:', photosResponse.status, photosResponse.statusText);
+
+        // 2. 백엔드에서 spots 정보 가져오기 (spot_id로 이름 조회용)
+        spotsResponse = await fetch(`${BACKEND_API.BASE_URL}/v1/spots/`, {
             method: 'GET',
             headers: {
               'Content-Type': 'application/json',
@@ -160,37 +182,107 @@ export default function GalleryScreen({ navigation }: any) {
         });
       }
 
-      let backendItems: GalleryItem[] = [];
-      if (response && response.ok) {
-        const data = await response.json();
-        console.log('[GalleryScreen] 백엔드 갤러리 데이터:', data);
-        if (data.length > 0){
-        // 백엔드 데이터를 GalleryItem 형식으로 변환
-        backendItems = data.map((item: any) => ({
-          id: item.id,
-          title: item.spot_name || `장소 ${item.spot_id}`,
-          image_url: item.past_photo_url || '',
-          past_image_url: item.past_photo_url || '',
-          completed: !!item.past_photo_url,
-          hasStamp: true,
-          stampUsed: item.is_used || false,
-          route_id: item.route_id,
-          spot_id: item.route_spot_id,
-        }));}
-        console.log("갤러리 데이터 세팅 성공")
+      let photosItems: GalleryItem[] = [];
+      let spotsData: any[] = [];
+
+      // photos 데이터 처리
+      if (photosResponse && photosResponse.ok) {
+        const data = await photosResponse.json();
+        console.log('[GalleryScreen] 사용자 촬영 사진 데이터:', data);
+        console.log('[GalleryScreen] photos API 응답 상태:', photosResponse.status);
+        console.log('[GalleryScreen] photos API 응답 헤더:', photosResponse.headers);
+        
+        if (data && data.length > 0) {
+          console.log('[GalleryScreen] 원본 photos 데이터 상세:', data);
+          photosItems = data.map((item: any) => {
+            const mappedItem = {
+              id: item.id + 10000, // unlock_spots와 ID 충돌 방지
+              title: `촬영한 사진 ${item.id}`,
+              image_url: item.image_url || '',
+              past_image_url: item.image_url || '', // 촬영한 사진을 past_image_url로도 사용
+              completed: true,
+              hasStamp: false,
+              stampUsed: false,
+              route_id: item.route_id,
+              spot_id: item.spot_id,
+              isUserPhoto: true, // 사용자가 촬영한 사진임을 표시
+              created_at: item.created_at,
+            };
+            console.log('[GalleryScreen] 매핑된 아이템:', mappedItem);
+            return mappedItem;
+          });
+          console.log('[GalleryScreen] 처리된 photosItems:', photosItems);
+        } else {
+          console.log('[GalleryScreen] 사용자 촬영 사진이 없습니다.');
+        }
+        console.log('[GalleryScreen] 사용자 촬영 사진 데이터 세팅 성공');
+      } else {
+        console.error('[GalleryScreen] photos API 호출 실패:', photosResponse?.status, photosResponse?.statusText);
       }
 
-      // 2. 백엔드 데이터만 사용
-      const allItems = backendItems;
-      console.log('[GalleryScreen] 갤러리 데이터:', allItems);
+      // spots 데이터 처리
+      if (spotsResponse && spotsResponse.ok) {
+        const data = await spotsResponse.json();
+        console.log('[GalleryScreen] spots 데이터:', data);
+        spotsData = data;
+        console.log('[GalleryScreen] spots 데이터 세팅 성공');
+      }
 
-      // 3. 빈 슬롯 생성 (고유한 ID 보장)
+      // 3. 데이터 통합 - 사용자 촬영 사진을 기준으로 갤러리 구성
+      const mergedItems: GalleryItem[] = [];
+      
+      console.log('[GalleryScreen] photosItems 길이:', photosItems.length);
+      console.log('[GalleryScreen] photosItems 데이터:', photosItems);
+      console.log('[GalleryScreen] spotsData 길이:', spotsData.length);
+      
+      // 사용자 촬영 사진이 있으면 바로 갤러리에 표시
+      if (photosItems && photosItems.length > 0) {
+        console.log('[GalleryScreen] 사용자 촬영 사진을 갤러리에 표시');
+        
+        photosItems.forEach((photo, index) => {
+          console.log(`[GalleryScreen] 처리 중인 photo ${index + 1}:`, {
+            spot_id: photo.spot_id,
+            route_id: photo.route_id,
+            image_url: photo.image_url,
+            title: photo.title
+          });
+          
+          // spots 데이터에서 이름 조회 (없으면 기본값 사용)
+          let spotName = `촬영한 사진 ${photo.spot_id}`;
+          if (spotsData && spotsData.length > 0) {
+            const spotInfo = spotsData.find(spot => spot.id === photo.spot_id);
+            if (spotInfo && spotInfo.name) {
+              spotName = spotInfo.name;
+            }
+          }
+          
+          console.log(`[GalleryScreen] spot_id ${photo.spot_id} - 최종 이름:`, spotName);
+          
+          const galleryItem = {
+            ...photo,
+            title: spotName,
+            hasStamp: true,
+            stampUsed: false,
+          };
+          
+          console.log(`[GalleryScreen] 갤러리 아이템 생성:`, galleryItem);
+          mergedItems.push(galleryItem);
+        });
+      } else {
+        console.log('[GalleryScreen] 사용자 촬영 사진이 없습니다.');
+      }
+      
+      console.log('[GalleryScreen] 통합된 갤러리 데이터:', mergedItems);
+      console.log('[GalleryScreen] 최종 mergedItems.length:', mergedItems.length);
+      const allItems = mergedItems;
+
+      // 4. 빈 슬롯 생성 (고유한 ID 보장) - 사용자 촬영 사진이 있는 경우만 표시
       const remainingSlots = TOTAL_COURSE - allItems.length || 0;
       const emptySlots = Array(remainingSlots).fill(null).map((_, index) => ({
-        id: index + 1000, // 기존 ID와 겹치지 않도록 큰 수 사용
+        id: index + 2000, // 기존 ID와 겹치지 않도록 큰 수 사용
         title: `장소 ${allItems.length + index + 1}`,
-        image_url: '',
-        past_image_url: '',
+        image_url: '', // 과거 이미지 사용하지 않음
+        past_image_url: '', // 과거 이미지 사용하지 않음
         completed: false,
         hasStamp: false,
         stampUsed: false,
@@ -198,8 +290,15 @@ export default function GalleryScreen({ navigation }: any) {
         spot_id: allItems.length + index + 1,
       }));
 
-      setGalleryData(allItems.concat(emptySlots));
-      setFoundCount(allItems.filter(item => item.completed).length);
+      const finalGalleryData = allItems.concat(emptySlots);
+      const finalFoundCount = allItems.filter(item => item.completed).length;
+      
+      console.log('[GalleryScreen] 최종 갤러리 데이터:', finalGalleryData);
+      console.log('[GalleryScreen] 최종 갤러리 데이터 길이:', finalGalleryData.length);
+      console.log('[GalleryScreen] 최종 찾은 사진 개수:', finalFoundCount);
+      
+      setGalleryData(finalGalleryData);
+      setFoundCount(finalFoundCount);
     } finally {
       setIsLoading(false);
     }
@@ -326,7 +425,15 @@ export default function GalleryScreen({ navigation }: any) {
           ) : (
             <Text style={styles.subtitle}>로그인해 과거 모습을 찾아보세요.</Text>
           )}
-          <View style={styles.gridWrap}>
+          
+          {/* 로딩 상태 표시 */}
+          {isLoading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={INCHEON_BLUE} />
+              <Text style={styles.loadingText}>갤러리를 불러오는 중...</Text>
+            </View>
+          ) : (
+            <View style={styles.gridWrap}>
               {galleryData.map((item) => (
                 <TouchableOpacity
                   key={item.id}
@@ -336,10 +443,10 @@ export default function GalleryScreen({ navigation }: any) {
                 >
                   <View style={styles.imageContainer}>
                     <Image
-                      source={{ uri: item.past_image_url || Image.resolveAssetSource(require('../../assets/images/대동여지도.jpg'))?.uri || '' }}
+                      source={{ uri: item.image_url || Image.resolveAssetSource(require('../../assets/images/대동여지도.jpg'))?.uri || '' }}
                       style={styles.photo}
                       resizeMode="cover"
-                      onLoad={() => console.log('[GalleryScreen] 이미지 로드 성공:', item.title, item.past_image_url)}
+                      onLoad={() => console.log('[GalleryScreen] 이미지 로드 성공:', item.title, item.image_url)}
                     />
                     {!item.completed && (
                       <View style={styles.lockedOverlay}>
@@ -375,7 +482,8 @@ export default function GalleryScreen({ navigation }: any) {
                 </TouchableOpacity>
               ))}
             </View>
-          </ScrollView>
+          )}
+        </ScrollView>
 
           {/* 로그인 안내 모달 */}
           {renderLoginModal()}
@@ -390,7 +498,10 @@ export default function GalleryScreen({ navigation }: any) {
             <View style={styles.modalOverlay}>
               <View style={styles.modalContainer}>
                 <View style={styles.modalHeader}>
-                  <Text style={styles.modalTitle}>{selectedImage?.title}</Text>
+                  <View style={styles.modalTitleContainer}>
+                    <Text style={styles.modalTitle}>{selectedImage?.title}</Text>
+
+                  </View>
                   <TouchableOpacity
                     onPress={() => setImageModalVisible(false)}
                     style={styles.modalCloseButton}
@@ -630,6 +741,25 @@ const styles = StyleSheet.create({
     ...TEXT_STYLES.small,
     color: '#e0e0e0',
   },
+  // 사용자 촬영 사진 오버레이 스타일
+  userPhotoOverlay: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    zIndex: 2,
+  },
+  userPhotoText: {
+    ...TEXT_STYLES.small,
+    color: 'white',
+    marginLeft: 4,
+    fontSize: 10,
+  },
   stampBadge: {
     backgroundColor: '#FF4444',
     width: 20,
@@ -700,9 +830,17 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
     backgroundColor: INCHEON_BLUE_LIGHT,
   },
+  modalTitleContainer: {
+    flex: 1,
+  },
   modalTitle: {
     ...TEXT_STYLES.subtitle,
     color: INCHEON_BLUE
+  },
+  modalSubtitle: {
+    ...TEXT_STYLES.small,
+    color: '#666',
+    marginTop: 4,
   },
   modalCloseButton: {
     paddingVertical: 10,
@@ -719,5 +857,20 @@ const styles = StyleSheet.create({
   modalImage: {
     width: '100%',
     height: '100%',
+  },
+  // 로딩 스타일
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+    minHeight: height * 0.6,
+  },
+  loadingText: {
+    ...TEXT_STYLES.body,
+    fontFamily: 'NeoDunggeunmoPro-Regular',
+    color: INCHEON_GRAY,
+    marginTop: 16,
+    textAlign: 'center',
   },
 });

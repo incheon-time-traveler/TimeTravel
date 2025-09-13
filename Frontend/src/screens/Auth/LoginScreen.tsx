@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Text, Image, View, Dimensions, Alert, StyleSheet, TouchableOpacity, Modal, Linking, ScrollView, RefreshControl } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import Ionicons from 'react-native-vector-icons/Ionicons';
+import Ionicons from '@react-native-vector-icons/ionicons';
 import { OAUTH_URLS } from '../../config/apiKeys';
 import authService from '../../services/authService';
 import SocialLoginWebView from './SocialLoginWebView';

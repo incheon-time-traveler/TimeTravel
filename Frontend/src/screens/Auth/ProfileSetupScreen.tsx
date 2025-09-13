@@ -10,7 +10,7 @@ import {
   ActivityIndicator
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
-import Ionicons from 'react-native-vector-icons/Ionicons';
+import Ionicons from '@react-native-vector-icons/ionicons';
 import { INCHEON_BLUE, INCHEON_BLUE_LIGHT, INCHEON_GRAY, TEXT_STYLES } from '../../styles/fonts';
 import { authService } from '../../services/authService';
 import { BACKEND_API } from '../../config/apiKeys';
@@ -279,9 +279,9 @@ export default function ProfileSetupScreen({ navigation }: any) {
                   style={styles.picker}
                   itemStyle={styles.pickerItem}
                 >
-                  <Picker.Item label="나이대를 선택하세요" value="" color="#999" style={{ fontSize: 14 }} />
+                  <Picker.Item label="나이대를 선택하세요" value="" color="#999" />
                   {ageOptions.map((ageOption) => (
-                    <Picker.Item key={ageOption} label={ageOption} value={ageOption} color="" />
+                    <Picker.Item key={ageOption} label={ageOption} value={ageOption} color="#fff" />
                   ))}
                 </Picker>
               </View>
@@ -300,9 +300,9 @@ export default function ProfileSetupScreen({ navigation }: any) {
                   style={styles.picker}
                   itemStyle={styles.pickerItem}
                 >
-                  <Picker.Item label="성별을 선택하세요" value="" color="#999" style={{ fontSize: 14, paddingVertical: 10 }} />
+                  <Picker.Item label="성별을 선택하세요" value="" color="#999" />
                   {genderOptions.map((genderOption) => (
-                    <Picker.Item key={genderOption} label={genderOption} value={genderOption} color="" />
+                    <Picker.Item key={genderOption} label={genderOption} value={genderOption} color="#fff" />
                   ))}
                 </Picker>
               </View>
@@ -396,7 +396,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   inputSection: {
-    marginBottom: 24,
+    marginBottom: 20,
   },
   inputLabel: {
     ...TEXT_STYLES.heading,
@@ -412,7 +412,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     backgroundColor: '#f8f9fa',
     paddingHorizontal: 16,
-    paddingVertical: 4,
+    paddingVertical: 6,
   },
   inputIcon: {
     marginRight: 12,
@@ -429,11 +429,12 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   picker: {
-    height: 50,
+    height: 52,
     fontFamily: 'NeoDunggeunmoPro-Regular',
+    color: '#333', // 선택된 값은 검정색
   },
   pickerItem: {
-    height: 50,
+    height: 52,
     fontSize: 16,
     fontFamily: 'NeoDunggeunmoPro-Regular',
   },

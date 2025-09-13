@@ -1,12 +1,11 @@
-import { CHATBOT_API } from '../config/apiKeys';
+import { BACKEND_API, CHATBOT_API } from '../config/apiKeys';
+import authService from './authService';
 
 export interface ChatbotRequest {
   user_question: string;
   user_id: string;
-  user_location?: {
-    lat: number;
-    lng: number;
-  };
+  lat?: number;  // ← 변경
+  lng?: number;  // ← 변경
 }
 
 export interface ChatbotResponse {
@@ -14,18 +13,23 @@ export interface ChatbotResponse {
 }
 
 export class ChatbotService {
-  private static baseUrl = CHATBOT_API.CHAT_URL;
+  private static baseUrl = BACKEND_API.BASE_URL;
 
   /**
    * 챗봇과 대화하기
    */
   static async chatWithBot(request: ChatbotRequest): Promise<ChatbotResponse> {
     try {
-      const response = await fetch(this.baseUrl, {
+      const tokens = await authService.getTokens();
+      if (!tokens?.access) {
+        return { ai_answer: '안녕! 나는 인천 여행 도우미야. 도움이 필요하면 로그인 후에 더 많은 정보를 받을 수 있어!' };
+      }
+      const response = await fetch(`${this.baseUrl}/v1/chatbot/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
+          'Authorization': `Bearer ${tokens.access}`,
         },
         body: JSON.stringify(request),
       });

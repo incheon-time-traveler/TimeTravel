@@ -14,6 +14,7 @@ import TripsScreen from './src/screens/Main/TripsScreen';
 import GalleryScreen from './src/screens/Main/GalleryScreen';
 import CourseRecommendationScreen from './src/screens/Main/CourseRecommendationScreen';
 import CourseDetailScreen from './src/screens/Main/CourseDetailScreen';
+import ImageSaveScreen from './src/screens/ImageSaveScreen';
 import ProfileSetupScreen from './src/screens/Auth/ProfileSetupScreen';
 import LoginScreen from './src/screens/Auth/LoginScreen';
 import MissionScreen from './src/screens/Main/MissionScreen';
@@ -39,6 +40,7 @@ function HomeStack() {
       <Stack.Screen name="HomeMain" component={HomeScreen} />
       <Stack.Screen name="Mission" component={MissionScreen} />
       <Stack.Screen name="Camera" component={CameraScreen} />
+      <Stack.Screen name="ImageSaveScreen" component={ImageSaveScreen} />
     </Stack.Navigator>
   );
 }

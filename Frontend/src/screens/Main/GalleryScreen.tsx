@@ -19,6 +19,7 @@ import PixelLockIcon from '../../components/ui/PixelLockIcon';
 import { INCHEON_BLUE, INCHEON_BLUE_LIGHT, INCHEON_GRAY, TEXT_STYLES } from '../../styles/fonts';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BACKEND_API } from '../../config/apiKeys';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import authService from '../../services/authService';
 
 const { width, height } = Dimensions.get('window');
@@ -86,36 +87,61 @@ export default function GalleryScreen({ navigation }: any) {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userProfile, setUserProfile] = useState<any>(null);
 
-  const checkLoginStatus = async () => {
-      try {
-        // 토큰과 사용자 정보 모두 확인
-        const tokens = await authService.getTokens();
-        const user = await authService.getUser();
+	const checkLoginStatus = async (): Promise<boolean> => { // 👈 반환 타입을 boolean으로 명시
+    try {
+      const tokens = await authService.getTokens();
+      const user = await authService.getUser();
 
-        if (tokens?.access && user) {
-          // 토큰이 있고 사용자 정보가 있으면 로그인된 상태
-          setIsLoggedIn(true);
-          setUserProfile(user);
-          console.log('[HomeScreen] 로그인된 상태:', user.nickname);
-
-        } else {
-          // 토큰이나 사용자 정보가 없으면 로그아웃된 상태
-          setIsLoggedIn(false);
-          setUserProfile(null);
-          console.log('[HomeScreen] 로그아웃된 상태');
-        }
-      } catch (error) {
-        console.error('로그인 상태 확인 실패:', error);
+      if (tokens?.access && user) {
+        setIsLoggedIn(true);
+        setUserProfile(user);
+        console.log('[GalleryScreen] 로그인된 상태:', user.nickname);
+        return true; // 👈 로그인 성공 시 true 반환
+      } else {
         setIsLoggedIn(false);
         setUserProfile(null);
+        console.log('[GalleryScreen] 로그아웃된 상태');
+        return false; // 👈 로그아웃 상태 시 false 반환
       }
-    };
+    } catch (error) {
+      console.error('로그인 상태 확인 실패:', error);
+      setIsLoggedIn(false);
+      setUserProfile(null);
+      return false; // 👈 에러 발생 시 false 반환
+    }
+  };
 
 
   const handleLoginPress = () => {
     navigation.navigate('Profile');
   };
 
+	// 데이터를 불러오는 전체 과정을 책임지는 함수를 새로 생성
+	const initializeScreen = async () => {
+	  setIsLoading(true); // 로딩 시작
+	  const loggedIn = await checkLoginStatus(); // 1. 먼저 로그인 상태를 확인
+
+	  if (loggedIn) {
+	    // 2. 로그인이 되어 있다면, 로컬 사진을 불러옴
+	    await loadLocalPhotos();
+	  } else {
+	    // 3. 로그인이 안 되어 있다면, 갤러리를 비우고 로딩을 끝냅니다.
+	    setGalleryData([]);
+	    setFoundCount(0);
+	    setIsLoading(false);
+	  }
+	};
+
+	useEffect(() => {
+    initializeScreen();
+  }, []);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      console.log('[GalleryScreen] 화면 포커스됨 - 데이터 새로고침');
+      initializeScreen();
+    }, [])
+  );
 
   // 로그인 안내 모달 컴포넌트
   const renderLoginModal = () => (
@@ -152,172 +178,77 @@ export default function GalleryScreen({ navigation }: any) {
     </Modal>
   );
 
-  // 갤러리 데이터 가져오기
-  const fetchGalleryData = async () => {
+  // 갤러리 데이터 가져오기: 기존의 fetchGalleryData 함수를 이 함수로 교체
+	const loadLocalPhotos = async () => {
+	  try {
+	    setIsLoading(true);
+
+	    // 1. AsyncStorage에서 저장된 사진 경로 목록을 가져옵니다.
+	    const savedPhotosJSON = await AsyncStorage.getItem('saved_photos');
+
+	    if (savedPhotosJSON) {
+	      // 2. JSON 문자열을 실제 배열로 변환합니다.
+	      const photoPaths = JSON.parse(savedPhotosJSON);
+	      console.log('[GalleryScreen] 로컬에서 불러온 사진 경로:', photoPaths);
+
+	      // 3. 파일 경로 배열을 GalleryItem 객체 배열로 변환합니다.
+	      const localGalleryData = photoPaths.map((path, index) => ({
+	        id: index, // 간단하게 인덱스를 ID로 사용
+	        title: `장소 ${index + 1}`,
+				  image_url: `file://${path}`,
+				  past_image_url: `file://${path}`,
+	        completed: true,
+	        hasStamp: true, // 스탬프는 일단 있다고 가정하거나, 별도 로직 추가
+	        stampUsed: false,
+	        route_id: 0, // 로컬 데이터이므로 0 또는 다른 값으로 설정
+	        spot_id: index,
+	        isUserPhoto: true,
+	      }));
+				console.log("갤러리에 표시될 최종 데이터:", localGalleryData); // 👈 이 로그를 추가!
+
+	      // 상태 업데이트
+	      setGalleryData(localGalleryData.reverse()); // 최신 사진이 위로 오도록 배열 뒤집기
+	      setFoundCount(localGalleryData.length);
+
+	    } else {
+	      // 저장된 사진이 없을 경우
+	      console.log('[GalleryScreen] 저장된 로컬 사진이 없습니다.');
+	      setGalleryData([]);
+	      setFoundCount(0);
+	    }
+	  } catch (error) {
+	    console.error('[GalleryScreen] 로컬 사진 불러오기 실패:', error);
+	    Alert.alert('오류', '사진을 불러오는 중 문제가 발생했습니다.');
+	  } finally {
+	    setIsLoading(false);
+	  }
+	};
+
+	// 테스트 함수
+	const handleCheckRawStorage = async () => {
     try {
-      setIsLoading(true);
-      const tokens = await authService.getTokens();
-      let photosResponse;
-      let spotsResponse;
-      
-      if (tokens?.access) {
-        // 1. 백엔드에서 사용자가 촬영한 사진들 가져오기
-        console.log('[GalleryScreen] photos API 호출 시작:', `${BACKEND_API.BASE_URL}/v1/photos/`);
-        photosResponse = await fetch(`${BACKEND_API.BASE_URL}/v1/photos/`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${tokens.access}`,
-          },
-        });
-        console.log('[GalleryScreen] photos API 응답:', photosResponse.status, photosResponse.statusText);
-
-        // 2. 백엔드에서 spots 정보 가져오기 (spot_id로 이름 조회용)
-        spotsResponse = await fetch(`${BACKEND_API.BASE_URL}/v1/spots/`, {
-            method: 'GET',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${tokens.access}`,
-          },
-        });
-      }
-
-      let photosItems: GalleryItem[] = [];
-      let spotsData: any[] = [];
-
-      // photos 데이터 처리
-      if (photosResponse && photosResponse.ok) {
-        const data = await photosResponse.json();
-        console.log('[GalleryScreen] 사용자 촬영 사진 데이터:', data);
-        console.log('[GalleryScreen] photos API 응답 상태:', photosResponse.status);
-        console.log('[GalleryScreen] photos API 응답 헤더:', photosResponse.headers);
-        
-        if (data && data.length > 0) {
-          console.log('[GalleryScreen] 원본 photos 데이터 상세:', data);
-          photosItems = data.map((item: any) => {
-            const mappedItem = {
-              id: item.id + 10000, // unlock_spots와 ID 충돌 방지
-              title: `촬영한 사진 ${item.id}`,
-              image_url: item.image_url || '',
-              past_image_url: item.image_url || '', // 촬영한 사진을 past_image_url로도 사용
-              completed: true,
-              hasStamp: false,
-              stampUsed: false,
-              route_id: item.route_id,
-              spot_id: item.spot_id,
-              isUserPhoto: true, // 사용자가 촬영한 사진임을 표시
-              created_at: item.created_at,
-            };
-            console.log('[GalleryScreen] 매핑된 아이템:', mappedItem);
-            return mappedItem;
-          });
-          console.log('[GalleryScreen] 처리된 photosItems:', photosItems);
-        } else {
-          console.log('[GalleryScreen] 사용자 촬영 사진이 없습니다.');
-        }
-        console.log('[GalleryScreen] 사용자 촬영 사진 데이터 세팅 성공');
-      } else {
-        console.error('[GalleryScreen] photos API 호출 실패:', photosResponse?.status, photosResponse?.statusText);
-      }
-
-      // spots 데이터 처리
-      if (spotsResponse && spotsResponse.ok) {
-        const data = await spotsResponse.json();
-        console.log('[GalleryScreen] spots 데이터:', data);
-        spotsData = data;
-        console.log('[GalleryScreen] spots 데이터 세팅 성공');
-      }
-
-      // 3. 데이터 통합 - 사용자 촬영 사진을 기준으로 갤러리 구성
-      const mergedItems: GalleryItem[] = [];
-      
-      console.log('[GalleryScreen] photosItems 길이:', photosItems.length);
-      console.log('[GalleryScreen] photosItems 데이터:', photosItems);
-      console.log('[GalleryScreen] spotsData 길이:', spotsData.length);
-      
-      // 사용자 촬영 사진이 있으면 바로 갤러리에 표시
-      if (photosItems && photosItems.length > 0) {
-        console.log('[GalleryScreen] 사용자 촬영 사진을 갤러리에 표시');
-        
-        photosItems.forEach((photo, index) => {
-          console.log(`[GalleryScreen] 처리 중인 photo ${index + 1}:`, {
-            spot_id: photo.spot_id,
-            route_id: photo.route_id,
-            image_url: photo.image_url,
-            title: photo.title
-          });
-          
-          // spots 데이터에서 이름 조회 (없으면 기본값 사용)
-          let spotName = `촬영한 사진 ${photo.spot_id}`;
-          if (spotsData && spotsData.length > 0) {
-            const spotInfo = spotsData.find(spot => spot.id === photo.spot_id);
-            if (spotInfo && spotInfo.name) {
-              spotName = spotInfo.name;
-            }
-          }
-          
-          console.log(`[GalleryScreen] spot_id ${photo.spot_id} - 최종 이름:`, spotName);
-          
-          const galleryItem = {
-            ...photo,
-            title: spotName,
-            hasStamp: true,
-            stampUsed: false,
-          };
-          
-          console.log(`[GalleryScreen] 갤러리 아이템 생성:`, galleryItem);
-          mergedItems.push(galleryItem);
-        });
-      } else {
-        console.log('[GalleryScreen] 사용자 촬영 사진이 없습니다.');
-      }
-      
-      console.log('[GalleryScreen] 통합된 갤러리 데이터:', mergedItems);
-      console.log('[GalleryScreen] 최종 mergedItems.length:', mergedItems.length);
-      const allItems = mergedItems;
-
-      // 4. 빈 슬롯 생성 (고유한 ID 보장) - 사용자 촬영 사진이 있는 경우만 표시
-      const remainingSlots = TOTAL_COURSE - allItems.length || 0;
-      const emptySlots = Array(remainingSlots).fill(null).map((_, index) => ({
-        id: index + 2000, // 기존 ID와 겹치지 않도록 큰 수 사용
-        title: `장소 ${allItems.length + index + 1}`,
-        image_url: '', // 과거 이미지 사용하지 않음
-        past_image_url: '', // 과거 이미지 사용하지 않음
-        completed: false,
-        hasStamp: false,
-        stampUsed: false,
-        route_id: 0,
-        spot_id: allItems.length + index + 1,
-      }));
-
-      const finalGalleryData = allItems.concat(emptySlots);
-      const finalFoundCount = allItems.filter(item => item.completed).length;
-      
-      console.log('[GalleryScreen] 최종 갤러리 데이터:', finalGalleryData);
-      console.log('[GalleryScreen] 최종 갤러리 데이터 길이:', finalGalleryData.length);
-      console.log('[GalleryScreen] 최종 찾은 사진 개수:', finalFoundCount);
-      
-      setGalleryData(finalGalleryData);
-      setFoundCount(finalFoundCount);
-    } finally {
-      setIsLoading(false);
+      const rawData = await AsyncStorage.getItem('saved_photos');
+      console.log("AsyncStorage에 저장된 실제 값:", rawData);
+      Alert.alert("저장된 실제 값", rawData || "값이 없음 (null)");
+    } catch (e) {
+      console.error("AsyncStorage 읽기 에러:", e);
+      Alert.alert("오류", "AsyncStorage를 읽는 데 실패했습니다.");
     }
   };
 
-  // 컴포넌트 마운트 시 데이터 가져오기
-  useEffect(() => {
-    checkLoginStatus();
-    fetchGalleryData();
-  }, []);
+	useEffect(() => {
+	  // checkLoginStatus(); // 로그인 로직은 잠시 보류
+	  loadLocalPhotos();
+	}, []);
 
-  // 화면이 포커스될 때마다 갤러리 데이터 새로고침
-  useFocusEffect(
-    React.useCallback(() => {
-      checkLoginStatus();
-      console.log('[GalleryScreen] 화면 포커스됨 - 갤러리 데이터 새로고침');
-      fetchGalleryData();
-    }, [])
-  );
+	useFocusEffect(
+	  React.useCallback(() => {
+	    // checkLoginStatus();
+	    console.log('[GalleryScreen] 화면 포커스됨 - 로컬 갤러리 새로고침');
+	    loadLocalPhotos();
+	  }, [])
+	);
+
 
   const handleStampPress = () => {
     if (!selectedImage) return;
@@ -330,49 +261,6 @@ export default function GalleryScreen({ navigation }: any) {
           text: '돌아가기',
           style: 'cancel',
         },
-//         {
-//           text: '사용',
-//           onPress: async () => {
-//             try {
-//               const tokens = await authService.getTokens();
-//               if (!tokens?.access) {
-//                 Alert.alert('오류', '로그인이 필요합니다.');
-//                 return;
-//               }
-//
-//               console.log('[GalleryScreen] 스탬프 사용:', selectedImage);
-//
-//               const useStampUrl = `${BACKEND_API.BASE_URL}/v1/courses/use_stamp/`;
-//               const useStampPayload = { id: selectedImage.id, is_used: true };
-//               console.log('[Gallery] PATCH use_stamp URL:', useStampUrl);
-//               console.log('[Gallery] PATCH use_stamp Payload:', useStampPayload);
-//
-//               const response = await fetch(useStampUrl, {
-//                 method: 'PATCH',
-//                 headers: {
-//                   'Content-Type': 'application/json',
-//                   'Authorization': `Bearer ${tokens.access}`,
-//                 },
-//                 body: JSON.stringify(useStampPayload),
-//               });
-//
-//               if (response.ok) {
-//                 // 갤러리 데이터 새로고침
-//                 await fetchGalleryData();
-//                 setImageModalVisible(false);
-//                 Alert.alert('스탬프 사용 완료!', '스탬프가 사용되었습니다.');
-//               } else {
-//                 const errorText = await response.text();
-//                 console.error('[GalleryScreen] 스탬프 사용 실패:', response.status, errorText);
-//                 Alert.alert('오류', '스탬프 사용에 실패했습니다.');
-//               }
-//             } catch (error) {
-//               console.error('[GalleryScreen] 스탬프 사용 에러:', error);
-//               Alert.alert('오류', '스탬프 사용 중 오류가 발생했습니다.');
-//             }
-//           },
-//           style: 'destructive',
-//         },
       ]
     );
   };
@@ -417,6 +305,9 @@ export default function GalleryScreen({ navigation }: any) {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <View style={styles.container}>
+        <TouchableOpacity style={styles.checkButton} onPress={handleCheckRawStorage}>
+          <Text>RAW 데이터 확인</Text>
+        </TouchableOpacity>
         <ScrollView contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
           <Text style={styles.title}>완료한 미션</Text>
           <View style={styles.underline} />

@@ -11,8 +11,6 @@ import {
   PermissionsAndroid,
   Platform,
 } from 'react-native';
-import { launchCamera, launchImageLibrary, ImagePickerResponse, CameraOptions } from 'react-native-image-picker';
-import ViewShot from 'react-native-view-shot';
 import { INCHEON_BLUE, INCHEON_GRAY } from '../../styles/fonts';
 import { Mission } from '../../types/mission';
 import { BACKEND_API } from '../../config/apiKeys';

@@ -671,7 +671,11 @@ const LoginScreen = ({ navigation, route }: any) => {
           <Image source={require('../../assets/images/kakao_login_medium_wide.png')} style={styles.kakaoButton} />
         </TouchableOpacity>
       </View>
-
+      <View style={styles.loginContainer}>
+        <TouchableOpacity onPress={() => handleSocialLogin('google')} style={styles.socialLoginButton}>
+          <Image source={require('../../assets/images/android_light_sq_ctn.png')} style={styles.kakaoButton} />
+        </TouchableOpacity>
+      </View>
       <Modal visible={showWebView} animationType="slide" presentationStyle="pageSheet">
         <SocialLoginWebView
           provider={loginProvider}

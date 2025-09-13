@@ -279,9 +279,9 @@ export default function ProfileSetupScreen({ navigation }: any) {
                   style={styles.picker}
                   itemStyle={styles.pickerItem}
                 >
-                  <Picker.Item label="나이대를 선택하세요" value="" color="#999" />
+                  <Picker.Item label="선택" value="" color="#999" />
                   {ageOptions.map((ageOption) => (
-                    <Picker.Item key={ageOption} label={ageOption} value={ageOption} color="#fff" />
+                    <Picker.Item key={ageOption} label={ageOption} value={ageOption} color="#000" />
                   ))}
                 </Picker>
               </View>
@@ -300,9 +300,9 @@ export default function ProfileSetupScreen({ navigation }: any) {
                   style={styles.picker}
                   itemStyle={styles.pickerItem}
                 >
-                  <Picker.Item label="성별을 선택하세요" value="" color="#999" />
+                  <Picker.Item label="선택" value="" color="#999" />
                   {genderOptions.map((genderOption) => (
-                    <Picker.Item key={genderOption} label={genderOption} value={genderOption} color="#fff" />
+                    <Picker.Item key={genderOption} label={genderOption} value={genderOption} color="#000" />
                   ))}
                 </Picker>
               </View>

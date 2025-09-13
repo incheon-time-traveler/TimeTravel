@@ -31,10 +31,12 @@ except Exception:
 def google_login(request):
     # TODO: 아래 하드코딩 값들은 환경변수(.env)로 이동해야 합니다.
     client_id = os.getenv("GOOGLE_CLIENT_ID")
-    
     redirect_uri = "https://incheon-time-traveler.duckdns.org/v1/users/google/callback/"
     scope = "openid email profile"
     response_type = "code"
+    # 외부 브라우저(RN Linking) 플로우 지원을 위한 state 설정
+    # 앱에서 /google/login?client=app 로 호출하면 state=app 으로 전달
+    state = "app" if request.GET.get("client") == "app" else "web"
 
     google_auth_url = (
         "https://accounts.google.com/o/oauth2/v2/auth?"

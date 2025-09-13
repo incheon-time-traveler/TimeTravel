@@ -673,7 +673,7 @@ const LoginScreen = ({ navigation, route }: any) => {
       </View>
       <View style={styles.loginContainer}>
         <TouchableOpacity onPress={() => handleSocialLogin('google')} style={styles.socialLoginButton}>
-          <Image source={require('../../assets/images/android_light_sq_ctn.png')} style={styles.kakaoButton} />
+          <Image source={require('../../assets/images/android_light_sq_ctn.png')} style={styles.googleButton} />
         </TouchableOpacity>
       </View>
       <Modal visible={showWebView} animationType="slide" presentationStyle="pageSheet">
@@ -727,13 +727,13 @@ const styles = StyleSheet.create({
   },
   googleButton: {
 		width: 300,
-		height: 55,
-		resizeMode: 'stretch'
-	},
-  kakaoButton: {
-		width: 300,
 		height: 50,
 		resizeMode: 'contain'
+	},
+  kakaoButton: {
+		width: 240,
+		height: 50,
+		resizeMode: 'stretch'
 	},
   // 프로필 관련 스타일
   profileContainer: {

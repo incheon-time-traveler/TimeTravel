@@ -9,9 +9,11 @@ load_dotenv()
 # access 토큰 받는 함수
 def get_access_token(code):
     token_url = "https://oauth2.googleapis.com/token"
+    client_id = os.getenv("GOOGLE_CLIENT_ID")
+    
     data = {
         "code": code,
-        "client_id": os.getenv("GOOGLE_CLIENT_ID"),
+        "client_id": client_id,
         "client_secret": os.getenv("GOOGLE_CLIENT_SECRET"),
         # TODO: redirect_uri는 하드코딩되어 있으며 .env로 이동해야 합니다.
         "redirect_uri": "https://incheon-time-traveler.duckdns.org/v1/users/google/callback/",

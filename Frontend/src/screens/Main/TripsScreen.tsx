@@ -22,9 +22,59 @@ import { useNavigation } from '@react-navigation/native';
 import authService from '../../services/authService';
 import { getSpotDetail } from '../../data/missions';
 import { BACKEND_API } from '../../config/apiKeys';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width, height } = Dimensions.get('window');
 
+// 안정적인 이미지 표시 컴포넌트
+const PhotoWithFallback = ({ photo, index, style, isModal = false }) => {
+  const [hasError, setHasError] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  const defaultImage = require('../../assets/images/대동여지도.jpg');
+  
+  console.log(`[TripsScreen] ${isModal ? '모달' : '카드'} 사진 ${index + 1} 렌더링:`, photo);
+  
+  const handleImageError = () => {
+    console.log(`[TripsScreen] ${isModal ? '모달' : '카드'} 사진 ${index + 1} 로딩 실패:`, photo);
+    setHasError(true);
+    setIsLoading(false);
+  };
+  
+  const handleImageLoad = () => {
+    console.log(`[TripsScreen] ${isModal ? '모달' : '카드'} 사진 ${index + 1} 로딩 성공:`, photo);
+    setHasError(false);
+    setIsLoading(false);
+  };
+
+  // photo가 변경되면 상태 초기화
+  useEffect(() => {
+    setHasError(false);
+    setIsLoading(true);
+  }, [photo]);
+
+  // 이미지 소스 결정
+  let imageSource;
+  if (hasError) {
+    imageSource = defaultImage;
+  } else if (typeof photo === 'string') {
+    imageSource = { uri: photo };
+  } else {
+    imageSource = photo;
+  }
+  
+  console.log(`[TripsScreen] ${isModal ? '모달' : '카드'} 사진 ${index + 1} 최종 소스:`, imageSource);
+  
+  return (
+    <Image 
+      source={imageSource}
+      style={style}
+      resizeMode="cover"
+      onError={handleImageError}
+      onLoad={handleImageLoad}
+    />
+  );
+};
 
 // 스팟 상세 정보 보기
 const handleViewSpotDetail = async (spotId: number) => {
@@ -124,6 +174,7 @@ const TripsScreen: React.FC = () => {
       console.error('[TripsScreen] 사용자 코스 데이터 삭제 에러:', error);
     }
   }
+
   // 사용자 코스 데이터 가져오기
   const fetchUserCourses = async (retryCount = 0) => {
     const maxRetries = 3;
@@ -141,37 +192,83 @@ const TripsScreen: React.FC = () => {
       console.log(`[TripsScreen] 코스 조회 시작 (시도 ${retryCount + 1}/${maxRetries + 1})`);
       console.log(`[TripsScreen] 백엔드 URL: ${BACKEND_API.BASE_URL}`);
 
-      // 사용자 코스 데이터 가져오기
+      // 시뮬레이션 모드 확인
+      const isSimulationMode = await AsyncStorage.getItem('isSimulationMode');
+      console.log('[TripsScreen] 시뮬레이션 모드 확인:', isSimulationMode);
+
       let response;
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10초 타임아웃
+      let data: any[] = [];
 
-        response = await fetch(`${BACKEND_API.BASE_URL}/v1/courses/user_routes/`, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${tokens.access}`,
-          },
-          signal: controller.signal,
-        });
-
-        clearTimeout(timeoutId);
-        console.log(`[TripsScreen] 코스 조회 응답: ${response.status} ${response.statusText}`);
-      } catch (fetchError) {
-        console.error(`[TripsScreen] API 호출 에러 (시도 ${retryCount + 1}):`, fetchError);
-
-        // 네트워크 에러인 경우 재시도
-        if (retryCount < maxRetries) {
-          console.log(`[TripsScreen] 네트워크 에러, ${retryCount + 1}/${maxRetries} 재시도 중...`);
-          await new Promise(resolve => setTimeout(resolve, 2000 * (retryCount + 1))); // 2초, 4초, 6초 대기
-          return fetchUserCourses(retryCount + 1);
+      if (isSimulationMode === 'true') {
+        // 시뮬레이션 모드일 때는 AsyncStorage에서 데이터 가져오기
+        const simulatedData = await AsyncStorage.getItem('simulatedCourses');
+        if (simulatedData) {
+          data = JSON.parse(simulatedData);
+          console.log('[TripsScreen] 시뮬레이션된 데이터 사용:', data);
+          console.log('[TripsScreen] 시뮬레이션된 데이터 첫 번째 코스 스팟들:', data[0]?.spots?.map((s: any) => ({ 
+            title: s.title, 
+            unlock_at: s.unlock_at, 
+            completed_at: s.completed_at 
+          })));
+          
+          // 시뮬레이션 모드일 때는 모든 스팟을 완료된 것으로 강제 설정
+          if (data[0]?.spots) {
+            console.log('[TripsScreen] 시뮬레이션 모드 - 모든 스팟을 완료된 것으로 강제 설정');
+            data[0].spots.forEach((spot: any, index: number) => {
+              console.log(`[TripsScreen] 스팟 ${index + 1} (${spot.title}) 원본 데이터:`, {
+                unlock_at: spot.unlock_at,
+                completed_at: spot.completed_at
+              });
+              
+              // 시뮬레이션 모드에서는 모든 스팟을 완료된 것으로 설정
+              if (!spot.unlock_at) {
+                spot.unlock_at = new Date().toISOString();
+                console.log(`[TripsScreen] 스팟 ${spot.title}의 unlock_at 강제 설정: ${spot.unlock_at}`);
+              }
+            });
+          }
+          
+          // 시뮬레이션 데이터를 사용하기 위해 가짜 response 객체 생성
+          response = { ok: true, status: 200, statusText: 'OK' };
+        } else {
+          console.log('[TripsScreen] 시뮬레이션 데이터가 없음');
+          return;
         }
+      } else {
+        // 일반 모드일 때는 API에서 데이터 가져오기
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 10000); // 10초 타임아웃
 
-        throw fetchError;
+          response = await fetch(`${BACKEND_API.BASE_URL}/v1/courses/user_routes/`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${tokens.access}`,
+            },
+            signal: controller.signal,
+          });
+
+          clearTimeout(timeoutId);
+          console.log(`[TripsScreen] 코스 조회 응답: ${response.status} ${response.statusText}`);
+        } catch (fetchError) {
+          console.error(`[TripsScreen] API 호출 에러 (시도 ${retryCount + 1}):`, fetchError);
+
+          // 네트워크 에러인 경우 재시도
+          if (retryCount < maxRetries) {
+            console.log(`[TripsScreen] 네트워크 에러, ${retryCount + 1}/${maxRetries} 재시도 중...`);
+            await new Promise(resolve => setTimeout(resolve, 2000 * (retryCount + 1))); // 2초, 4초, 6초 대기
+            return fetchUserCourses(retryCount + 1);
+          }
+
+          throw fetchError;
+        }
       }
 
       if (response.ok) {
-        const data = await response.json();
+        // 시뮬레이션 모드가 아닐 때만 response.json() 호출
+        if (isSimulationMode !== 'true') {
+          data = await response.json();
+        }
         setUserRouteSpot(data);
         console.log('[TripsScreen] 사용자 코스 데이터:', data);
         
@@ -257,10 +354,22 @@ const TripsScreen: React.FC = () => {
         const inProgress: any[] = [];
         const completed: any[] = [];
 
-        data.forEach((course: any) => {
+        data.forEach((course: any, courseIndex: number) => {
+          console.log(`[TripsScreen] 코스 ${courseIndex + 1} 처리 시작:`, course.user_region_name);
+          
           // completed_at 또는 unlock_at이 있는 스팟을 완료된 것으로 간주
           const completedSpots = course.spots.filter((spot: any) => spot.completed_at || spot.unlock_at);
           const totalSpots = course.spots.length;
+          
+          console.log(`[TripsScreen] 코스 ${courseIndex + 1} 완료 분석:`, {
+            totalSpots,
+            completedSpots: completedSpots.length,
+            completedSpotsDetails: completedSpots.map((s: any) => ({ 
+              title: s.title, 
+              completed_at: s.completed_at, 
+              unlock_at: s.unlock_at 
+            }))
+          });
 
           // spots 데이터에서 first_image 매핑
           const spotsWithImages = course.spots.map((spot: any) => {
@@ -275,15 +384,58 @@ const TripsScreen: React.FC = () => {
 
           if (completedSpots.length === totalSpots) {
             // 모든 스팟이 완료된 경우
+            console.log(`[TripsScreen] ✅ 코스 ${courseIndex + 1} 완료됨 - 진행 완료 탭으로 이동`);
+            
+            // 마지막 완료된 스팟의 unlock_at 또는 completed_at을 완료일자로 사용
+            const lastCompletedSpot = completedSpots[completedSpots.length - 1];
+            const completionDate = lastCompletedSpot?.unlock_at || lastCompletedSpot?.completed_at || '2024.01.01';
+            
+            // 날짜 형식을 YYYY.MM.DD로 변환
+            let formattedDate = '2024.01.01';
+            if (completionDate && completionDate !== '2024.01.01') {
+              const date = new Date(completionDate);
+              if (!isNaN(date.getTime())) {
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                formattedDate = `${year}.${month}.${day}`;
+              }
+            }
+            
+            console.log(`[TripsScreen] 코스 완료일자 설정:`, {
+              lastSpot: lastCompletedSpot?.title,
+              unlock_at: lastCompletedSpot?.unlock_at,
+              completed_at: lastCompletedSpot?.completed_at,
+              formattedDate
+            });
+            
+            // 완료된 코스의 사진 정보 생성
+            const completedPhotos = spotsWithImages.map((spot: any) => {
+              // 시뮬레이션 모드에서는 각 스팟의 first_image 사용
+              if (isSimulationMode === 'true') {
+                return spot.first_image || Image.resolveAssetSource(require('../../assets/images/대동여지도.jpg'))?.uri || '';
+              } else {
+                // 일반 모드에서는 기본 이미지 사용
+                return require('../../assets/icons/대불호텔.jpg');
+              }
+            });
+            
+            console.log(`[TripsScreen] 완료된 코스 사진 정보:`, {
+              totalSpots,
+              photos: completedPhotos,
+              isSimulationMode
+            });
+            
             completed.push({
               ...course,
               spots: spotsWithImages,
-              completedDate: completedSpots[completedSpots.length - 1]?.completed_at?.split('T')[0] || '2024.01.01',
+              completedDate: formattedDate,
               totalPhotos: totalSpots,
-              photos: Array(totalSpots).fill(require('../../assets/icons/대불호텔.jpg'))
+              photos: completedPhotos
             });
           } else {
             // 진행중인 코스
+            console.log(`[TripsScreen] ⏳ 코스 ${courseIndex + 1} 진행중 - 진행 중 탭에 유지`);
             inProgress.push({
               ...course,
               spots: spotsWithImages
@@ -293,6 +445,13 @@ const TripsScreen: React.FC = () => {
 
         setUserCourses(inProgress);
         setCompletedCourses(completed);
+        
+        console.log('[TripsScreen] 최종 결과:', {
+          진행중인_코스_수: inProgress.length,
+          완료된_코스_수: completed.length,
+          진행중인_코스: inProgress.map((c: any) => c.user_region_name),
+          완료된_코스: completed.map((c: any) => c.user_region_name)
+        });
 
       } else {
         console.log('[TripsScreen] 코스 조회 실패:', response.status);
@@ -524,7 +683,7 @@ const TripsScreen: React.FC = () => {
                 <div class="pin ${pinClass}">
                   <img src="${spot.completed ? unlockedBase64 : lockedBase64}" class="pin-icon" alt="pin" />
                 </div>
-                <div class="pin-label">${spot.title}</div>
+                <div class="pin-label">${spotsData.find(spot => !spot.completed).title != spot.title ? '' : spot.title}</div>
               </div>
             `;
           }).join('')}
@@ -845,7 +1004,6 @@ const renderCompletedTab = () => (
             <Text style={styles.courseCardTitle}>{course.user_region_name || '인천 여행 코스'}</Text>
             <Text style={styles.courseCardDate}>{course.completedDate}</Text>
           </View>
-          <Text style={styles.courseCardDescription}>완료된 여행 코스입니다.</Text>
           <View style={styles.courseCardLocations}>
             {course.spots.map((spot: any, index: number) => (
               <Text key={index} style={styles.courseCardLocation}>
@@ -854,9 +1012,17 @@ const renderCompletedTab = () => (
             ))}
           </View>
           <View style={styles.courseCardPhotos}>
-            {course.photos.slice(0, 3).map((photo: any, index: number) => (
-              <Image key={index} source={photo} style={styles.courseCardPhoto} resizeMode="cover" />
-            ))}
+            {course.photos.slice(0, 3).map((photo: any, index: number) => {
+              console.log(`[TripsScreen] 사진 ${index + 1} 렌더링:`, photo);
+              return (
+                <PhotoWithFallback 
+                  key={`card-${course.route_id}-${index}-${photo}`}
+                  photo={photo}
+                  index={index}
+                  style={styles.courseCardPhoto}
+                />
+              );
+            })}
             {course.photos.length > 3 && (
               <View style={styles.courseCardPhotoMore}>
                 <Text style={styles.courseCardPhotoMoreText}>+{course.photos.length - 3}</Text>
@@ -896,9 +1062,18 @@ const renderCompletedTab = () => (
 
           <Text style={styles.modalSectionTitle}>코스 사진</Text>
           <View style={styles.modalPhotoGrid}>
-            {selectedCourse?.photos?.map((photo: any, index: number) => (
-              <Image key={index} source={photo} style={styles.modalPhoto} resizeMode="cover" />
-            ))}
+            {selectedCourse?.photos?.map((photo: any, index: number) => {
+              console.log(`[TripsScreen] 모달 사진 ${index + 1} 렌더링:`, photo);
+              return (
+                <PhotoWithFallback 
+                  key={`modal-${selectedCourse.route_id}-${index}-${photo}`}
+                  photo={photo}
+                  index={index}
+                  style={styles.modalPhoto}
+                  isModal={true}
+                />
+              );
+            })}
           </View>
 
           {selectedCourse?.completedDate && (
@@ -1254,15 +1429,12 @@ const styles = StyleSheet.create({
     borderLeftColor: INCHEON_BLUE,
   },
   visitStatusText: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 16,
+		...TEXT_STYLES.button,
     color: INCHEON_BLUE,
-    fontWeight: 'bold',
     marginBottom: 4,
   },
   visitDateText: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 14,
+		...TEXT_STYLES.small,
     color: INCHEON_GRAY,
   },
   spotDetailContainer: {
@@ -1274,23 +1446,17 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   spotDetailTitle: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 18,
+		...TEXT_STYLES.subtitle,
     color: INCHEON_BLUE,
-    fontWeight: 'bold',
     marginBottom: 12,
   },
   spotDetailText: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 14,
-    color: '#333',
+		...TEXT_STYLES.body,
     lineHeight: 20,
     marginBottom: 12,
   },
   spotDetailLabel: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 13,
-    color: INCHEON_GRAY,
+		...TEXT_STYLES.small,
     marginBottom: 4,
   },
 
@@ -1306,10 +1472,8 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   modalLocationNumber: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 16,
+		...TEXT_STYLES.button,
     color: INCHEON_BLUE,
-    fontWeight: 'bold',
     marginRight: 8,
     width: 20,
   },
@@ -1319,15 +1483,16 @@ const styles = StyleSheet.create({
   modalPhotoGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    justifyContent: 'space-between',
     marginBottom: 20,
   },
   modalPhoto: {
-    width: (width - 80) / 3,
-    height: 100,
+    width: (width - 100) / 2, // 2열 레이아웃
+    height: 110,
     borderRadius: 10,
     borderWidth: 1,
     borderColor: '#e0e0e0',
+    marginBottom: 12,
   },
   modalDate: {
     ...TEXT_STYLES.small,
@@ -1349,101 +1514,6 @@ const styles = StyleSheet.create({
     ...TEXT_STYLES.body,
     color: INCHEON_GRAY,
   },
-  // 길찾기 버튼 스타일
-  routeContainer: {
-    width: width - 40,
-    height: 180,
-    backgroundColor: '#fff',
-    borderRadius: 18,
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-  },
-  routeTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 15,
-    color: '#fff',
-  },
-  routeDestination: {
-    fontSize: 16,
-    marginBottom: 20,
-    opacity: 0.9,
-    color: '#fff',
-  },
-     routeButton: {
-     backgroundColor: '#ff5722',
-     paddingVertical: 12,
-     paddingHorizontal: 24,
-     borderRadius: 8,
-     margin: 10,
-   },
-  routeButtonText: {
-    color: '#fff',
-  },
-  routeInfo: {
-    fontSize: 14,
-    opacity: 0.8,
-    marginTop: 20,
-    color: '#fff',
-    textAlign: 'center',
-  },
-  completionContainer: {
-    width: width - 40,
-    height: 180,
-    backgroundColor: '#4caf50',
-    borderRadius: 18,
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-  },
-  completionTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 10,
-    color: '#fff',
-  },
-     completionText: {
-     fontSize: 16,
-     opacity: 0.9,
-    color: '#fff',
-  },
-   mapOverlay: {
-    position: 'absolute',
-    top: 10,
-     left: 10,
-     backgroundColor: 'rgba(0, 0, 0, 0.7)',
-     paddingHorizontal: 12,
-     paddingVertical: 6,
-     borderRadius: 6,
-   },
-   mapOverlayText: {
-     color: '#fff',
-     fontSize: 14,
-    fontWeight: 'bold',
-  },
-   mapPlaceholder: {
-     flex: 1,
-    alignItems: 'center',
-     justifyContent: 'center',
-     backgroundColor: '#f8f9fa',
-   },
-   mapPlaceholderIcon: {
-     fontSize: 48,
-     marginBottom: 16,
-   },
-   mapPlaceholderTitle: {
-     fontSize: 20,
-     fontWeight: 'bold',
-     color: INCHEON_BLUE,
-     marginBottom: 8,
-   },
-   mapPlaceholderSubtitle: {
-     fontSize: 14,
-    color: INCHEON_GRAY,
-  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.8)',
@@ -1451,14 +1521,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalContainer: {
-    width: width - 20,
-    height: height * 0.9,
+    width: width - 40,
+    height: height * 0.85,
     backgroundColor: '#fff',
     borderRadius: 20,
     borderWidth: 2,
     borderColor: '#e0e0e0',
-    marginVertical: 30,
+    marginHorizontal: 20,
+    marginVertical: 50,
     overflow: 'hidden',
+    alignSelf: 'center',
   },
   modalHeader: {
     flexDirection: 'row',

@@ -1,6 +1,7 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, ViewStyle } from 'react-native';
 import { INCHEON_BLUE, INCHEON_GRAY, TEXT_STYLES } from '../../styles/fonts';
+import Ionicons from '@react-native-vector-icons/ionicons';
 
 interface Props {
   onPress?: () => void;
@@ -10,15 +11,9 @@ interface Props {
 const FloatingChatBotButton: React.FC<Props> = ({ onPress, style }) => (
   <TouchableOpacity
     style={[styles.fab, style]}
-    activeOpacity={0.8}
     onPress={onPress}
   >
-    <Text style={styles.fabText}>
-      AI
-    </Text>
-    <Text style={styles.fabText2}>
-      Chat Bot
-    </Text>
+    <Ionicons name="chatbubbles" size={32} color='#fff' />
   </TouchableOpacity>
 );
 
@@ -37,19 +32,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
-    elevation: 6,
-  },
-  fabText: {
-    ...TEXT_STYLES.title,
-    textAlign: 'center',
-    color: '#fff',
-    marginTop: 2,
-  },
-  fabText2: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    textAlign: 'center',
-    color: '#fff',
-    fontSize: 12,
   },
 });
 

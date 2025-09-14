@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  ScrollView, 
-  Image, 
-  Dimensions, 
-  TouchableOpacity, 
-  Modal, 
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Image,
+  Dimensions,
+  TouchableOpacity,
+  Modal,
   Alert,
   ActivityIndicator,
   TouchableWithoutFeedback
@@ -19,6 +19,7 @@ import PixelLockIcon from '../../components/ui/PixelLockIcon';
 import { INCHEON_BLUE, INCHEON_BLUE_LIGHT, INCHEON_GRAY, TEXT_STYLES } from '../../styles/fonts';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BACKEND_API } from '../../config/apiKeys';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import authService from '../../services/authService';
 
 const { width, height } = Dimensions.get('window');
@@ -42,21 +43,21 @@ interface GalleryItem {
 
 // 스탬프 이미지 매핑
 const STAMP_IMAGES: { [key: string]: any } = {
-  '강화백련사': require('../../assets/stamps/baekreon.png'),
+  '백련사(강화)': require('../../assets/stamps/baekreon.png'),
   '부평도호부청사': require('../../assets/stamps/bupyeong_dohobu.png'),
   '부평향교': require('../../assets/stamps/bupyeong_hyanggyo.png'),
   '대불호텔전시관': require('../../assets/stamps/daebul.png'),
-  '인천답동성당': require('../../assets/stamps/dapdong_cathedral.png'),
-  '대한성공회강화성당': require('../../assets/stamps/ganghwa_cathedral.png'),
+  '인천 답동성당': require('../../assets/stamps/dapdong_cathedral.png'),
+  '대한성공회 강화성당': require('../../assets/stamps/ganghwa_cathedral.png'),
   '홍예문': require('../../assets/stamps/hongyemun.png'),
-  '일본우선주식회사인천지점': require('../../assets/stamps/incheon_corporation.png'),
+  '구 일본우선(郵船)주식회사 인천지점': require('../../assets/stamps/incheon_corporation.png'),
   '인천도호부관아': require('../../assets/stamps/incheon_dohobu.png'),
-  '인천우체국': require('../../assets/stamps/incheon_post_office.png'),
-  '제물포구락부': require('../../assets/stamps/jaemulpo.png'),
+  '구 인천우체국': require('../../assets/stamps/incheon_post_office.png'),
+  '제물포 구락부': require('../../assets/stamps/jaemulpo.png'),
   '인천내동성공회성당': require('../../assets/stamps/naedong_cathedral.png'),
   '논현포대': require('../../assets/stamps/nonhyun.png'),
-  '팔미도등대': require('../../assets/stamps/palmido.png'),
-  '연미정정': require('../../assets/stamps/yeonmijung.png'),
+  '팔미도 등대': require('../../assets/stamps/palmido.png'),
+  '연미정': require('../../assets/stamps/yeonmijung.png'),
   '용동큰우물': require('../../assets/stamps/yongdong_great_well.png'),
   // 다른 장소들도 필요에 따라 추가
 };
@@ -70,52 +71,114 @@ export default function GalleryScreen({ navigation }: any) {
   const [isLoading, setIsLoading] = useState(true);
   const [foundCount, setFoundCount] = useState(0);
 
-  const handleImagePress = (item: any) => {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userProfile, setUserProfile] = useState<any>(null);
+
+	const checkLoginStatus = async (): Promise<boolean> => { // 👈 반환 타입을 boolean으로 명시
+    try {
+      const tokens = await authService.getTokens();
+      const user = await authService.getUser();
+
+      if (tokens?.access && user) {
+        setIsLoggedIn(true);
+        setUserProfile(user);
+        console.log('[GalleryScreen] 로그인된 상태:', user.nickname);
+        return true; // 👈 로그인 성공 시 true 반환
+      } else {
+        setIsLoggedIn(false);
+        setUserProfile(null);
+        console.log('[GalleryScreen] 로그아웃된 상태');
+        return false; // 👈 로그아웃 상태 시 false 반환
+      }
+    } catch (error) {
+      console.error('로그인 상태 확인 실패:', error);
+      setIsLoggedIn(false);
+      setUserProfile(null);
+      return false; // 👈 에러 발생 시 false 반환
+    }
+  };
+
+	const loadLocalPhotos = async () => {
+    try {
+      const savedPhotosJSON = await AsyncStorage.getItem('saved_photos');
+      if (savedPhotosJSON) {
+        const photoDataArray = JSON.parse(savedPhotosJSON);
+        const localGalleryData = photoDataArray.map((photoData: any, index: number) => ({
+          id: photoData.missionInfo.id || index,
+          title: photoData.missionInfo.title,
+          image_url: `file://${photoData.path}`,
+          past_image_url: `file://${photoData.path}`,
+          completed: true,
+          hasStamp: true,
+          stampUsed: false, // 스탬프 사용 여부는 추후 서버 연동 시 결정
+          route_id: photoData.missionInfo.route_id,
+          spot_id: photoData.missionInfo.spot_id,
+          isUserPhoto: true,
+        }));
+        setGalleryData(localGalleryData.reverse());
+        setFoundCount(localGalleryData.length);
+      } else {
+        setGalleryData([]);
+        setFoundCount(0);
+      }
+    } catch (error) {
+      console.error('[GalleryScreen] 로컬 사진 불러오기 실패:', error);
+      Alert.alert('오류', '사진을 불러오는 중 문제가 발생했습니다.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+	// 데이터를 불러오는 전체 과정을 책임지는 함수를 새로 생성
+	const initializeScreen = async () => {
+	  setIsLoading(true);
+	  const loggedIn = await checkLoginStatus(); // 먼저 로그인 상태 확인
+	  if (!loggedIn) {
+	    setGalleryData([]);
+	    setFoundCount(0);
+	    setIsLoading(false);
+	  } else {
+	    await loadLocalPhotos();
+	  }
+	};
+
+  const handleImagePress = (item: GalleryItem) => {
     if (item.completed) {
-      console.log('[GalleryScreen] 사진 클릭:', {
-        title: item.title,
-        spot_id: item.spot_id,
-        route_id: item.route_id,
-        image_url: item.image_url
-      });
       setSelectedImage(item);
       setImageModalVisible(true);
     }
   };
 
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [userProfile, setUserProfile] = useState<any>(null);
-
-  const checkLoginStatus = async () => {
-      try {
-        // 토큰과 사용자 정보 모두 확인
-        const tokens = await authService.getTokens();
-        const user = await authService.getUser();
-
-        if (tokens?.access && user) {
-          // 토큰이 있고 사용자 정보가 있으면 로그인된 상태
-          setIsLoggedIn(true);
-          setUserProfile(user);
-          console.log('[HomeScreen] 로그인된 상태:', user.nickname);
-
-        } else {
-          // 토큰이나 사용자 정보가 없으면 로그아웃된 상태
-          setIsLoggedIn(false);
-          setUserProfile(null);
-          console.log('[HomeScreen] 로그아웃된 상태');
-        }
-      } catch (error) {
-        console.error('로그인 상태 확인 실패:', error);
-        setIsLoggedIn(false);
-        setUserProfile(null);
-      }
-    };
-
-
   const handleLoginPress = () => {
     navigation.navigate('Profile');
   };
+	useEffect(() => {
+	  checkLoginStatus(); // 로그인 로직은 잠시 보류
+	  loadLocalPhotos();
+	}, []);
 
+	useFocusEffect(
+	  React.useCallback(() => {
+	    checkLoginStatus();
+	    console.log('[GalleryScreen] 화면 포커스됨 - 로컬 갤러리 새로고침');
+	    loadLocalPhotos();
+	  }, [])
+	);
+
+  const handleStampPress = () => {
+    if (!selectedImage) return;
+
+    Alert.alert(
+      '스탬프를 모아주세요!',
+      '추후 제휴 서비스 추가 예정입니다. 다음 업데이트를 기다려주세요. 감사합니다.',
+      [
+        {
+          text: '돌아가기',
+          style: 'cancel',
+        },
+      ]
+    );
+  };
 
   // 로그인 안내 모달 컴포넌트
   const renderLoginModal = () => (
@@ -152,236 +215,10 @@ export default function GalleryScreen({ navigation }: any) {
     </Modal>
   );
 
-  // 갤러리 데이터 가져오기
-  const fetchGalleryData = async () => {
-    try {
-      setIsLoading(true);
-      const tokens = await authService.getTokens();
-      let photosResponse;
-      let spotsResponse;
-      
-      if (tokens?.access) {
-        // 1. 백엔드에서 사용자가 촬영한 사진들 가져오기
-        console.log('[GalleryScreen] photos API 호출 시작:', `${BACKEND_API.BASE_URL}/v1/photos/`);
-        photosResponse = await fetch(`${BACKEND_API.BASE_URL}/v1/photos/`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${tokens.access}`,
-          },
-        });
-        console.log('[GalleryScreen] photos API 응답:', photosResponse.status, photosResponse.statusText);
-
-        // 2. 백엔드에서 spots 정보 가져오기 (spot_id로 이름 조회용)
-        spotsResponse = await fetch(`${BACKEND_API.BASE_URL}/v1/spots/`, {
-            method: 'GET',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${tokens.access}`,
-          },
-        });
-      }
-
-      let photosItems: GalleryItem[] = [];
-      let spotsData: any[] = [];
-
-      // photos 데이터 처리
-      if (photosResponse && photosResponse.ok) {
-        const data = await photosResponse.json();
-        console.log('[GalleryScreen] 사용자 촬영 사진 데이터:', data);
-        console.log('[GalleryScreen] photos API 응답 상태:', photosResponse.status);
-        console.log('[GalleryScreen] photos API 응답 헤더:', photosResponse.headers);
-        
-        if (data && data.length > 0) {
-          console.log('[GalleryScreen] 원본 photos 데이터 상세:', data);
-          photosItems = data.map((item: any) => {
-            const mappedItem = {
-              id: item.id + 10000, // unlock_spots와 ID 충돌 방지
-              title: `촬영한 사진 ${item.id}`,
-              image_url: item.image_url || '',
-              past_image_url: item.image_url || '', // 촬영한 사진을 past_image_url로도 사용
-              completed: true,
-              hasStamp: false,
-              stampUsed: false,
-              route_id: item.route_id,
-              spot_id: item.spot_id,
-              isUserPhoto: true, // 사용자가 촬영한 사진임을 표시
-              created_at: item.created_at,
-            };
-            console.log('[GalleryScreen] 매핑된 아이템:', mappedItem);
-            return mappedItem;
-          });
-          console.log('[GalleryScreen] 처리된 photosItems:', photosItems);
-        } else {
-          console.log('[GalleryScreen] 사용자 촬영 사진이 없습니다.');
-        }
-        console.log('[GalleryScreen] 사용자 촬영 사진 데이터 세팅 성공');
-      } else {
-        console.error('[GalleryScreen] photos API 호출 실패:', photosResponse?.status, photosResponse?.statusText);
-      }
-
-      // spots 데이터 처리
-      if (spotsResponse && spotsResponse.ok) {
-        const data = await spotsResponse.json();
-        console.log('[GalleryScreen] spots 데이터:', data);
-        spotsData = data;
-        console.log('[GalleryScreen] spots 데이터 세팅 성공');
-      }
-
-      // 3. 데이터 통합 - 사용자 촬영 사진을 기준으로 갤러리 구성
-      const mergedItems: GalleryItem[] = [];
-      
-      console.log('[GalleryScreen] photosItems 길이:', photosItems.length);
-      console.log('[GalleryScreen] photosItems 데이터:', photosItems);
-      console.log('[GalleryScreen] spotsData 길이:', spotsData.length);
-      
-      // 사용자 촬영 사진이 있으면 바로 갤러리에 표시
-      if (photosItems && photosItems.length > 0) {
-        console.log('[GalleryScreen] 사용자 촬영 사진을 갤러리에 표시');
-        
-        photosItems.forEach((photo, index) => {
-          console.log(`[GalleryScreen] 처리 중인 photo ${index + 1}:`, {
-            spot_id: photo.spot_id,
-            route_id: photo.route_id,
-            image_url: photo.image_url,
-            title: photo.title
-          });
-          
-          // spots 데이터에서 이름 조회 (없으면 기본값 사용)
-          let spotName = `촬영한 사진 ${photo.spot_id}`;
-          if (spotsData && spotsData.length > 0) {
-            const spotInfo = spotsData.find(spot => spot.id === photo.spot_id);
-            if (spotInfo && spotInfo.name) {
-              spotName = spotInfo.name;
-            }
-          }
-          
-          console.log(`[GalleryScreen] spot_id ${photo.spot_id} - 최종 이름:`, spotName);
-          
-          const galleryItem = {
-            ...photo,
-            title: spotName,
-            hasStamp: true,
-            stampUsed: false,
-          };
-          
-          console.log(`[GalleryScreen] 갤러리 아이템 생성:`, galleryItem);
-          mergedItems.push(galleryItem);
-        });
-      } else {
-        console.log('[GalleryScreen] 사용자 촬영 사진이 없습니다.');
-      }
-      
-      console.log('[GalleryScreen] 통합된 갤러리 데이터:', mergedItems);
-      console.log('[GalleryScreen] 최종 mergedItems.length:', mergedItems.length);
-      const allItems = mergedItems;
-
-      // 4. 빈 슬롯 생성 (고유한 ID 보장) - 사용자 촬영 사진이 있는 경우만 표시
-      const remainingSlots = TOTAL_COURSE - allItems.length || 0;
-      const emptySlots = Array(remainingSlots).fill(null).map((_, index) => ({
-        id: index + 2000, // 기존 ID와 겹치지 않도록 큰 수 사용
-        title: `장소 ${allItems.length + index + 1}`,
-        image_url: '', // 과거 이미지 사용하지 않음
-        past_image_url: '', // 과거 이미지 사용하지 않음
-        completed: false,
-        hasStamp: false,
-        stampUsed: false,
-        route_id: 0,
-        spot_id: allItems.length + index + 1,
-      }));
-
-      const finalGalleryData = allItems.concat(emptySlots);
-      const finalFoundCount = allItems.filter(item => item.completed).length;
-      
-      console.log('[GalleryScreen] 최종 갤러리 데이터:', finalGalleryData);
-      console.log('[GalleryScreen] 최종 갤러리 데이터 길이:', finalGalleryData.length);
-      console.log('[GalleryScreen] 최종 찾은 사진 개수:', finalFoundCount);
-      
-      setGalleryData(finalGalleryData);
-      setFoundCount(finalFoundCount);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // 컴포넌트 마운트 시 데이터 가져오기
-  useEffect(() => {
-    checkLoginStatus();
-    fetchGalleryData();
-  }, []);
-
-  // 화면이 포커스될 때마다 갤러리 데이터 새로고침
-  useFocusEffect(
-    React.useCallback(() => {
-      checkLoginStatus();
-      console.log('[GalleryScreen] 화면 포커스됨 - 갤러리 데이터 새로고침');
-      fetchGalleryData();
-    }, [])
-  );
-
-  const handleStampPress = () => {
-    if (!selectedImage) return;
-
-    Alert.alert(
-      '아직은 스탬프 사용이 어렵습니다.',
-      '추후 제휴 서비스 추가 예정입니다. 다음 업데이트를 기다려주세요. 감사합니다.',
-      [
-        {
-          text: '돌아가기',
-          style: 'cancel',
-        },
-//         {
-//           text: '사용',
-//           onPress: async () => {
-//             try {
-//               const tokens = await authService.getTokens();
-//               if (!tokens?.access) {
-//                 Alert.alert('오류', '로그인이 필요합니다.');
-//                 return;
-//               }
-//
-//               console.log('[GalleryScreen] 스탬프 사용:', selectedImage);
-//
-//               const useStampUrl = `${BACKEND_API.BASE_URL}/v1/courses/use_stamp/`;
-//               const useStampPayload = { id: selectedImage.id, is_used: true };
-//               console.log('[Gallery] PATCH use_stamp URL:', useStampUrl);
-//               console.log('[Gallery] PATCH use_stamp Payload:', useStampPayload);
-//
-//               const response = await fetch(useStampUrl, {
-//                 method: 'PATCH',
-//                 headers: {
-//                   'Content-Type': 'application/json',
-//                   'Authorization': `Bearer ${tokens.access}`,
-//                 },
-//                 body: JSON.stringify(useStampPayload),
-//               });
-//
-//               if (response.ok) {
-//                 // 갤러리 데이터 새로고침
-//                 await fetchGalleryData();
-//                 setImageModalVisible(false);
-//                 Alert.alert('스탬프 사용 완료!', '스탬프가 사용되었습니다.');
-//               } else {
-//                 const errorText = await response.text();
-//                 console.error('[GalleryScreen] 스탬프 사용 실패:', response.status, errorText);
-//                 Alert.alert('오류', '스탬프 사용에 실패했습니다.');
-//               }
-//             } catch (error) {
-//               console.error('[GalleryScreen] 스탬프 사용 에러:', error);
-//               Alert.alert('오류', '스탬프 사용 중 오류가 발생했습니다.');
-//             }
-//           },
-//           style: 'destructive',
-//         },
-      ]
-    );
-  };
 
   const renderStamp = () => {
     if (!selectedImage) return null;
-
     const stampSource = STAMP_IMAGES[selectedImage.title] || require('../../assets/stamps/jaemulpo.png');
-
     if (selectedImage.stampUsed) {
       return (
         <View style={styles.modalStampContainer}>
@@ -418,14 +255,23 @@ export default function GalleryScreen({ navigation }: any) {
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <View style={styles.container}>
         <ScrollView contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
-          <Text style={styles.title}>완료한 미션</Text>
+          { (foundCount===16) ? (
+						<Text style={styles.title}>축하합니다!</Text>
+					) : (
+		          <Text style={styles.title}>완료한 미션</Text>
+						)
+					}
           <View style={styles.underline} />
-          {isLoggedIn ? (
-            <Text style={styles.subtitle}>전체 코스 {TOTAL_COURSE}개 중 {foundCount}개의 과거를 찾았어요</Text>
-          ) : (
-            <Text style={styles.subtitle}>로그인해 과거 모습을 찾아보세요.</Text>
-          )}
-          
+						{isLoggedIn ? (
+						  foundCount === 16 ? (
+						    <Text style={styles.subtitle}>모든 장소의 과거를 찾았어요 🥳</Text>
+						  ) : (
+						    <Text style={styles.subtitle}>전체 코스 {TOTAL_COURSE}개 중 {foundCount}개의 과거를 찾았어요</Text>
+						  )
+						) : (
+						  <Text style={styles.subtitle}>로그인해 과거 모습을 찾아보세요.</Text>
+						)}
+
           {/* 로딩 상태 표시 */}
           {isLoading ? (
             <View style={styles.loadingContainer}>
@@ -689,18 +535,6 @@ const styles = StyleSheet.create({
   badgeLocked: {
     backgroundColor: INCHEON_GRAY,
   },
-  badgeText: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 12,
-    color: '#fff',
-    textAlign: 'center',
-  },
-  badgeTextCompleted: {
-    color: '#fff',
-  },
-  badgeTextLocked: {
-    color: '#fff',
-  },
   // 스탬프 스타일
   stampOverlay: {
     position: 'absolute',
@@ -719,7 +553,6 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     borderRadius: 100,
     backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    transform: [{ rotate: '15deg' }],
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center'
@@ -785,8 +618,6 @@ const styles = StyleSheet.create({
     left: 0,
     width: 100,
     height: 100,
-    transform: [{ rotate: '20deg' }],
-
   },
   modalStampImageUsed: {
     position: 'absolute',

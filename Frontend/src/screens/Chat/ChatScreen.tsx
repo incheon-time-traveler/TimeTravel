@@ -33,7 +33,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ visible, onClose, navigation })
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: '1',
-      text: '안녕하세요! 인천 여행 도우미입니다. 무엇을 도와드릴까요?',
+      text: '안녕하세요! 인천 시간 여행에 함께 해주셔서 감사해요. 무엇을 도와드릴까요?',
       isUser: false,
       timestamp: new Date(),
       type: 'text'
@@ -281,7 +281,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ visible, onClose, navigation })
       <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
         {/* 헤더 */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>AI 여행 도우미</Text>
+          <Text style={styles.headerTitle}>시간 여행 도우미</Text>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
             <Text style={styles.closeButtonText}>✕</Text>
           </TouchableOpacity>
@@ -406,11 +406,13 @@ const styles = StyleSheet.create({
   },
   messageContainer: {
     flex: 1,
+    marginBottom: 8,
   },
   messagesList: {
     flex: 1,
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingVertical: 12,
+
   },
   messageBubble: {
     maxWidth: '80%',
@@ -491,7 +493,7 @@ const styles = StyleSheet.create({
   },
   suggestionsContainer: {
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingVertical: 8,
     backgroundColor: INCHEON_BLUE_LIGHT,
   },
   suggestionsTitle: {

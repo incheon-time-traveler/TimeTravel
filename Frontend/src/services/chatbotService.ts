@@ -4,8 +4,11 @@ import authService from './authService';
 export interface ChatbotRequest {
   user_question: string;
   user_id: string;
-  lat?: number;  // ← 변경
-  lng?: number;  // ← 변경
+  lat?: number;  
+  lng?: number;
+  user_nickname?: string;
+  user_gender?: string;
+  user_age_group?: string;
 }
 
 export interface ChatbotResponse {

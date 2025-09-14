@@ -696,18 +696,37 @@ export default function HomeScreen({ navigation }: any) {
           }
         }
 
-        // 사용자에게 저장된 코스가 하나라도 있으면 진행중으로 간주
-        const hasCourses = Array.isArray(data) && data.length > 0;
-        setHasOngoingCourse(hasCourses);
-        setOngoingCourses(hasCourses ? data : []);
+        // 진행중인 코스만 필터링 (모든 스팟이 완료되지 않은 코스)
+        const ongoingCoursesData = data.filter((course: any) => {
+          if (!course.spots || course.spots.length === 0) {
+            return false; // 스팟이 없으면 진행중이 아님
+          }
+          
+          // 모든 스팟이 완료되었는지 확인 (unlock_at이 있는지)
+          const allSpotsCompleted = course.spots.every((spot: any) => spot.unlock_at !== null);
+          console.log(`[HomeScreen] 코스 ${course.route_id} 완료 상태 확인:`, {
+            totalSpots: course.spots.length,
+            completedSpots: course.spots.filter((s: any) => s.unlock_at !== null).length,
+            allCompleted: allSpotsCompleted
+          });
+          
+          return !allSpotsCompleted; // 모든 스팟이 완료되지 않은 코스만 진행중으로 간주
+        });
 
-        // 첫 번째 코스의 route_id를 현재 route_id로 설정
-        if (hasCourses && data.length > 0) {
-          setCurrentRouteId(data[0].route_id);
+        const hasOngoingCourses = ongoingCoursesData.length > 0;
+        setHasOngoingCourse(hasOngoingCourses);
+        setOngoingCourses(ongoingCoursesData);
+
+        // 첫 번째 진행중인 코스의 route_id를 현재 route_id로 설정
+        if (hasOngoingCourses && ongoingCoursesData.length > 0) {
+          setCurrentRouteId(ongoingCoursesData[0].route_id);
+        } else {
+          setCurrentRouteId(null); // 진행중인 코스가 없으면 null로 설정
         }
 
-        console.log('[HomeScreen] 진행중 코스 개수:', hasCourses ? data.length : 0);
-        console.log('[HomeScreen] 진행중인 코스 상세:', data);
+        console.log('[HomeScreen] 전체 코스 개수:', data.length);
+        console.log('[HomeScreen] 진행중인 코스 개수:', ongoingCoursesData.length);
+        console.log('[HomeScreen] 진행중인 코스 상세:', ongoingCoursesData);
       } else if (response.status === 401) {
         // 토큰 만료 등
         setHasOngoingCourse(false);
@@ -1667,15 +1686,15 @@ export default function HomeScreen({ navigation }: any) {
           </>
         )}
 
-        {/* 미션 시뮬레이션 버튼 (개발용) - 항상 표시 */}
-        <View style={styles.simulationSection}>
+        {/* 미션 시뮬레이션 버튼 (개발용) - 주석처리 */}
+        {/* <View style={styles.simulationSection}>
           <TouchableOpacity style={styles.simulationBtn} onPress={handleMissionSimulation}>
             <Text style={styles.simulationBtnText}>🎯 미션 시뮬레이션 (개발용)</Text>
           </TouchableOpacity>
-        </View>
+        </View> */}
 
-        {/* 코스 완료 테스트 버튼들 (개발용) - 진행중인 코스가 있을 때만 표시 */}
-        {isLoggedIn && hasOngoingCourse && (
+        {/* 코스 완료 테스트 버튼들 (개발용) - 주석처리 */}
+        {/* {isLoggedIn && hasOngoingCourse && (
           <View style={styles.courseTestSection}>
             <Text style={styles.courseTestTitle}>코스 완료 테스트</Text>
             <TouchableOpacity 
@@ -1715,7 +1734,7 @@ export default function HomeScreen({ navigation }: any) {
               </TouchableOpacity>
             )}
           </View>
-        )}
+        )} */}
       </ScrollView>
 
       {/* 미션 알림 컴포넌트 */}

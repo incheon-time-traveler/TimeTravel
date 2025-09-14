@@ -95,7 +95,7 @@ export default function ImageSaveScreen({ route, navigation }) {
   return (
     <View style={styles.container}>
       <Canvas style={styles.canvas} ref={skiaRef}>
-        <Image image={backgroundImage} fit="contain" x={0} y={0} width={width} height={height} />
+        <Image image={backgroundImage} fit="contain" x={0} y={0} width={width} height={height} color="white"/>
         <Image
           image={overlayImage}
           x={x}
@@ -103,6 +103,7 @@ export default function ImageSaveScreen({ route, navigation }) {
           width={displayWidth}
           height={displayHeight}
           opacity={opacity}
+          color="white"
         />
       </Canvas>
       <View style={styles.buttonContainer}>

@@ -89,6 +89,7 @@ export default function CameraScreen({ route, navigation }: any) {
 	        x,
 	        y,
 	        opacity: overlayOpacity,
+	        selectedPhoto: overlayPhoto,
 	      };
 	      console.log("ImageSaveScreen으로 보내는 파라미터:", paramsToNavigate);
 

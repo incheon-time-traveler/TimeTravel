@@ -5,6 +5,7 @@ import Geolocation from '@react-native-community/geolocation';
 import { INCHEON_BLUE, INCHEON_BLUE_LIGHT, INCHEON_GRAY, TEXT_STYLES, FONT_STYLES } from '../../styles/fonts';
 import authService from '../../services/authService';
 import { BACKEND_API } from '../../config/apiKeys';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   setCurrentLocation,
@@ -27,6 +28,8 @@ export default function HomeScreen({ navigation }: any) {
   const [ongoingCourses, setOngoingCourses] = useState<any[]>([]);
   const [recommendedCourses, setRecommendedCourses] = useState<any[]>([]);
   const [isLoadingRecommended, setIsLoadingRecommended] = useState(true);
+  const [isSimulationMode, setIsSimulationMode] = useState(false);
+  const [simulatedCourses, setSimulatedCourses] = useState<any[]>([]);
 
   // 미션 관련 상태
   const [currentMission, setCurrentMission] = useState<any>(null);
@@ -277,6 +280,285 @@ export default function HomeScreen({ navigation }: any) {
     }
   };
 
+  // 코스 완료 테스트 - 마지막 스팟 제외하고 모든 스팟 방문 완료 처리
+  const handleCompleteAllSpotsExceptLast = async () => {
+    try {
+      console.log('[HomeScreen] 코스 완료 테스트 시작 - 마지막 스팟 제외하고 모든 스팟 방문 완료');
+      
+      const tokens = await authService.getTokens();
+      if (!tokens?.access) {
+        Alert.alert('오류', '로그인이 필요합니다.');
+        return;
+      }
+
+      // 진행중인 코스가 있는지 확인
+      if (!hasOngoingCourse || ongoingCourses.length === 0) {
+        Alert.alert('오류', '진행중인 코스가 없습니다.');
+        return;
+      }
+
+      // 최신 코스 데이터를 다시 가져오기
+      console.log('[HomeScreen] 최신 코스 데이터 다시 가져오기...');
+      const courseResponse = await fetch(`${BACKEND_API.BASE_URL}/v1/courses/user_routes/`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${tokens.access}`,
+        },
+      });
+
+      if (!courseResponse.ok) {
+        Alert.alert('오류', '코스 데이터를 가져올 수 없습니다.');
+        return;
+      }
+
+      const freshData = await courseResponse.json();
+      console.log('[HomeScreen] 최신 코스 데이터:', freshData);
+
+      if (!freshData || freshData.length === 0) {
+        Alert.alert('오류', '진행중인 코스가 없습니다.');
+        return;
+      }
+
+      const currentCourse = freshData[0];
+      const spots = currentCourse.spots || [];
+      
+      console.log('[HomeScreen] currentCourse:', currentCourse);
+      console.log('[HomeScreen] currentCourse.spots:', spots);
+      
+      if (spots.length === 0) {
+        Alert.alert('오류', '코스에 스팟이 없습니다.');
+        return;
+      }
+
+      console.log(`[HomeScreen] 현재 코스 스팟 수: ${spots.length}`);
+      console.log('[HomeScreen] 스팟 목록:', spots.map((s: any) => ({ id: s.id, title: s.title, completed: !!(s.completed_at || s.unlock_at) })));
+      
+      // 실제 스팟 데이터 구조 확인을 위한 상세 로그
+      console.log('[HomeScreen] 첫 번째 스팟 상세 데이터:', spots[0]);
+      console.log('[HomeScreen] 모든 스팟의 키 확인:', spots.map((s: any) => Object.keys(s)));
+      
+      // 각 스팟의 모든 필드와 값 출력
+      spots.forEach((spot: any, index: number) => {
+        console.log(`[HomeScreen] 스팟 ${index + 1} (${spot.title}) 모든 필드:`, spot);
+        console.log(`[HomeScreen] 스팟 ${index + 1} 모든 키:`, Object.keys(spot));
+      });
+
+      // 마지막 스팟을 제외한 모든 스팟 찾기
+      const spotsToComplete = spots.slice(0, -1); // 마지막 스팟 제외
+      
+      console.log(`[HomeScreen] 방문 완료할 스팟 수: ${spotsToComplete.length}`);
+      console.log('[HomeScreen] 방문 완료할 스팟들:', spotsToComplete.map((s: any) => ({ id: s.id, title: s.title })));
+
+      // 백엔드 API 대신 프론트엔드에서 unlock_at 시뮬레이션
+      console.log('[HomeScreen] 백엔드 API 호출 대신 프론트엔드에서 unlock_at 시뮬레이션 시작');
+      setIsSimulationMode(true);
+      
+      let successCount = 0;
+      const currentTime = new Date().toISOString();
+      
+      for (let i = 0; i < spotsToComplete.length; i++) {
+        const spot = spotsToComplete[i];
+        console.log(`[HomeScreen] 스팟 ${i + 1}/${spotsToComplete.length} 방문 완료 시뮬레이션: ${spot.title} (ID: ${spot.id})`);
+        
+        // unlock_at을 현재 시간으로 설정 (시뮬레이션)
+        spot.unlock_at = currentTime;
+        
+        // 스팟의 모든 정보를 유지하면서 unlock_at만 업데이트
+        const updatedSpot = {
+          ...spot,
+          unlock_at: currentTime
+        };
+        
+        console.log(`[HomeScreen] ✅ 스팟 ${spot.title} unlock_at 설정: ${currentTime}`);
+        console.log(`[HomeScreen] 스팟 ${spot.title} 전체 정보:`, updatedSpot);
+        
+        // 원본 배열에서 해당 스팟을 업데이트된 정보로 교체
+        const spotIndex = spots.findIndex((s: any) => s.id === spot.id);
+        if (spotIndex !== -1) {
+          spots[spotIndex] = updatedSpot;
+        }
+        
+        successCount++;
+      }
+      
+      console.log(`[HomeScreen] 방문 완료 처리 결과: ${successCount}/${spotsToComplete.length} 성공`);
+
+      // 시뮬레이션된 데이터를 ongoingCourses 상태에 반영
+      const updatedCourses = ongoingCourses.map((course: any) => {
+        if (course.route_id === currentCourse.route_id) {
+          return {
+            ...course,
+            spots: spots // 이미 업데이트된 spots 배열 사용
+          };
+        }
+        return course;
+      });
+      
+      setOngoingCourses(updatedCourses);
+      setSimulatedCourses(updatedCourses); // 시뮬레이션된 데이터 저장
+      
+      // AsyncStorage에 시뮬레이션된 데이터 저장
+      try {
+        await AsyncStorage.setItem('simulatedCourses', JSON.stringify(updatedCourses));
+        await AsyncStorage.setItem('isSimulationMode', 'true');
+        console.log('[HomeScreen] 시뮬레이션된 데이터 AsyncStorage에 저장 완료');
+        console.log('[HomeScreen] 저장된 데이터 확인:', updatedCourses[0]?.spots?.map((s: any) => ({ 
+          title: s.title, 
+          unlock_at: s.unlock_at, 
+          completed_at: s.completed_at 
+        })));
+      } catch (error) {
+        console.error('[HomeScreen] AsyncStorage 저장 오류:', error);
+      }
+      
+      console.log('[HomeScreen] ongoingCourses 상태 업데이트 완료');
+      console.log('[HomeScreen] 시뮬레이션된 데이터 저장:', updatedCourses);
+      console.log('[HomeScreen] 업데이트된 첫 번째 스팟:', updatedCourses[0]?.spots[0]);
+
+      Alert.alert(
+        '테스트 완료', 
+        `마지막 스팟을 제외한 ${spotsToComplete.length}개 스팟 중 ${successCount}개 스팟 방문 완료 처리했습니다.\n\n이제 "마지막 스팟 완료" 버튼을 눌러 코스 완료를 테스트해보세요!`,
+        [
+          {
+            text: '확인',
+            onPress: () => {
+              // 시뮬레이션 중이므로 데이터 새로고침하지 않음
+              console.log('[HomeScreen] 시뮬레이션 모드 - 데이터 새로고침 건너뜀');
+            }
+          }
+        ]
+      );
+
+    } catch (error) {
+      console.error('[HomeScreen] 코스 완료 테스트 오류:', error);
+      Alert.alert('오류', '코스 완료 테스트 중 오류가 발생했습니다.');
+    }
+  };
+
+  // 코스 완료 테스트 - 마지막 스팟 방문 완료 처리
+  const handleCompleteLastSpot = async () => {
+    try {
+      console.log('[HomeScreen] 코스 완료 테스트 시작 - 마지막 스팟 방문 완료');
+      
+      const tokens = await authService.getTokens();
+      if (!tokens?.access) {
+        Alert.alert('오류', '로그인이 필요합니다.');
+        return;
+      }
+
+      // 진행중인 코스가 있는지 확인
+      if (!hasOngoingCourse || ongoingCourses.length === 0) {
+        Alert.alert('오류', '진행중인 코스가 없습니다.');
+        return;
+      }
+
+      // 최신 코스 데이터를 다시 가져오기
+      console.log('[HomeScreen] 최신 코스 데이터 다시 가져오기...');
+      const courseResponse = await fetch(`${BACKEND_API.BASE_URL}/v1/courses/user_routes/`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${tokens.access}`,
+        },
+      });
+
+      if (!courseResponse.ok) {
+        Alert.alert('오류', '코스 데이터를 가져올 수 없습니다.');
+        return;
+      }
+
+      const freshData = await courseResponse.json();
+      console.log('[HomeScreen] 최신 코스 데이터:', freshData);
+
+      if (!freshData || freshData.length === 0) {
+        Alert.alert('오류', '진행중인 코스가 없습니다.');
+        return;
+      }
+
+      const currentCourse = freshData[0];
+      const spots = currentCourse.spots || [];
+      
+      if (spots.length === 0) {
+        Alert.alert('오류', '코스에 스팟이 없습니다.');
+        return;
+      }
+
+      // 마지막 스팟 찾기
+      const lastSpot = spots[spots.length - 1];
+      
+      console.log(`[HomeScreen] 마지막 스팟: ${lastSpot.title} (ID: ${lastSpot.id})`);
+      console.log(`[HomeScreen] 마지막 스팟 현재 상태: completed_at=${lastSpot.completed_at}, unlock_at=${lastSpot.unlock_at}`);
+
+      // 마지막 스팟 방문 완료 시뮬레이션
+      console.log(`[HomeScreen] 마지막 스팟 방문 완료 시뮬레이션 시작: ${lastSpot.title}`);
+      setIsSimulationMode(true);
+      
+      const currentTime = new Date().toISOString();
+      
+      // 마지막 스팟의 모든 정보를 유지하면서 unlock_at만 업데이트
+      const updatedLastSpot = {
+        ...lastSpot,
+        unlock_at: currentTime
+      };
+      
+      // 원본 배열에서 마지막 스팟을 업데이트된 정보로 교체
+      spots[spots.length - 1] = updatedLastSpot;
+      
+      console.log(`[HomeScreen] ✅ 마지막 스팟 ${lastSpot.title} unlock_at 설정: ${currentTime}`);
+      console.log(`[HomeScreen] 마지막 스팟 ${lastSpot.title} 전체 정보:`, updatedLastSpot);
+      
+      // 시뮬레이션된 데이터를 ongoingCourses 상태에 반영
+      const updatedCourses = ongoingCourses.map((course: any) => {
+        if (course.route_id === currentCourse.route_id) {
+          return {
+            ...course,
+            spots: spots // 이미 업데이트된 spots 배열 사용
+          };
+        }
+        return course;
+      });
+      
+      setOngoingCourses(updatedCourses);
+      setSimulatedCourses(updatedCourses); // 시뮬레이션된 데이터 저장
+      
+      // AsyncStorage에 시뮬레이션된 데이터 저장
+      try {
+        await AsyncStorage.setItem('simulatedCourses', JSON.stringify(updatedCourses));
+        await AsyncStorage.setItem('isSimulationMode', 'true');
+        console.log('[HomeScreen] 시뮬레이션된 데이터 AsyncStorage에 저장 완료');
+        console.log('[HomeScreen] 저장된 데이터 확인:', updatedCourses[0]?.spots?.map((s: any) => ({ 
+          title: s.title, 
+          unlock_at: s.unlock_at, 
+          completed_at: s.completed_at 
+        })));
+      } catch (error) {
+        console.error('[HomeScreen] AsyncStorage 저장 오류:', error);
+      }
+      
+      console.log('[HomeScreen] ongoingCourses 상태 업데이트 완료');
+      console.log('[HomeScreen] 시뮬레이션된 데이터 저장:', updatedCourses);
+      console.log('[HomeScreen] 업데이트된 마지막 스팟:', updatedCourses[0]?.spots[updatedCourses[0]?.spots.length - 1]);
+      console.log('[HomeScreen] ✅ 마지막 스팟 방문 완료 처리 성공 - 코스 완료!');
+      
+      Alert.alert(
+        '🎉 코스 완료!', 
+        `${lastSpot.title} 방문이 완료되었습니다!\n\n이제 TripsScreen에서 "진행 완료" 탭을 확인해보세요.`,
+        [
+          {
+            text: '확인',
+            onPress: () => {
+              // 시뮬레이션 중이므로 데이터 새로고침하지 않음
+              console.log('[HomeScreen] 시뮬레이션 모드 - 데이터 새로고침 건너뜀');
+            }
+          }
+        ]
+      );
+
+    } catch (error) {
+      console.error('[HomeScreen] 마지막 스팟 방문 완료 처리 오류:', error);
+      Alert.alert('오류', '마지막 스팟 방문 완료 처리 중 오류가 발생했습니다.');
+    }
+  };
+
   // 방문 완료 처리 (미션이 없는 spot용)
   const handleCompleteVisit = async (mission: any) => {
     try {
@@ -381,6 +663,12 @@ export default function HomeScreen({ navigation }: any) {
 
   const checkOngoingCourses = async () => {
     try {
+      // 시뮬레이션 모드일 때는 API 호출하지 않음
+      if (isSimulationMode) {
+        console.log('[HomeScreen] 시뮬레이션 모드 - API 호출 건너뜀');
+        return;
+      }
+      
       const tokens = await authService.getTokens();
       if (!tokens?.access) {
         setHasOngoingCourse(false);
@@ -398,6 +686,15 @@ export default function HomeScreen({ navigation }: any) {
       if (response.ok) {
         const data = await response.json();
         console.log('[HomeScreen] 진행중인 코스 데이터:', data);
+
+        // API 응답 구조 상세 분석
+        if (data.length > 0) {
+          console.log('[HomeScreen] 첫 번째 코스 상세:', data[0]);
+          if (data[0].spots && data[0].spots.length > 0) {
+            console.log('[HomeScreen] 첫 번째 스팟 상세:', data[0].spots[0]);
+            console.log('[HomeScreen] 첫 번째 스팟의 모든 키:', Object.keys(data[0].spots[0]));
+          }
+        }
 
         // 사용자에게 저장된 코스가 하나라도 있으면 진행중으로 간주
         const hasCourses = Array.isArray(data) && data.length > 0;
@@ -1376,6 +1673,49 @@ export default function HomeScreen({ navigation }: any) {
             <Text style={styles.simulationBtnText}>🎯 미션 시뮬레이션 (개발용)</Text>
           </TouchableOpacity>
         </View>
+
+        {/* 코스 완료 테스트 버튼들 (개발용) - 진행중인 코스가 있을 때만 표시 */}
+        {isLoggedIn && hasOngoingCourse && (
+          <View style={styles.courseTestSection}>
+            <Text style={styles.courseTestTitle}>코스 완료 테스트</Text>
+            <TouchableOpacity 
+              style={styles.courseTestBtn} 
+              onPress={handleCompleteAllSpotsExceptLast}
+            >
+              <Text style={styles.courseTestBtnText}>1️⃣ 마지막 스팟 제외하고 모든 스팟 완료</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.courseTestBtn}
+              onPress={handleCompleteLastSpot}
+            >
+              <Text style={styles.courseTestBtnText}>2️⃣ 마지막 스팟 완료 (코스 완료)</Text>
+            </TouchableOpacity>
+            
+            {isSimulationMode && (
+              <TouchableOpacity
+                style={[styles.courseTestBtn, { backgroundColor: '#ff6b6b' }]}
+                onPress={async () => {
+                  setIsSimulationMode(false);
+                  setSimulatedCourses([]); // 시뮬레이션 데이터 초기화
+                  
+                  // AsyncStorage 초기화
+                  try {
+                    await AsyncStorage.removeItem('simulatedCourses');
+                    await AsyncStorage.removeItem('isSimulationMode');
+                    console.log('[HomeScreen] AsyncStorage 시뮬레이션 데이터 초기화 완료');
+                  } catch (error) {
+                    console.error('[HomeScreen] AsyncStorage 초기화 오류:', error);
+                  }
+                  
+                  checkOngoingCourses();
+                  Alert.alert('시뮬레이션 모드 해제', '실제 데이터로 복원되었습니다.');
+                }}
+              >
+                <Text style={styles.courseTestBtnText}>🔄 시뮬레이션 모드 해제</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
       </ScrollView>
 
       {/* 미션 알림 컴포넌트 */}
@@ -1769,6 +2109,49 @@ underline: {
     marginTop: 20,
     marginBottom: 20,
     paddingHorizontal: 20,
+  },
+  courseTestSection: {
+    alignItems: 'center',
+    marginTop: 20,
+    marginBottom: 20,
+    paddingHorizontal: 20,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    marginHorizontal: 16,
+    paddingVertical: 16,
+    borderWidth: 2,
+    borderColor: '#28a745',
+    borderStyle: 'dashed',
+  },
+  courseTestTitle: {
+    ...TEXT_STYLES.subtitle,
+    color: '#28a745',
+    marginBottom: 12,
+    fontWeight: 'bold',
+  },
+  courseTestBtn: {
+    backgroundColor: '#28a745',
+    borderRadius: 20,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    marginBottom: 8,
+    shadowColor: '#28a745',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+    width: '100%',
+    alignItems: 'center',
+  },
+  courseTestBtnText: {
+    ...TEXT_STYLES.button,
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   spotsList: {
     width: '100%',

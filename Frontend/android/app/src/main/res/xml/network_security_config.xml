@@ -19,6 +19,11 @@
         <domain includeSubdomains="true">incheon-time-traveler.duckdns.org</domain>
     </domain-config>
     
+    <!-- 관광 이미지 도메인 허용 -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">tong.visitkorea.or.kr</domain>
+    </domain-config>
+    
     <!-- 모든 HTTPS 도메인 허용 (개발용) -->
     <base-config cleartextTrafficPermitted="false">
         <trust-anchors>

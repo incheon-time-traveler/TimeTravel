@@ -1,8 +1,9 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Button, Dimensions, Alert } from 'react-native';
+import { View, Text, StyleSheet, Button, Dimensions, Alert, TouchableOpacity } from 'react-native';
 import { Canvas, Image, Skia, useCanvasRef } from '@shopify/react-native-skia';
 import RNFS from 'react-native-fs';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { INCHEON_BLUE, INCHEON_BLUE_LIGHT, INCHEON_GRAY, TEXT_STYLES } from '../styles/fonts';
 
 const { width, height } = Dimensions.get('window');
 
@@ -14,7 +15,8 @@ export default function ImageSaveScreen({ route, navigation }) {
     displayHeight,
     x,
     y,
-    opacity
+    opacity,
+    selectedPhoto
   } = route.params;
 	console.log(route.params)
 
@@ -56,16 +58,33 @@ export default function ImageSaveScreen({ route, navigation }) {
 
       const savedJSON = await AsyncStorage.getItem('saved_photos');
       const photosArray = savedJSON ? JSON.parse(savedJSON) : [];
-      photosArray.push(newPath);
+      const newPhotoData = {
+        path: newPath, // 실제 저장된 파일 경로
+        missionInfo: { // MissionScreen에서 넘어온 과거 사진 정보
+          id: selectedPhoto.id,
+          spot_id: selectedPhoto.id, // spot_id로 사용
+          title: selectedPhoto.name,
+          route_id: selectedPhoto.route_id || 0, // route_id가 있다면 사용
+        },
+      };
+
+      photosArray.push(newPhotoData);
       await AsyncStorage.setItem('saved_photos', JSON.stringify(photosArray));
 
-      Alert.alert('저장 완료', '합성된 사진이 앱에 보관되었습니다.', [
+      Alert.alert('저장 완료', '사진이 앱에 보관되었습니다.', [
         { text: '확인', onPress: () => navigation.navigate('MainTabs', { screen: 'Gallery' }) }
       ]);
     } catch (e) {
       console.error(e);
       Alert.alert('오류', '이미지 저장 중 문제가 발생했습니다.');
     }
+  };
+
+  const handleRetake = () => {
+    console.log('다시 찍기 선택, 카메라 화면으로 돌아갑니다.');
+    Alert.alert('다시 촬영하실래요?', '카메라로 돌아갑니다.', [
+      { text: '확인', onPress: () => navigation.goBack() }
+    ]);
   };
 
   if (!backgroundImage || !overlayImage) {
@@ -87,7 +106,12 @@ export default function ImageSaveScreen({ route, navigation }) {
         />
       </Canvas>
       <View style={styles.buttonContainer}>
-        <Button title="저장하기" onPress={handleSave} />
+        <TouchableOpacity style={[styles.actionButton, styles.retakeButton]} onPress={handleRetake}>
+          <Text style={styles.buttonText}>다시 찍기</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.actionButton, styles.saveButton]} onPress={handleSave}>
+          <Text style={styles.buttonText}>저장하기</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -97,5 +121,31 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: 'black' },
   loading: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   canvas: { flex: 1, width: '100%' },
-  buttonContainer: { position: 'absolute', bottom: 50, width: '100%' },
+  buttonContainer: {
+    position: 'absolute',
+    bottom: 50,
+    width: '100%',
+    flexDirection: 'row', // 버튼을 가로로 배치
+    justifyContent: 'space-around', // 버튼 사이에 공간을 줌
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  actionButton: {
+    paddingVertical: 15,
+    paddingHorizontal: 30,
+    borderRadius: 30,
+    flex: 1, // 공간을 균등하게 차지
+    marginHorizontal: 10, // 버튼 사이의 간격
+    alignItems: 'center',
+  },
+  retakeButton: {
+    backgroundColor: INCHEON_GRAY, // 요청하신 색상
+  },
+  saveButton: {
+    backgroundColor: INCHEON_BLUE, // 저장 버튼 색상
+  },
+  buttonText: {
+    ...TEXT_STYLES.button,
+    color: 'white',
+  },
 });

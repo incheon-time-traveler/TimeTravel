@@ -124,6 +124,7 @@ const TripsScreen: React.FC = () => {
       console.error('[TripsScreen] 사용자 코스 데이터 삭제 에러:', error);
     }
   }
+
   // 사용자 코스 데이터 가져오기
   const fetchUserCourses = async (retryCount = 0) => {
     const maxRetries = 3;
@@ -524,7 +525,7 @@ const TripsScreen: React.FC = () => {
                 <div class="pin ${pinClass}">
                   <img src="${spot.completed ? unlockedBase64 : lockedBase64}" class="pin-icon" alt="pin" />
                 </div>
-                <div class="pin-label">${spot.title}</div>
+                <div class="pin-label">${spotsData.find(spot => !spot.completed).title != spot.title ? '' : spot.title}</div>
               </div>
             `;
           }).join('')}
@@ -1254,15 +1255,12 @@ const styles = StyleSheet.create({
     borderLeftColor: INCHEON_BLUE,
   },
   visitStatusText: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 16,
+		...TEXT_STYLES.button,
     color: INCHEON_BLUE,
-    fontWeight: 'bold',
     marginBottom: 4,
   },
   visitDateText: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 14,
+		...TEXT_STYLES.small,
     color: INCHEON_GRAY,
   },
   spotDetailContainer: {
@@ -1274,23 +1272,17 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   spotDetailTitle: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 18,
+		...TEXT_STYLES.subtitle,
     color: INCHEON_BLUE,
-    fontWeight: 'bold',
     marginBottom: 12,
   },
   spotDetailText: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 14,
-    color: '#333',
+		...TEXT_STYLES.body,
     lineHeight: 20,
     marginBottom: 12,
   },
   spotDetailLabel: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 13,
-    color: INCHEON_GRAY,
+		...TEXT_STYLES.small,
     marginBottom: 4,
   },
 
@@ -1306,10 +1298,8 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   modalLocationNumber: {
-    fontFamily: 'NeoDunggeunmoPro-Regular',
-    fontSize: 16,
+		...TEXT_STYLES.button,
     color: INCHEON_BLUE,
-    fontWeight: 'bold',
     marginRight: 8,
     width: 20,
   },
@@ -1347,101 +1337,6 @@ const styles = StyleSheet.create({
   },
   emptyStateSubtext: {
     ...TEXT_STYLES.body,
-    color: INCHEON_GRAY,
-  },
-  // 길찾기 버튼 스타일
-  routeContainer: {
-    width: width - 40,
-    height: 180,
-    backgroundColor: '#fff',
-    borderRadius: 18,
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-  },
-  routeTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 15,
-    color: '#fff',
-  },
-  routeDestination: {
-    fontSize: 16,
-    marginBottom: 20,
-    opacity: 0.9,
-    color: '#fff',
-  },
-     routeButton: {
-     backgroundColor: '#ff5722',
-     paddingVertical: 12,
-     paddingHorizontal: 24,
-     borderRadius: 8,
-     margin: 10,
-   },
-  routeButtonText: {
-    color: '#fff',
-  },
-  routeInfo: {
-    fontSize: 14,
-    opacity: 0.8,
-    marginTop: 20,
-    color: '#fff',
-    textAlign: 'center',
-  },
-  completionContainer: {
-    width: width - 40,
-    height: 180,
-    backgroundColor: '#4caf50',
-    borderRadius: 18,
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-  },
-  completionTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 10,
-    color: '#fff',
-  },
-     completionText: {
-     fontSize: 16,
-     opacity: 0.9,
-    color: '#fff',
-  },
-   mapOverlay: {
-    position: 'absolute',
-    top: 10,
-     left: 10,
-     backgroundColor: 'rgba(0, 0, 0, 0.7)',
-     paddingHorizontal: 12,
-     paddingVertical: 6,
-     borderRadius: 6,
-   },
-   mapOverlayText: {
-     color: '#fff',
-     fontSize: 14,
-    fontWeight: 'bold',
-  },
-   mapPlaceholder: {
-     flex: 1,
-    alignItems: 'center',
-     justifyContent: 'center',
-     backgroundColor: '#f8f9fa',
-   },
-   mapPlaceholderIcon: {
-     fontSize: 48,
-     marginBottom: 16,
-   },
-   mapPlaceholderTitle: {
-     fontSize: 20,
-     fontWeight: 'bold',
-     color: INCHEON_BLUE,
-     marginBottom: 8,
-   },
-   mapPlaceholderSubtitle: {
-     fontSize: 14,
     color: INCHEON_GRAY,
   },
   modalOverlay: {

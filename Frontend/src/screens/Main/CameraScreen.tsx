@@ -27,6 +27,7 @@ export default function CameraScreen({ route, navigation }: any) {
   const device = useCameraDevice('back');
   const camera = useRef<Camera>(null);
   const viewShotRef = useRef<ViewShot>(null);
+  const [hasPermission, setHasPermission] = useState(false); // 👈 권한 상태를 관리할 state
 
   // 원본 이미지 크기를 저장할 state 추가
   const [originalImgSize, setOriginalImgSize] = useState({ width: 0, height: 0 });
@@ -89,6 +90,7 @@ export default function CameraScreen({ route, navigation }: any) {
 	        x,
 	        y,
 	        opacity: overlayOpacity,
+	        selectedPhoto: overlayPhoto,
 	      };
 	      console.log("ImageSaveScreen으로 보내는 파라미터:", paramsToNavigate);
 

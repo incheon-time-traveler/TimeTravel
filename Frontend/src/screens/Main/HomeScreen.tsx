@@ -234,7 +234,7 @@ export default function HomeScreen({ navigation }: any) {
         
         // 부평향교 찾기
         const bupyeongSpot = spotsData.find((spot: any) => 
-          spot.name && spot.name.includes('부평향교')
+          spot.name && spot.name.includes('인천내동성공회성당')
         );
 
         if (bupyeongSpot && bupyeongSpot.past_image_url) {

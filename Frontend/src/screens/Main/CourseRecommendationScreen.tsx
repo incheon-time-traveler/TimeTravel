@@ -734,7 +734,11 @@ export default function CourseRecommendationScreen({ navigation }: any) {
         {/* 장소 수 선택 */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>🏛️ 방문할 장소 수</Text>
-          <View style={styles.placeCountContainer}>
+          <ScrollView
+            horizontal={true} // 👈 1. 가로 스크롤 활성화
+            contentContainerStyle={styles.placeCountContainer} // 👈 2. 내부 컨텐츠 스타일링
+            showsHorizontalScrollIndicator={false} // (선택사항) 가로 스크롤바 숨기기
+          >
             {placeCountOptions.map((count) => (
               <TouchableOpacity
                 key={count}
@@ -752,7 +756,7 @@ export default function CourseRecommendationScreen({ navigation }: any) {
                 </Text>
               </TouchableOpacity>
             ))}
-          </View>
+          </ScrollView>
         </View>
 
         {/* 미션 설정 */}

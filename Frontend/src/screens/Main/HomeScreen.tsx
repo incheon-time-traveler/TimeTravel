@@ -613,10 +613,42 @@ export default function HomeScreen({ navigation }: any) {
 
         if (response.ok) {
           console.log('[HomeScreen] 방문 완료 처리 성공');
-          Alert.alert('방문 완료!', `${mission.location.name} 방문이 완료되었습니다.`);
           
           // 미션 데이터 새로고침
           await refreshMissionData();
+          
+          // 진행중인 코스 데이터 새로고침
+          await fetchOngoingCourses();
+          
+          // 다음 장소 안내 표시
+          const currentCourse = ongoingCourses[0];
+          if (currentCourse && currentCourse.spots) {
+            const nextSpot = currentCourse.spots.find((spot: any) => !spot.completed_at && !spot.unlock_at);
+            if (nextSpot) {
+              Alert.alert(
+                '방문 완료!', 
+                `${mission.location.name} 방문이 완료되었습니다.\n\n다음 목적지: ${nextSpot.title || nextSpot.name}`,
+                [
+                  { text: '확인' },
+                  { 
+                    text: '지도로 이동', 
+                    onPress: () => navigation.navigate('Map', {
+                      screen: 'MapMain',
+                      params: {
+                        destination: nextSpot.title || nextSpot.name,
+                        destinationLat: nextSpot.lat,
+                        destinationLng: nextSpot.lng,
+                      }
+                    })
+                  }
+                ]
+              );
+            } else {
+              Alert.alert('방문 완료!', `${mission.location.name} 방문이 완료되었습니다.`);
+            }
+          } else {
+            Alert.alert('방문 완료!', `${mission.location.name} 방문이 완료되었습니다.`);
+          }
         } else {
           console.error('[HomeScreen] 방문 완료 처리 실패:', response.status);
           Alert.alert('오류', '방문 완료 처리에 실패했습니다.');

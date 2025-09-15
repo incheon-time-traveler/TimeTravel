@@ -1,8 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Image, Dimensions, TouchableWithoutFeedback, Linking } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Image, Dimensions, TouchableWithoutFeedback } from 'react-native';
 import { Camera, useCameraDevice } from 'react-native-vision-camera';
 import ViewShot from 'react-native-view-shot';
-
 import Slider from '@react-native-community/slider';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
@@ -11,9 +10,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
-// 1. 실제로 사진이 찍힐 4:3 비율의 높이를 계산합니다.
+// 1. 실제로 사진이 찍힐 4:3 비율의 높이를 계산
 const cameraHeight = screenWidth * (4 / 3);
-// 2. 화면의 남는 세로 공간을 계산하여 위아래 검은 여백(레터박스)의 높이를 구합니다.
+// 2. 화면의 남는 세로 공간을 계산하여 위아래 검은 여백(레터박스)의 높이
 const topBottomBarHeight = (screenHeight - cameraHeight) / 2;
 
 interface PastImageData {
@@ -58,19 +57,19 @@ export default function CameraScreen({ route, navigation }: any) {
 	    try {
 	      const status = await Camera.getCameraPermissionStatus();
 	      console.log('[CameraScreen] 카메라 권한 상태:', status);
-	      
+
 	      if (status === 'granted') {
 	        setHasPermission(true);
 	      } else {
 	        const newPermission = await Camera.requestCameraPermission();
 	        console.log('[CameraScreen] 권한 요청 결과:', newPermission);
-	        
+
 	        if (newPermission === 'granted') {
 	          setHasPermission(true);
 	        } else if (newPermission === 'denied') {
 	          // 권한이 거부된 경우 설정으로 이동할 수 있는 옵션 제공
 	          Alert.alert(
-	            "카메라 권한 필요", 
+	            "카메라 권한 필요",
 	            "시간여행 사진 촬영을 위해 카메라 권한이 필요합니다.\n설정에서 권한을 허용해주세요.",
 	            [
 	              { text: "취소", style: "cancel" },
@@ -141,11 +140,11 @@ export default function CameraScreen({ route, navigation }: any) {
     return (
       <View style={styles.container}>
         <Text style={styles.errorText}>카메라 권한이 필요합니다.</Text>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.permissionButton}
           onPress={() => {
             Alert.alert(
-              "카메라 권한 필요", 
+              "카메라 권한 필요",
               "시간여행 사진 촬영을 위해 카메라 권한이 필요합니다.",
               [
                 { text: "취소", style: "cancel" },

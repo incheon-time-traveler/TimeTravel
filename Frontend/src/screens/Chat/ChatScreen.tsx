@@ -34,7 +34,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ visible, onClose, navigation })
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: '1',
-      text: '안녕하세요! 인천 시간 여행에 함께 해주셔서 감사해요. 무엇을 도와드릴까요?',
+      text: '안녕! 인천 시간 여행 재밌게 즐기는 중이야? 궁금한 거 있으면 물어봐!',
       isUser: false,
       timestamp: new Date(),
       type: 'text'

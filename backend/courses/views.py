@@ -30,7 +30,7 @@ def routes(request):
         serializer = RouteSerializer(routes, many=True)
         return Response(serializer.data, status=200)
 
-# 코스 인기순 조회회
+# 코스 인기순 조회
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def best_routes(request):

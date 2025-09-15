@@ -11,6 +11,7 @@ import { useRoute, useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Geolocation from '@react-native-community/geolocation';
 import authService from '../../services/authService';
+import { KAKAO_REST_API_KEY } from '@env';
 
 const { width, height } = Dimensions.get('window');
 
@@ -29,6 +30,7 @@ const MapScreen: React.FC = () => {
   const [mapUrl, setMapUrl] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
   const [currentLocation, setCurrentLocation] = useState<{lat: number, lng: number} | null>(null);
+  const [currentLocationName, setCurrentLocationName] = useState<string>('현재위치');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   // 현재 위치 가져오기 (어드민 계정은 인천 기본 위치)
@@ -42,21 +44,27 @@ const MapScreen: React.FC = () => {
         // 어드민 계정은 인천 기본 위치 사용
         console.log('[MapScreen] 어드민 계정 - 인천 기본 위치 사용');
         setCurrentLocation({ lat: 37.4563, lng: 126.7052 });
+        setCurrentLocationName('인천');
         return;
       }
 
       // 로그아웃 상태이거나 일반 사용자는 실제 GPS 위치 사용
       console.log('[MapScreen] 실제 GPS 위치 획득 시도...');
       Geolocation.getCurrentPosition(
-        (position) => {
+        async (position) => {
           const { latitude, longitude } = position.coords;
           console.log('[MapScreen] 현재 위치 획득:', latitude, longitude);
           setCurrentLocation({ lat: latitude, lng: longitude });
+          
+          // 위치명 가져오기
+          const locationName = await getLocationName(latitude, longitude);
+          setCurrentLocationName(locationName);
         },
         (error) => {
           console.error('[MapScreen] 위치 획득 실패:', error);
           // 기본 위치 설정
           setCurrentLocation({ lat: 37.4563, lng: 126.7052 });
+          setCurrentLocationName('인천');
         },
         {
           enableHighAccuracy: false,
@@ -68,14 +76,19 @@ const MapScreen: React.FC = () => {
       console.error('[MapScreen] 사용자 정보 확인 실패:', error);
       // 에러 시에도 실제 GPS 위치 시도
       Geolocation.getCurrentPosition(
-        (position) => {
+        async (position) => {
           const { latitude, longitude } = position.coords;
           console.log('[MapScreen] 현재 위치 획득:', latitude, longitude);
           setCurrentLocation({ lat: latitude, lng: longitude });
+          
+          // 위치명 가져오기
+          const locationName = await getLocationName(latitude, longitude);
+          setCurrentLocationName(locationName);
         },
         (gpsError) => {
           console.error('[MapScreen] 위치 획득 실패:', gpsError);
           setCurrentLocation({ lat: 37.4563, lng: 126.7052 });
+          setCurrentLocationName('인천');
         },
         {
           enableHighAccuracy: false,
@@ -83,6 +96,37 @@ const MapScreen: React.FC = () => {
           maximumAge: 300000,
         }
       );
+    }
+  };
+
+  // 카카오 API를 사용해서 좌표를 지역명으로 변환
+  const getLocationName = async (lat: number, lng: number): Promise<string> => {
+    try {
+      const response = await fetch(
+        `https://dapi.kakao.com/v2/local/geo/coord2regioncode.json?x=${lng}&y=${lat}`,
+        { headers: { Authorization: `KakaoAK ${KAKAO_REST_API_KEY}` } }
+      );
+      
+      if (!response.ok) {
+        console.error('[MapScreen] 카카오 API 요청 실패:', response.status, response.statusText);
+        return '현재위치';
+      }
+      
+      const result = await response.json();
+      console.log('[MapScreen] 카카오 API 응답:', result);
+      
+      // 주소 정보가 있으면 반환, 없으면 '현재위치' 반환
+      if (result.documents && result.documents.length > 0) {
+        const addressName = result.documents[0].address_name;
+        console.log('[MapScreen] 주소 변환 성공:', addressName);
+        return addressName;
+      } else {
+        console.log('[MapScreen] 주소 정보 없음, 현재위치 반환');
+        return '현재위치';
+      }
+    } catch (error) {
+      console.error('[MapScreen] 주소 가져오기 오류:', error);
+      return '현재위치';
     }
   };
 
@@ -114,7 +158,7 @@ const MapScreen: React.FC = () => {
     } else {
       // 현재 위치가 있으면 현재 위치 지도, 없으면 기본 인천 지도
       if (currentLocation) {
-        url = `https://map.kakao.com/link/map/현재위치,${currentLocation.lat},${currentLocation.lng}`;
+        url = `https://map.kakao.com/link/map/${currentLocationName},${currentLocation.lat},${currentLocation.lng}`;
         console.log('[MapScreen] 현재 위치 지도 URL:', url);
       } else {
         url = 'https://map.kakao.com/link/map/인천,37.4563,126.7052';
@@ -124,7 +168,7 @@ const MapScreen: React.FC = () => {
 
     setMapUrl(url);
     setIsLoading(false);
-  }, [route.params, currentLocation]);
+  }, [route.params, currentLocation, currentLocationName]);
 
   // 컴포넌트 마운트시 및 로그인 상태 변경시 현재 위치 가져오기
   useEffect(() => {

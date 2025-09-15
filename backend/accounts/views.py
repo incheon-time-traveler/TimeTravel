@@ -357,3 +357,87 @@ def auth_success(request):
     
     return Response(html_content, content_type='text/html')
 
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def login_success(request):
+    """
+    카카오 로그인 성공 후 리다이렉트되는 페이지
+    React Native WebView에서 토큰을 추출할 수 있도록 단순한 HTML 페이지 반환
+    """
+    access_token = request.GET.get('access', '')
+    
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>로그인 성공</title>
+        <style>
+            body {{
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                height: 100vh;
+                margin: 0;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+            }}
+            .container {{
+                text-align: center;
+                padding: 2rem;
+                background: rgba(255, 255, 255, 0.1);
+                border-radius: 15px;
+                backdrop-filter: blur(10px);
+                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            }}
+            .success-icon {{
+                font-size: 4rem;
+                margin-bottom: 1rem;
+            }}
+            h1 {{
+                margin: 0 0 1rem 0;
+                font-size: 1.5rem;
+                font-weight: 600;
+            }}
+            p {{
+                margin: 0;
+                opacity: 0.8;
+                font-size: 1rem;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="success-icon">✅</div>
+            <h1>로그인 성공!</h1>
+            <p>잠시 후 앱으로 돌아갑니다...</p>
+        </div>
+        
+        <script>
+            // React Native WebView에서 URL 변경을 감지할 수 있도록 
+            // 현재 URL에 토큰 정보가 포함되어 있음을 확인
+            console.log('Login success page loaded with token');
+            
+            // 3초 후 페이지를 닫거나 뒤로 가기 (선택사항)
+            setTimeout(() => {{
+                if (window.ReactNativeWebView) {{
+                    // React Native WebView인 경우
+                    window.ReactNativeWebView.postMessage(JSON.stringify({{
+                        type: 'LOGIN_SUCCESS',
+                        token: '{access_token}'
+                    }}));
+                }} else {{
+                    // 일반 브라우저인 경우 (테스트용)
+                    window.close();
+                }}
+            }}, 2000);
+        </script>
+    </body>
+    </html>
+    """
+    
+    return Response(html_content, content_type='text/html')
+

@@ -17,7 +17,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 from django.urls import include
-
+from accounts import views
 from rest_framework import permissions
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
@@ -48,4 +48,6 @@ urlpatterns = [
     path('v1/chatbot/', include('chatbot.urls')),
     path('v1/swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
     path('v1/redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
+    # React Native WebView용 로그인 성공 페이지 (루트 레벨에서 접근)
+    path('login-success/', views.login_success, name='login-success'),
 ]

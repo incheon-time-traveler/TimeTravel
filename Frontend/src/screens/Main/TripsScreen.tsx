@@ -985,49 +985,328 @@ const renderCompletedTab = () => (
   const renderCourseModal = () => (
     <Modal
       visible={courseModalVisible}
-      animationType="slide"
-      presentationStyle="pageSheet"
+      transparent={true}
+      animationType="fade"
+      onRequestClose={() => setCourseModalVisible(false)}
     >
-      <SafeAreaView style={styles.modalContainer} edges={['top', 'left', 'right']}>
-        <View style={styles.modalHeader}>
-          <Text style={styles.modalTitle}>{selectedCourse?.user_region_name || '인천 여행 코스'}</Text>
-          <TouchableOpacity onPress={() => setCourseModalVisible(false)} style={styles.modalCloseButton}>
-            <Text style={styles.modalCloseButtonText}>✕</Text>
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView style={styles.modalTextContainer} showsVerticalScrollIndicator={false}>
-          <Text style={styles.modalDescription}>완료된 여행 코스입니다.</Text>
-
-          <Text style={styles.modalSectionTitle}>방문 장소</Text>
-          {selectedCourse?.spots?.map((spot: any, index: number) => (
-            <View key={index} style={styles.modalLocationItem}>
-              <Text style={styles.modalLocationNumber}>{index + 1}</Text>
-              <Text style={styles.modalLocationText}>{spot.title}</Text>
+      <View style={{
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.6)',
+        justifyContent: 'center',
+        alignItems: 'center',
+      }}>
+        <View style={{
+          width: width - 30,
+          maxHeight: height - 80,
+          backgroundColor: '#fff',
+          borderRadius: 20,
+          margin: 15,
+          shadowColor: '#000',
+          shadowOffset: {
+            width: 0,
+            height: 10,
+          },
+          shadowOpacity: 0.25,
+          shadowRadius: 20,
+          elevation: 20,
+        }}>
+          {/* 헤더 */}
+          <View style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            paddingHorizontal: 25,
+            paddingVertical: 20,
+            backgroundColor: INCHEON_BLUE_LIGHT,
+            borderTopLeftRadius: 20,
+            borderTopRightRadius: 20,
+            borderBottomWidth: 2,
+            borderBottomColor: INCHEON_BLUE,
+          }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={{ fontSize: 20, marginRight: 8 }}>🗺️</Text>
+              <Text style={{
+                fontSize: 20,
+                fontWeight: 'bold',
+                color: INCHEON_BLUE,
+                fontFamily: 'NeoDunggeunmoPro-Regular'
+              }}>
+                코스 상세 정보
+              </Text>
             </View>
-          ))}
-
-          <Text style={styles.modalSectionTitle}>코스 사진</Text>
-          <View style={styles.modalPhotoGrid}>
-            {selectedCourse?.photos?.map((photo: any, index: number) => {
-              console.log(`[TripsScreen] 모달 사진 ${index + 1} 렌더링:`, photo);
-              return (
-                <PhotoWithFallback 
-                  key={`modal-${selectedCourse.route_id}-${index}-${photo}`}
-                  photo={photo}
-                  index={index}
-                  style={styles.modalPhoto}
-                  isModal={true}
-                />
-              );
-            })}
+            <TouchableOpacity
+              onPress={() => setCourseModalVisible(false)}
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 16,
+                backgroundColor: '#fff',
+                justifyContent: 'center',
+                alignItems: 'center',
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.1,
+                shadowRadius: 4,
+                elevation: 3,
+              }}
+            >
+              <Text style={{ fontSize: 18, color: '#666' }}>✕</Text>
+            </TouchableOpacity>
           </View>
 
-          {selectedCourse?.completedDate && (
-            <Text style={styles.modalDate}>완료 날짜: {selectedCourse.completedDate}</Text>
-          )}
-        </ScrollView>
-      </SafeAreaView>
+          {/* 내용 */}
+          <ScrollView
+            style={{ maxHeight: height - 300 }}
+            showsVerticalScrollIndicator={true}
+            contentContainerStyle={{ paddingBottom: 20 }}
+          >
+            <View style={{ paddingHorizontal: 25, paddingTop: 20 }}>
+              {/* 루트 기본 정보 */}
+              <View style={{
+                backgroundColor: '#f8f9fa',
+                borderRadius: 12,
+                padding: 16,
+                marginBottom: 20,
+                borderLeftWidth: 4,
+                borderLeftColor: INCHEON_BLUE,
+              }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                  <Text style={{ fontSize: 18, marginRight: 8 }}>📍</Text>
+                  <Text style={{
+                    fontSize: 18,
+                    fontWeight: 'bold',
+                    color: '#333',
+                    fontFamily: 'NeoDunggeunmoPro-Regular'
+                  }}>
+                    {selectedCourse?.user_region_name || '알 수 없는 루트'}
+                  </Text>
+                </View>
+
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                  <Text style={{ fontSize: 16, marginRight: 8 }}>🏢</Text>
+                  <Text style={{
+                    fontSize: 14,
+                    color: '#666',
+                    fontFamily: 'NeoDunggeunmoPro-Regular'
+                  }}>
+                    지역: {selectedCourse?.user_region_name || '인천'}
+                  </Text>
+                </View>
+
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                  <Text style={{ fontSize: 16, marginRight: 8 }}>🗺️</Text>
+                  <Text style={{
+                    fontSize: 14,
+                    color: '#666',
+                    fontFamily: 'NeoDunggeunmoPro-Regular'
+                  }}>
+                    총 장소 수: {selectedCourse?.total_spots || selectedCourse?.spots?.length || 0}개
+                  </Text>
+                </View>
+
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={{ fontSize: 16, marginRight: 8 }}>✅</Text>
+                  <Text style={{
+                    fontSize: 14,
+                    color: '#28a745',
+                    fontWeight: '600',
+                    fontFamily: 'NeoDunggeunmoPro-Regular'
+                  }}>
+                    완료일: {selectedCourse?.completedDate || '알 수 없음'}
+                  </Text>
+                </View>
+              </View>
+
+              {/* 장소 목록 헤더 */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 15 }}>
+                <Text style={{ fontSize: 18, marginRight: 8 }}>≡</Text>
+                <Text style={{
+                  fontSize: 18,
+                  fontWeight: 'bold',
+                  color: '#333',
+                  fontFamily: 'NeoDunggeunmoPro-Regular'
+                }}>
+                  장소 목록
+                </Text>
+              </View>
+
+              {selectedCourse?.spots && selectedCourse.spots.length > 0 ? (
+                selectedCourse.spots.map((spot: any, index: number) => (
+                  <View key={spot.id} style={{
+                    marginBottom: 12,
+                    backgroundColor: '#fff',
+                    borderRadius: 12,
+                    padding: 16,
+                    borderWidth: 1,
+                    borderColor: '#e9ecef',
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.05,
+                    shadowRadius: 4,
+                    elevation: 2,
+                  }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                      <View style={{
+                        width: 24,
+                        height: 24,
+                        borderRadius: 12,
+                        backgroundColor: INCHEON_BLUE,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        marginRight: 12,
+                      }}>
+                        <Text style={{
+                          color: '#fff',
+                          fontSize: 12,
+                          fontWeight: 'bold',
+                          fontFamily: 'NeoDunggeunmoPro-Regular'
+                        }}>
+                          {index + 1}
+                        </Text>
+                      </View>
+                      <Text style={{
+                        fontSize: 16,
+                        fontWeight: 'bold',
+                        color: '#333',
+                        flex: 1,
+                        fontFamily: 'NeoDunggeunmoPro-Regular'
+                      }}>
+                        {spot.title}
+                      </Text>
+                    </View>
+                    {spot.address ? (
+                      <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginLeft: 36 }}>
+                        <Text style={{ fontSize: 14, marginRight: 6, marginTop: 2 }}>📍</Text>
+                        <Text style={{
+                          fontSize: 13,
+                          color: '#666',
+                          flex: 1,
+                          lineHeight: 18,
+                          fontFamily: 'NeoDunggeunmoPro-Regular'
+                        }}>
+                          {spot.address}
+                        </Text>
+                      </View>
+                    ) : (
+                      <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginLeft: 36 }}>
+                        <Text style={{ fontSize: 14, marginRight: 6, marginTop: 2 }}>📍</Text>
+                        <Text style={{
+                          fontSize: 13,
+                          color: '#999',
+                          flex: 1,
+                          lineHeight: 18,
+                          fontFamily: 'NeoDunggeunmoPro-Regular',
+                          fontStyle: 'italic'
+                        }}>
+                          주소 정보 없음
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                ))
+              ) : (
+                <View style={{
+                  backgroundColor: '#f8f9fa',
+                  borderRadius: 12,
+                  padding: 30,
+                  alignItems: 'center',
+                  borderWidth: 1,
+                  borderColor: '#e9ecef',
+                  borderStyle: 'dashed',
+                }}>
+                  <Text style={{ fontSize: 32, marginBottom: 10 }}>⏳</Text>
+                  <Text style={{
+                    fontSize: 14,
+                    color: '#6c757d',
+                    textAlign: 'center',
+                    fontFamily: 'NeoDunggeunmoPro-Regular'
+                  }}>
+                    장소 정보를 불러오는 중...
+                  </Text>
+                </View>
+              )}
+
+              {/* 코스 사진 섹션 */}
+              {selectedCourse?.photos && selectedCourse.photos.length > 0 && (
+                <>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 15, marginTop: 20 }}>
+                    <Text style={{ fontSize: 18, marginRight: 8 }}>📸</Text>
+                    <Text style={{
+                      fontSize: 18,
+                      fontWeight: 'bold',
+                      color: '#333',
+                      fontFamily: 'NeoDunggeunmoPro-Regular'
+                    }}>
+                      코스 사진
+                    </Text>
+                  </View>
+                  <View style={{
+                    flexDirection: 'row',
+                    flexWrap: 'wrap',
+                    justifyContent: 'space-between',
+                    marginBottom: 20,
+                  }}>
+                    {selectedCourse.photos.map((photo: any, index: number) => (
+                      <PhotoWithFallback 
+                        key={`modal-${selectedCourse.route_id}-${index}-${photo}`}
+                        photo={photo}
+                        index={index}
+                        style={{
+                          width: (width - 100) / 2,
+                          height: 110,
+                          borderRadius: 10,
+                          borderWidth: 1,
+                          borderColor: '#e0e0e0',
+                          marginBottom: 12,
+                        }}
+                        isModal={true}
+                      />
+                    ))}
+                  </View>
+                </>
+              )}
+            </View>
+          </ScrollView>
+
+          {/* 푸터 */}
+          <View style={{
+            paddingHorizontal: 25,
+            paddingVertical: 20,
+            backgroundColor: '#f8f9fa',
+            borderBottomLeftRadius: 20,
+            borderBottomRightRadius: 20,
+            borderTopWidth: 1,
+            borderTopColor: '#e9ecef',
+          }}>
+            <TouchableOpacity
+              style={{
+                backgroundColor: INCHEON_BLUE,
+                paddingVertical: 14,
+                borderRadius: 12,
+                alignItems: 'center',
+                shadowColor: INCHEON_BLUE,
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.3,
+                shadowRadius: 8,
+                elevation: 6,
+              }}
+              onPress={() => setCourseModalVisible(false)}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={{ fontSize: 18, color: '#fff', marginRight: 6 }}>✅</Text>
+                <Text style={{
+                  color: '#fff',
+                  fontSize: 16,
+                  fontWeight: 'bold',
+                  fontFamily: 'NeoDunggeunmoPro-Regular'
+                }}>
+                  다른 코스 보기
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
     </Modal>
   );
 

@@ -438,7 +438,84 @@ export default function HomeScreen({ navigation }: any) {
             console.log('[HomeScreen] 추출된 route_spot_id들:', routeSpotIds);
             console.log('[HomeScreen] ========================================');
             
-            Alert.alert('3단계 완료', `route_id ${routeId}의 route_spot_id들: ${routeSpotIds.join(', ')}`);
+            // 4단계: 현재 방문해야하는 spot의 unlock_at 업데이트
+            console.log('[HomeScreen] ===== 4단계: 현재 방문해야하는 spot의 unlock_at 업데이트 =====');
+            
+            // 첫 번째 미완료 스팟 찾기 (unlock_at이 null인 스팟)
+            const currentSpot = targetCourse.spots.find((spot: any) => spot.unlock_at === null);
+            
+            if (currentSpot && currentSpot.user_route_spot_id) {
+              console.log('[HomeScreen] 현재 방문할 스팟:', {
+                id: currentSpot.id,
+                title: currentSpot.title,
+                order: currentSpot.order,
+                user_route_spot_id: currentSpot.user_route_spot_id,
+                route_spot_id: currentSpot.route_spot_id
+              });
+              
+              // unlock_route_spot API 호출
+              const unlockResponse = await fetch(`${BACKEND_API.BASE_URL}/v1/courses/unlock_route_spot/${currentSpot.route_spot_id}/`, {
+                method: 'PATCH',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${tokens.access}`,
+                },
+                body: JSON.stringify({
+                  id: currentSpot.user_route_spot_id
+                }),
+              });
+              
+              console.log('[HomeScreen] unlock API 응답:', unlockResponse.status, unlockResponse.statusText);
+              
+              if (unlockResponse.ok) {
+                const unlockData = await unlockResponse.json();
+                console.log('[HomeScreen] unlock 성공 데이터:', unlockData);
+                console.log('[HomeScreen] ========================================');
+                
+                // 방문 완료 후 데이터 새로고침
+                console.log('[HomeScreen] 방문 완료 후 데이터 새로고침 시작...');
+                await checkOngoingCourses();
+                await fetchVisitedSpots();
+                
+                // 다음 목적지 확인
+                const updatedCourse = ongoingCourses[0];
+                if (updatedCourse && updatedCourse.spots) {
+                  const nextSpot = updatedCourse.spots.find((spot: any) => !spot.completed_at && !spot.unlock_at);
+                  
+                  if (nextSpot) {
+                    Alert.alert(
+                      '방문 완료!', 
+                      `${currentSpot.title} 방문이 완료되었습니다!`,
+                      [
+                        { text: '확인' },
+                        { 
+                          text: '지도로 이동', 
+                          onPress: () => navigation.navigate('Map', {
+                            screen: 'MapMain',
+                            params: {
+                              destination: nextSpot.title || nextSpot.name,
+                              destinationLat: nextSpot.lat,
+                              destinationLng: nextSpot.lng,
+                            }
+                          })
+                        }
+                      ]
+                    );
+                  } else {
+                    Alert.alert('방문 완료!', `${currentSpot.title} 방문이 완료되었습니다!\n모든 스팟을 완주했습니다! 🎉`);
+                  }
+                } else {
+                  Alert.alert('방문 완료!', `${currentSpot.title} 방문이 완료되었습니다!`);
+                }
+              } else {
+                const errorText = await unlockResponse.text();
+                console.error('[HomeScreen] unlock 실패:', unlockResponse.status, errorText);
+                Alert.alert('오류', '방문 처리에 실패했습니다.');
+              }
+            } else {
+              console.log('[HomeScreen] 방문할 수 있는 스팟이 없습니다.');
+              Alert.alert('알림', '방문할 수 있는 스팟이 없습니다. 모든 스팟이 완료되었습니다.');
+            }
           } else {
             console.log('[HomeScreen] route_id 176에 해당하는 코스를 찾을 수 없습니다.');
             Alert.alert('오류', '해당 route_id의 코스를 찾을 수 없습니다.');

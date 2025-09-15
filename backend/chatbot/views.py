@@ -142,7 +142,8 @@ def memory(request):
     """
     try:
         # 사용자 고유 정보 받기
-        user_id = request.data.get("thread_id") or request.POST.get("thread_id")
+        # user_id = request.data.get("thread_id") or request.DELETE.get("thread_id")
+        user_id = request.user.id
 
         # 꼭 필요한 user_input, user_id 받기
         if not user_id:

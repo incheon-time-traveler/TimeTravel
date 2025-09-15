@@ -10,6 +10,7 @@ import SocialLoginWebView from './SocialLoginWebView';
 import { INCHEON_BLUE, INCHEON_BLUE_LIGHT, INCHEON_GRAY, WARNING, TEXT_STYLES } from '../../styles/fonts';
 import { BACKEND_API } from '../../config/apiKeys';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { ChatbotService } from '../../services/chatbotService';
 
 const { width, height } = Dimensions.get('window');
 
@@ -314,6 +315,10 @@ const LoginScreen = ({ navigation, route }: any) => {
 
   const handleLogout = async () => {
     try {
+
+      await ChatbotService.deleteMemory({ thread_id: userProfile.id });
+      console.log('[LoginScreen] 챗봇 메모리 삭제 완료');
+
       await authService.logout();
       console.log('[LoginScreen] 로그아웃 완료');
       
@@ -373,7 +378,10 @@ const LoginScreen = ({ navigation, route }: any) => {
               }
 
               console.log('[LoginScreen] 회원 탈퇴 시작:', userProfile.id);
-              
+
+              await ChatbotService.deleteMemory({ thread_id: userProfile.id });
+              console.log('[LoginScreen] 챗봇 메모리 삭제 완료');
+
               const response = await fetch(`${BACKEND_API.BASE_URL}/v1/users/profile/${userProfile.id}/delete/`, {
                 method: 'DELETE',
                 headers: {

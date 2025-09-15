@@ -42,7 +42,6 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ visible, onClose, navigation })
   ]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  // const [userId] = useState(() => ChatbotService.generateUserId());    // 이 부분 진짜 userID 또는 nickname 사용할 수 있도록
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
 
@@ -62,7 +61,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ visible, onClose, navigation })
         const { latitude, longitude } = position.coords;
         setUserLocation({ lat: latitude, lng: longitude });
         const user = await authService.getUser()
-        if(user?.isSuperUser === true){
+        if(user?.id === 99999){
           setUserLocation({ lat: 37.4563, lng: 126.7052 });
           console.log("테스트 계정으로 기본 위치 설정")
         }

@@ -109,7 +109,7 @@ def google_callback(request):
     
     # TODO: 아래 리다이렉트 대상(도메인/스킴)은 하드코딩이며 .env로 이동하세요.
     app_scheme_success = f"timetravelapp://login-success?access={access_token}"
-    web_success = f"https://incheon-time-traveler.duckdns.org/v1/login-success?access={access_token}"
+    web_success = f"https://incheon-time-traveler.duckdns.org/v1/users/login-success?access={access_token}"
     state = request.GET.get("state", "web")
     # Google은 WebView 금지 → 앱에서 Linking 사용 시(state=app) 커스텀 스킴으로 리다이렉트
     if state == "app":
@@ -198,7 +198,7 @@ def kakao_callback(request):
     
     # React Native WebView에서 토큰을 감지할 수 있도록 우리 도메인의 특정 경로로 리다이렉트합니다.
     # TODO: 경로/도메인은 하드코딩되어 있으며, 추후 환경변수로 분리하세요.
-    response = redirect(f"https://incheon-time-traveler.duckdns.org/v1/login-success?access={access_token}")
+    response = redirect(f"https://incheon-time-traveler.duckdns.org/v1/users/login-success?access={access_token}")
     response.set_cookie(
         key='refresh_token',
         value=str(refresh_token),

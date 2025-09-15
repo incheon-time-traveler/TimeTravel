@@ -214,7 +214,7 @@ export default function HomeScreen({ navigation }: any) {
           if (isLoggedIn) {
             const user = await authService.getUser();
             console.log('[HomeScreen] 현재 사용자:', user);
-            if (user?.id === 999999 || user?.id === 33) {
+            if (user?.isSuperUser === true) {
               setCurrentLocationState({ lat: 37.4563, lng: 126.7052 });
               setCurrentLocation(37.4563, 126.7052);
               console.log('[HomeScreen] 테스트 계정으로 기본 위치 설정');
@@ -238,7 +238,7 @@ export default function HomeScreen({ navigation }: any) {
               
               if (isLoggedIn) {
                 const user = await authService.getUser();
-                if (user?.id === 999999 || user?.id === 33) {
+                if (user?.isSuperUser === true) {
                   setCurrentLocationState({ lat: 37.4563, lng: 126.7052 });
                   setCurrentLocation(37.4563, 126.7052);
                   console.log('[HomeScreen] 테스트 계정으로 기본 위치 설정');

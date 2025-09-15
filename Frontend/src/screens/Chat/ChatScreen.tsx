@@ -42,7 +42,6 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ visible, onClose, navigation })
   ]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  // const [userId] = useState(() => ChatbotService.generateUserId());    // 이 부분 진짜 userID 또는 nickname 사용할 수 있도록
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
 

@@ -9,6 +9,7 @@ import authService from '../../services/authService';
 import SocialLoginWebView from './SocialLoginWebView';
 import { INCHEON_BLUE, INCHEON_BLUE_LIGHT, INCHEON_GRAY, WARNING, TEXT_STYLES } from '../../styles/fonts';
 import { BACKEND_API } from '../../config/apiKeys';
+import { DeviceEventEmitter } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChatbotService } from '../../services/chatbotService';
 
@@ -321,6 +322,7 @@ const LoginScreen = ({ navigation, route }: any) => {
 
       await authService.logout();
       console.log('[LoginScreen] 로그아웃 완료');
+      DeviceEventEmitter.emit('app.logout');
       
       // 로그인 상태 즉시 false로 설정
       setIsLoggedIn(false);

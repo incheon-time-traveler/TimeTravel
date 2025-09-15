@@ -156,15 +156,20 @@ export default function HomeScreen({ navigation }: any) {
     try {
       // React Native Geolocation 사용
       Geolocation.getCurrentPosition(
-        (position: any) => {
+        async (position: any) => {
           const { latitude, longitude } = position.coords;
           console.log(`[HomeScreen] GPS 위치 획득: ${latitude}, ${longitude}`);
 
           setCurrentLocationState({ lat: latitude, lng: longitude });
-          
           // 로그인된 상태에서만 missions.ts에 위치 설정
           if (isLoggedIn) {
             setCurrentLocation(latitude, longitude);
+            const user = await authService.getUser()
+            console.log("user", user)
+            if(user?.id === 999999 || user?.id === 33){
+              setCurrentLocationState({ lat: 37.4563, lng: 126.7052 });
+              console.log("테스트 계정으로 기본 위치 설정")
+            }
             startLocationDetection();
           }
         },
@@ -642,7 +647,7 @@ export default function HomeScreen({ navigation }: any) {
         // 토큰이 있고 사용자 정보가 있으면 로그인된 상태
         setIsLoggedIn(true);
         setUserProfile(user);
-        console.log('[HomeScreen] 로그인된 상태:', user.nickname);
+        console.log('[HomeScreen] 로그인된 상태:', user);
 
         // 로그인 후 GPS 위치 설정
         setUserLocation();

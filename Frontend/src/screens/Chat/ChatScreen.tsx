@@ -20,7 +20,7 @@ import Geolocation from '@react-native-community/geolocation';
 import { INCHEON_BLUE, INCHEON_BLUE_LIGHT, INCHEON_GRAY, TEXT_STYLES } from '../../styles/fonts';
 import { ChatMessage, ChatBotResponse } from '../../types/chat';
 import { ChatbotService } from '../../services/chatbotService';
-import AuthService from '../../services/authService'
+import AuthService, { authService } from '../../services/authService'
 
 const { width, height } = Dimensions.get('window');
 
@@ -56,11 +56,16 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ visible, onClose, navigation })
     }
   }, [visible, messages]);
 
-  const getCurrentLocation = () => {
+  const getCurrentLocation = async () => {
     Geolocation.getCurrentPosition(
-      (position) => {
+      async (position) => {
         const { latitude, longitude } = position.coords;
         setUserLocation({ lat: latitude, lng: longitude });
+        const user = await authService.getUser()
+        if(user?.id === 999999 || user?.id === 33){
+          setUserLocation({ lat: 37.4563, lng: 126.7052 });
+          console.log("테스트 계정으로 기본 위치 설정")
+        }
         console.log('[ChatScreen] 현재 위치:', latitude, longitude);
       },
       (error) => {

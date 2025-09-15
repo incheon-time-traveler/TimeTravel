@@ -131,11 +131,16 @@ export default function CourseRecommendationScreen({ navigation }: any) {
     console.log('[CourseRecommendationScreen] 위치 요청 시작...');
     
     Geolocation.getCurrentPosition(
-      (position) => {
+      async (position) => {
         const { latitude, longitude } = position.coords;
         console.log('[CourseRecommendationScreen] 위치 획득 성공:', latitude, longitude);
-
+        
         setUserLocation({ lat: latitude, lng: longitude });
+        const user = await authService.getUser()
+        if(user?.id === 999999 || user?.id === 33){
+          setUserLocation({ lat: 37.4563, lng: 126.7052 });
+          console.log("테스트 계정으로 기본 위치 설정")
+        }
         setIsGettingLocation(false);
       },
       (error) => {
@@ -144,11 +149,16 @@ export default function CourseRecommendationScreen({ navigation }: any) {
         // GPS 기반으로 재시도
         console.log('[CourseRecommendationScreen] GPS 기반 위치 재시도...');
         Geolocation.getCurrentPosition(
-          (position) => {
+          async (position) => {
             const { latitude, longitude } = position.coords;
             console.log('[CourseRecommendationScreen] GPS 위치 획득:', latitude, longitude);
 
             setUserLocation({ lat: latitude, lng: longitude });
+            const user = await authService.getUser()
+            if(user?.id === 999999 || user?.id === 33){
+              setUserLocation({ lat: 37.4563, lng: 126.7052 });
+              console.log("테스트 계정으로 기본 위치 설정")
+            }
             setIsGettingLocation(false);
           },
           (gpsError) => {

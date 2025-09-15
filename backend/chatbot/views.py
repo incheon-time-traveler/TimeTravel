@@ -142,12 +142,12 @@ def memory(request):
     """
     try:
         # 사용자 고유 정보 받기
-        user_id = request.data.get("user_id") or request.POST.get("user_id")
+        user_id = request.data.get("thread_id") or request.POST.get("thread_id")
 
         # 꼭 필요한 user_input, user_id 받기
         if not user_id:
             return Response(
-                {"error": "user_id 파라미터가 필요합니다."},
+                {"error": "thread_id 파라미터가 필요합니다."},
                 status=status.HTTP_400_BAD_REQUEST
             )
 

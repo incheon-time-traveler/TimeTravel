@@ -152,18 +152,12 @@ def memory(request):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # FastAPI AI 서버로 요청 데이터 준비
-        payload = {
-            "thread_id": user_id,
-        }
-
         # FastAPI AI 서버에 요청
         fastapi_url = f"{settings.FASTAPI_AI_SERVER_URL}/v1/memory"
         
         try:
             response = requests.delete(
-                fastapi_url,
-                json=payload,
+                f"{fastapi_url}?thread_id={user_id}",
                 timeout=30,  # 30초 타임아웃
                 headers={'Content-Type': 'application/json'}
             )
@@ -172,17 +166,17 @@ def memory(request):
             response = response.json()
             
             # 삭제했다는 응답이 오면
-            if response.complete:
+            if response["complete"]:
                 return Response(
-                    response,
+                    {"success": True},
                     status=status.HTTP_200_OK
                 )
-            elif not response:
-                return Response(
-                    {"error": "메모리를 삭제하지 못했습니다."},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                )
             
+            return Response(
+                {"error": "메모리를 삭제하지 못했습니다."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        
         except requests.exceptions.ConnectionError:
             return Response(
                 {"error": "AI 서버에 연결할 수 없습니다. 서버 상태를 확인해주세요."},

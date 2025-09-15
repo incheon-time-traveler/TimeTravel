@@ -463,7 +463,7 @@ export default function CourseRecommendationScreen({ navigation }: any) {
       setIsLoading(false);
     }
   };
-	// 현재 위치 주소 요청 (어드민 계정은 '인천' 표시)
+	// 현재 위치 주소 요청 (카카오 API 사용)
   const getAddressFromCoords = async (lat: number, lng: number): Promise<string | null> => {
     try {
       // 어드민 계정 확인
@@ -473,11 +473,32 @@ export default function CourseRecommendationScreen({ navigation }: any) {
         return '인천';
       }
       
-      // 일반 사용자는 실제 위치 표시
-      return `위도: ${lat.toFixed(6)}\n경도: ${lng.toFixed(6)}`;
+      // 카카오 API를 사용해서 실제 주소 가져오기
+      const response = await fetch(
+        `https://dapi.kakao.com/v2/local/geo/coord2regioncode.json?x=${lng}&y=${lat}`,
+        { headers: { Authorization: `KakaoAK ${KAKAO_REST_API_KEY}` } }
+      );
+      
+      if (!response.ok) {
+        console.error('카카오 API 요청 실패:', response.status, response.statusText);
+        return `위도: ${lat.toFixed(6)}\n경도: ${lng.toFixed(6)}`;
+      }
+      
+      const result = await response.json();
+      console.log('[CourseRecommendationScreen] 카카오 API 응답:', result);
+      
+      // 주소 정보가 있으면 반환, 없으면 좌표 반환
+      if (result.documents && result.documents.length > 0) {
+        const addressName = result.documents[0].address_name;
+        console.log('[CourseRecommendationScreen] 주소 변환 성공:', addressName);
+        return addressName;
+      } else {
+        console.log('[CourseRecommendationScreen] 주소 정보 없음, 좌표 반환');
+        return `위도: ${lat.toFixed(6)}\n경도: ${lng.toFixed(6)}`;
+      }
     } catch (error) {
-      console.error('주소 가져오기 오류:', error);
-      return '현재 위치';
+      console.error('[CourseRecommendationScreen] 주소 가져오기 오류:', error);
+      return `위도: ${lat.toFixed(6)}\n경도: ${lng.toFixed(6)}`;
     }
   };
 

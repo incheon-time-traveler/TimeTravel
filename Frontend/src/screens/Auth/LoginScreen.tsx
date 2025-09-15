@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Text, Image, View, Dimensions, Alert, StyleSheet, TouchableOpacity, Modal, Linking, ScrollView, RefreshControl } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import Ionicons from '@react-native-vector-icons/ionicons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import RNFS from 'react-native-fs';
 import { OAUTH_URLS } from '../../config/apiKeys';
 import authService from '../../services/authService';
 import SocialLoginWebView from './SocialLoginWebView';
@@ -384,6 +386,34 @@ const LoginScreen = ({ navigation, route }: any) => {
                 
                 // 로컬 데이터 완전 정리
                 await authService.logout();
+                
+                // 로컬 저장된 사진 데이터 삭제
+                try {
+                  // AsyncStorage에서 저장된 사진 목록 가져오기
+                  const savedPhotosJSON = await AsyncStorage.getItem('saved_photos');
+                  if (savedPhotosJSON) {
+                    const photoDataArray = JSON.parse(savedPhotosJSON);
+                    
+                    // 각 사진 파일 삭제
+                    for (const photoData of photoDataArray) {
+                      try {
+                        if (await RNFS.exists(photoData.path)) {
+                          await RNFS.unlink(photoData.path);
+                          console.log('[LoginScreen] 사진 파일 삭제:', photoData.path);
+                        }
+                      } catch (fileError) {
+                        console.error('[LoginScreen] 사진 파일 삭제 실패:', photoData.path, fileError);
+                      }
+                    }
+                    
+                    // AsyncStorage에서 사진 목록 삭제
+                    await AsyncStorage.removeItem('saved_photos');
+                    console.log('[LoginScreen] 저장된 사진 데이터 삭제 완료');
+                  }
+                } catch (photoError) {
+                  console.error('[LoginScreen] 사진 데이터 삭제 중 오류:', photoError);
+                }
+                
                 setIsLoggedIn(false);
                 setUserProfile(null);
                 setLoginHandled(false); // 로그인 핸들러 상태 초기화

@@ -207,11 +207,18 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ visible, onClose, navigation })
       if (kakaoMapInfo) {
         // 챗봇 닫기
         onClose();
-        // 맵으로 이동
-        navigation.navigate('Map', {
-          screen: 'MapMain',
-          params: kakaoMapInfo
-        });
+        
+        // navigation 객체가 존재하는지 확인
+        if (navigation && navigation.navigate) {
+          // 맵으로 이동
+          navigation.navigate('Map', {
+            screen: 'MapMain',
+            params: kakaoMapInfo
+          });
+        } else {
+          console.error('[ChatScreen] navigation 객체가 없습니다:', navigation);
+          Alert.alert('오류', '네비게이션을 사용할 수 없습니다. 앱을 다시 시작해주세요.');
+        }
         return;
       }
 

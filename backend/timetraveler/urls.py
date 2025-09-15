@@ -48,6 +48,4 @@ urlpatterns = [
     path('v1/chatbot/', include('chatbot.urls')),
     path('v1/swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
     path('v1/redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
-    # React Native WebView용 로그인 성공 페이지 (루트 레벨에서 접근)
-    path('login-success/', views.login_success, name='login-success'),
 ]

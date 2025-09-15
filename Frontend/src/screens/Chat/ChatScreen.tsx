@@ -62,7 +62,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ visible, onClose, navigation })
         const { latitude, longitude } = position.coords;
         setUserLocation({ lat: latitude, lng: longitude });
         const user = await authService.getUser()
-        if(user?.isSuperUser === true){
+        if(user?.id === 99999){
           setUserLocation({ lat: 37.4563, lng: 126.7052 });
           console.log("테스트 계정으로 기본 위치 설정")
         }

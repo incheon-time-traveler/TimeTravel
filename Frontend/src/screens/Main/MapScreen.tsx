@@ -38,7 +38,7 @@ const MapScreen: React.FC = () => {
       const loggedIn = !!user;
       setIsLoggedIn(loggedIn);
       
-      if (loggedIn && user?.isSuperUser === true) {
+      if (loggedIn && user?.id === 999999) {
         // 어드민 계정은 인천 기본 위치 사용
         console.log('[MapScreen] 어드민 계정 - 인천 기본 위치 사용');
         setCurrentLocation({ lat: 37.4563, lng: 126.7052 });

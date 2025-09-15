@@ -100,7 +100,6 @@ def google_callback(request):
             "age" : "",
             "gender" : "",
             "phone" : "",
-            "isSuperUser" : False,
         },
     )
     
@@ -189,7 +188,6 @@ def kakao_callback(request):
             "age" : "",
             "gender" : "",
             "phone" : "",
-            "isSuperUser" : False,
         },
     )
 

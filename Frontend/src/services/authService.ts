@@ -9,7 +9,6 @@ export interface User {
   age?: string;
   gender?: string;
   phone?: string;
-  isSuperUser?: boolean;
 }
 
 export interface AuthTokens {

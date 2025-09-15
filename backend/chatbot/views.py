@@ -173,7 +173,7 @@ def memory(request):
             # 삭제했다는 응답이 오면
             if response.complete:
                 return Response(
-                    {"result": True},
+                    response,
                     status=status.HTTP_200_OK
                 )
             elif not response:

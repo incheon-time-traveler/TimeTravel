@@ -20,9 +20,7 @@ export interface DeleteMemoryRequest {
 }
 
 export interface DeleteMemoryResponse {
-  thread_id: number;
-  deleted_rows: number;
-  complete: boolean;
+  success: boolean;
 }
 
 export class ChatbotService {

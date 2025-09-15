@@ -505,7 +505,7 @@ export const completeMission = async (missionId: number, authToken?: string) => 
   }
 };
 
-// 다음 스팟으로 진행 (백엔드 API 호출)
+// 다음 스팟으로 진행 (기존 unlock_route_spot API 활용)
 export const proceedToNextSpot = async (authToken?: string): Promise<boolean> => {
   try {
     const userCourse = await fetchUserActiveCourse(authToken);
@@ -530,24 +530,30 @@ export const proceedToNextSpot = async (authToken?: string): Promise<boolean> =>
       name: (nextSpot as any).title || nextSpot.name
     });
 
-    // 다음 스팟을 활성화 (잠금 해제)
-    const response = await fetch(`${BACKEND_API.BASE_URL}/v1/courses/unlock_next_spot/`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${authToken}`,
-      },
-      body: JSON.stringify({
-        route_id: userCourse.id,
-        spot_id: nextSpot.id
-      }),
-    });
+    // 기존 unlock_route_spot API를 사용하여 다음 스팟 활성화
+    // 다음 스팟의 UserRouteSpot ID를 찾아서 unlock_at 설정
+    const nextUserRouteSpot = userCourse.spots.find((spot: any) => spot.id === nextSpot.id);
+    if (nextUserRouteSpot && nextUserRouteSpot.user_route_spot_id && nextUserRouteSpot.route_spot_id) {
+      const response = await fetch(`${BACKEND_API.BASE_URL}/v1/courses/unlock_route_spot/${nextUserRouteSpot.route_spot_id}/`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          id: nextUserRouteSpot.user_route_spot_id
+        }),
+      });
 
-    if (response.ok) {
-      console.log('[missions] 다음 스팟 활성화 성공');
-      return true;
+      if (response.ok) {
+        console.log('[missions] 다음 스팟 활성화 성공');
+        return true;
+      } else {
+        console.error('[missions] 다음 스팟 활성화 실패:', response.status);
+        return false;
+      }
     } else {
-      console.error('[missions] 다음 스팟 활성화 실패:', response.status);
+      console.error('[missions] 다음 스팟의 UserRouteSpot 정보를 찾을 수 없습니다.');
       return false;
     }
   } catch (error) {

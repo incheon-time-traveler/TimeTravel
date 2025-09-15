@@ -1439,9 +1439,7 @@ export default function HomeScreen({ navigation }: any) {
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <Ionicons name="map" size={20} color={INCHEON_BLUE} style={{ marginRight: 8 }} />
                 <Text style={{
-                  ...FONT_STYLES.pixel,
-                  fontSize: 20,
-                  fontWeight: 'bold',
+                  ...TEXT_STYLES.title,
                   color: INCHEON_BLUE,
                 }}>
                   코스 상세 정보
@@ -1486,9 +1484,7 @@ export default function HomeScreen({ navigation }: any) {
                   <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
                     <Ionicons name="location" size={18} color={INCHEON_BLUE} style={{ marginRight: 8 }} />
                     <Text style={{
-                      ...FONT_STYLES.pixel,
-                      fontSize: 18,
-                      fontWeight: 'bold',
+                      ...TEXT_STYLES.subtitle,
                       color: '#333'
                     }}>
                       {route.title || '알 수 없는 루트'}
@@ -1498,8 +1494,7 @@ export default function HomeScreen({ navigation }: any) {
                   <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
                     <Ionicons name="business" size={16} color="#4ECDC4" style={{ marginRight: 8 }} />
                     <Text style={{
-                      ...FONT_STYLES.pixel,
-                      fontSize: 14,
+                      ...TEXT_STYLES.small,
                       color: '#666'
                     }}>
                       지역: {route.user_region_name || '인천'}
@@ -1509,8 +1504,7 @@ export default function HomeScreen({ navigation }: any) {
                   <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
                     <Ionicons name="map" size={16} color="#45B7D1" style={{ marginRight: 8 }} />
                     <Text style={{
-                      ...FONT_STYLES.pixel,
-                      fontSize: 14,
+                      ...TEXT_STYLES.small,
                       color: '#666'
                     }}>
                       총 장소 수: {route.total_spots || spots.length}개
@@ -1521,10 +1515,8 @@ export default function HomeScreen({ navigation }: any) {
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                       <Ionicons name="checkmark-circle" size={16} color="#96CEB4" style={{ marginRight: 8 }} />
                       <Text style={{
-                        ...FONT_STYLES.pixel,
-                        fontSize: 14,
-                        color: '#28a745',
-                        fontWeight: '600'
+                        ...TEXT_STYLES.small,
+                        color: '#28a745'
                       }}>
                         미션 가능: 예
                       </Text>
@@ -1536,9 +1528,7 @@ export default function HomeScreen({ navigation }: any) {
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 15 }}>
                   <Ionicons name="list" size={18} color={INCHEON_BLUE} style={{ marginRight: 8 }} />
                   <Text style={{
-                    ...FONT_STYLES.pixel,
-                    fontSize: 18,
-                    fontWeight: 'bold',
+                    ...TEXT_STYLES.heading,
                     color: '#333'
                   }}>
                     장소 목록
@@ -1571,18 +1561,14 @@ export default function HomeScreen({ navigation }: any) {
                           marginRight: 12,
                         }}>
                                                   <Text style={{
-                          ...FONT_STYLES.pixel,
+                          ...TEXT_STYLES.number,
                           color: '#fff',
-                          fontSize: 12,
-                          fontWeight: 'bold'
                         }}>
                           {index + 1}
                         </Text>
                         </View>
                         <Text style={{
-                          ...FONT_STYLES.pixel,
-                          fontSize: 16,
-                          fontWeight: 'bold',
+                          ...TEXT_STYLES.heading,
                           color: '#333',
                           flex: 1,
                         }}>
@@ -1593,8 +1579,7 @@ export default function HomeScreen({ navigation }: any) {
                         <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginLeft: 36 }}>
                           <Ionicons name="location-outline" size={14} color="#666" style={{ marginRight: 6, marginTop: 2 }} />
                           <Text style={{
-                            ...FONT_STYLES.pixel,
-                            fontSize: 13,
+                            ...TEXT_STYLES.small,
                             color: '#666',
                             flex: 1,
                             lineHeight: 18,
@@ -1617,8 +1602,7 @@ export default function HomeScreen({ navigation }: any) {
                   }}>
                     <Ionicons name="hourglass-outline" size={32} color="#adb5bd" style={{ marginBottom: 10 }} />
                     <Text style={{
-                      ...FONT_STYLES.pixel,
-                      fontSize: 14,
+                      ...TEXT_STYLES.small,
                       color: '#6c757d',
                       textAlign: 'center'
                     }}>
@@ -1656,10 +1640,8 @@ export default function HomeScreen({ navigation }: any) {
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                   <Ionicons name="checkmark" size={18} color="#fff" style={{ marginRight: 6 }} />
                   <Text style={{
-                    ...FONT_STYLES.pixel,
+                    ...TEXT_STYLES.button,
                     color: '#fff',
-                    fontSize: 16,
-                    fontWeight: 'bold',
                   }}>
                     다른 코스 보기
                   </Text>

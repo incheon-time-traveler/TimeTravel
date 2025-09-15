@@ -1686,15 +1686,15 @@ export default function HomeScreen({ navigation }: any) {
           </>
         )}
 
-        {/* 미션 시뮬레이션 버튼 (개발용) - 주석처리 */}
-        {/* <View style={styles.simulationSection}>
+        {/* 미션 시뮬레이션 버튼 (개발용) */}
+        <View style={styles.simulationSection}>
           <TouchableOpacity style={styles.simulationBtn} onPress={handleMissionSimulation}>
             <Text style={styles.simulationBtnText}>🎯 미션 시뮬레이션 (개발용)</Text>
           </TouchableOpacity>
-        </View> */}
+        </View>
 
-        {/* 코스 완료 테스트 버튼들 (개발용) - 주석처리 */}
-        {/* {isLoggedIn && hasOngoingCourse && (
+        {/* 코스 완료 테스트 버튼들 (개발용) */}
+        {isLoggedIn && hasOngoingCourse && (
           <View style={styles.courseTestSection}>
             <Text style={styles.courseTestTitle}>코스 완료 테스트</Text>
             <TouchableOpacity 
@@ -1734,7 +1734,7 @@ export default function HomeScreen({ navigation }: any) {
               </TouchableOpacity>
             )}
           </View>
-        )} */}
+        )}
       </ScrollView>
 
       {/* 미션 알림 컴포넌트 */}

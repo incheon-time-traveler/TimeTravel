@@ -724,7 +724,7 @@ export default function CourseRecommendationScreen({ navigation }: any) {
         {/* 장소 수 선택 */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>🏛️ 방문할 장소 수</Text>
-          <View style={styles.placeCountContainer}>
+          <ScrollView style={styles.placeCountContainer} showsVerticalScrollIndicator={true}>
             {placeCountOptions.map((count) => (
               <TouchableOpacity
                 key={count}
@@ -742,7 +742,7 @@ export default function CourseRecommendationScreen({ navigation }: any) {
                 </Text>
               </TouchableOpacity>
             ))}
-          </View>
+          </ScrollView>
         </View>
 
         {/* 미션 설정 */}

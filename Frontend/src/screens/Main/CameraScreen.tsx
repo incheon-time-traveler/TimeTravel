@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, Image, Dimensions, TouchableWithoutFeedback } from 'react-native';
 import { Camera, useCameraDevice } from 'react-native-vision-camera';
 import ViewShot from 'react-native-view-shot';
-
 import Slider from '@react-native-community/slider';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
@@ -11,9 +10,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
-// 1. 실제로 사진이 찍힐 4:3 비율의 높이를 계산합니다.
+// 실제로 사진이 찍힐 4:3 비율의 높이를 계산
 const cameraHeight = screenWidth * (4 / 3);
-// 2. 화면의 남는 세로 공간을 계산하여 위아래 검은 여백(레터박스)의 높이를 구합니다.
+// 화면의 남는 세로 공간을 계산하여 위아래 검은 여백(레터박스)의 높이 계산
 const topBottomBarHeight = (screenHeight - cameraHeight) / 2;
 
 interface PastImageData {
@@ -59,7 +58,7 @@ export default function CameraScreen({ route, navigation }: any) {
 	    if (status !== 'authorized') {
 	      const newPermission = await Camera.requestCameraPermission();
 	      if (newPermission !== 'authorized') {
-	        Alert.alert("권한 필요", "카메라 권한을 허용해야 촬영할 수 있습니다.");
+	        Alert.alert("⭕ 권한을 허용해주세요", "권한을 허용했는데도 카메라가 나오지 않을 경우, 어플을 완전히 종료한 후 재실행 해주세요. 이용에 불편을 드려 죄송합니다.");
 	      }
 	    }
 	  };

@@ -40,7 +40,7 @@
 		</dict>
 	</dict>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string/>
+	<string>맞춤형 코스 추천과 미션 장소 감지를 위해 현재 위치 정보가 필요합니다.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>과거 사진과 현재 사진을 합성하여 시간여행 사진을 만들기 위해 카메라 권한이 필요합니다.</string>
 	<key>UIAppFonts</key>

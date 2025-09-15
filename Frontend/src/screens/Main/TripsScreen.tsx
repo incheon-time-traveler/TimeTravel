@@ -192,83 +192,37 @@ const TripsScreen: React.FC = () => {
       console.log(`[TripsScreen] 코스 조회 시작 (시도 ${retryCount + 1}/${maxRetries + 1})`);
       console.log(`[TripsScreen] 백엔드 URL: ${BACKEND_API.BASE_URL}`);
 
-      // 시뮬레이션 모드 확인
-      const isSimulationMode = await AsyncStorage.getItem('isSimulationMode');
-      console.log('[TripsScreen] 시뮬레이션 모드 확인:', isSimulationMode);
-
+      // API에서 데이터 가져오기
       let response;
-      let data: any[] = [];
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10초 타임아웃
 
-      if (isSimulationMode === 'true') {
-        // 시뮬레이션 모드일 때는 AsyncStorage에서 데이터 가져오기
-        const simulatedData = await AsyncStorage.getItem('simulatedCourses');
-        if (simulatedData) {
-          data = JSON.parse(simulatedData);
-          console.log('[TripsScreen] 시뮬레이션된 데이터 사용:', data);
-          console.log('[TripsScreen] 시뮬레이션된 데이터 첫 번째 코스 스팟들:', data[0]?.spots?.map((s: any) => ({ 
-            title: s.title, 
-            unlock_at: s.unlock_at, 
-            completed_at: s.completed_at 
-          })));
-          
-          // 시뮬레이션 모드일 때는 모든 스팟을 완료된 것으로 강제 설정
-          if (data[0]?.spots) {
-            console.log('[TripsScreen] 시뮬레이션 모드 - 모든 스팟을 완료된 것으로 강제 설정');
-            data[0].spots.forEach((spot: any, index: number) => {
-              console.log(`[TripsScreen] 스팟 ${index + 1} (${spot.title}) 원본 데이터:`, {
-                unlock_at: spot.unlock_at,
-                completed_at: spot.completed_at
-              });
-              
-              // 시뮬레이션 모드에서는 모든 스팟을 완료된 것으로 설정
-              if (!spot.unlock_at) {
-                spot.unlock_at = new Date().toISOString();
-                console.log(`[TripsScreen] 스팟 ${spot.title}의 unlock_at 강제 설정: ${spot.unlock_at}`);
-              }
-            });
-          }
-          
-          // 시뮬레이션 데이터를 사용하기 위해 가짜 response 객체 생성
-          response = { ok: true, status: 200, statusText: 'OK' };
-        } else {
-          console.log('[TripsScreen] 시뮬레이션 데이터가 없음');
-          return;
+        response = await fetch(`${BACKEND_API.BASE_URL}/v1/courses/user_routes/`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${tokens.access}`,
+          },
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+        console.log(`[TripsScreen] 코스 조회 응답: ${response.status} ${response.statusText}`);
+      } catch (fetchError) {
+        console.error(`[TripsScreen] API 호출 에러 (시도 ${retryCount + 1}):`, fetchError);
+
+        // 네트워크 에러인 경우 재시도
+        if (retryCount < maxRetries) {
+          console.log(`[TripsScreen] 네트워크 에러, ${retryCount + 1}/${maxRetries} 재시도 중...`);
+          await new Promise(resolve => setTimeout(resolve, 2000 * (retryCount + 1))); // 2초, 4초, 6초 대기
+          return fetchUserCourses(retryCount + 1);
         }
-      } else {
-        // 일반 모드일 때는 API에서 데이터 가져오기
-        try {
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 10000); // 10초 타임아웃
 
-          response = await fetch(`${BACKEND_API.BASE_URL}/v1/courses/user_routes/`, {
-            method: 'GET',
-            headers: {
-              'Authorization': `Bearer ${tokens.access}`,
-            },
-            signal: controller.signal,
-          });
-
-          clearTimeout(timeoutId);
-          console.log(`[TripsScreen] 코스 조회 응답: ${response.status} ${response.statusText}`);
-        } catch (fetchError) {
-          console.error(`[TripsScreen] API 호출 에러 (시도 ${retryCount + 1}):`, fetchError);
-
-          // 네트워크 에러인 경우 재시도
-          if (retryCount < maxRetries) {
-            console.log(`[TripsScreen] 네트워크 에러, ${retryCount + 1}/${maxRetries} 재시도 중...`);
-            await new Promise(resolve => setTimeout(resolve, 2000 * (retryCount + 1))); // 2초, 4초, 6초 대기
-            return fetchUserCourses(retryCount + 1);
-          }
-
-          throw fetchError;
-        }
+        throw fetchError;
       }
 
       if (response.ok) {
-        // 시뮬레이션 모드가 아닐 때만 response.json() 호출
-        if (isSimulationMode !== 'true') {
-          data = await response.json();
-        }
+        const data = await response.json();
         setUserRouteSpot(data);
         console.log('[TripsScreen] 사용자 코스 데이터:', data);
         
@@ -411,19 +365,12 @@ const TripsScreen: React.FC = () => {
             
             // 완료된 코스의 사진 정보 생성
             const completedPhotos = spotsWithImages.map((spot: any) => {
-              // 시뮬레이션 모드에서는 각 스팟의 first_image 사용
-              if (isSimulationMode === 'true') {
-                return spot.first_image || Image.resolveAssetSource(require('../../assets/images/대동여지도.jpg'))?.uri || '';
-              } else {
-                // 일반 모드에서는 기본 이미지 사용
-                return require('../../assets/icons/대불호텔.jpg');
-              }
+              return spot.first_image || Image.resolveAssetSource(require('../../assets/images/대동여지도.jpg'))?.uri || '';
             });
             
             console.log(`[TripsScreen] 완료된 코스 사진 정보:`, {
               totalSpots,
-              photos: completedPhotos,
-              isSimulationMode
+              photos: completedPhotos
             });
             
             completed.push({
@@ -1038,49 +985,328 @@ const renderCompletedTab = () => (
   const renderCourseModal = () => (
     <Modal
       visible={courseModalVisible}
-      animationType="slide"
-      presentationStyle="pageSheet"
+      transparent={true}
+      animationType="fade"
+      onRequestClose={() => setCourseModalVisible(false)}
     >
-      <SafeAreaView style={styles.modalContainer} edges={['top', 'left', 'right']}>
-        <View style={styles.modalHeader}>
-          <Text style={styles.modalTitle}>{selectedCourse?.user_region_name || '인천 여행 코스'}</Text>
-          <TouchableOpacity onPress={() => setCourseModalVisible(false)} style={styles.modalCloseButton}>
-            <Text style={styles.modalCloseButtonText}>✕</Text>
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView style={styles.modalTextContainer} showsVerticalScrollIndicator={false}>
-          <Text style={styles.modalDescription}>완료된 여행 코스입니다.</Text>
-
-          <Text style={styles.modalSectionTitle}>방문 장소</Text>
-          {selectedCourse?.spots?.map((spot: any, index: number) => (
-            <View key={index} style={styles.modalLocationItem}>
-              <Text style={styles.modalLocationNumber}>{index + 1}</Text>
-              <Text style={styles.modalLocationText}>{spot.title}</Text>
+      <View style={{
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.6)',
+        justifyContent: 'center',
+        alignItems: 'center',
+      }}>
+        <View style={{
+          width: width - 30,
+          maxHeight: height - 80,
+          backgroundColor: '#fff',
+          borderRadius: 20,
+          margin: 15,
+          shadowColor: '#000',
+          shadowOffset: {
+            width: 0,
+            height: 10,
+          },
+          shadowOpacity: 0.25,
+          shadowRadius: 20,
+          elevation: 20,
+        }}>
+          {/* 헤더 */}
+          <View style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            paddingHorizontal: 25,
+            paddingVertical: 20,
+            backgroundColor: INCHEON_BLUE_LIGHT,
+            borderTopLeftRadius: 20,
+            borderTopRightRadius: 20,
+            borderBottomWidth: 2,
+            borderBottomColor: INCHEON_BLUE,
+          }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={{ fontSize: 20, marginRight: 8 }}>🗺️</Text>
+              <Text style={{
+                fontSize: 20,
+                fontWeight: 'bold',
+                color: INCHEON_BLUE,
+                fontFamily: 'NeoDunggeunmoPro-Regular'
+              }}>
+                코스 상세 정보
+              </Text>
             </View>
-          ))}
-
-          <Text style={styles.modalSectionTitle}>코스 사진</Text>
-          <View style={styles.modalPhotoGrid}>
-            {selectedCourse?.photos?.map((photo: any, index: number) => {
-              console.log(`[TripsScreen] 모달 사진 ${index + 1} 렌더링:`, photo);
-              return (
-                <PhotoWithFallback 
-                  key={`modal-${selectedCourse.route_id}-${index}-${photo}`}
-                  photo={photo}
-                  index={index}
-                  style={styles.modalPhoto}
-                  isModal={true}
-                />
-              );
-            })}
+            <TouchableOpacity
+              onPress={() => setCourseModalVisible(false)}
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 16,
+                backgroundColor: '#fff',
+                justifyContent: 'center',
+                alignItems: 'center',
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.1,
+                shadowRadius: 4,
+                elevation: 3,
+              }}
+            >
+              <Text style={{ fontSize: 18, color: '#666' }}>✕</Text>
+            </TouchableOpacity>
           </View>
 
-          {selectedCourse?.completedDate && (
-            <Text style={styles.modalDate}>완료 날짜: {selectedCourse.completedDate}</Text>
-          )}
-        </ScrollView>
-      </SafeAreaView>
+          {/* 내용 */}
+          <ScrollView
+            style={{ maxHeight: height - 300 }}
+            showsVerticalScrollIndicator={true}
+            contentContainerStyle={{ paddingBottom: 20 }}
+          >
+            <View style={{ paddingHorizontal: 25, paddingTop: 20 }}>
+              {/* 루트 기본 정보 */}
+              <View style={{
+                backgroundColor: '#f8f9fa',
+                borderRadius: 12,
+                padding: 16,
+                marginBottom: 20,
+                borderLeftWidth: 4,
+                borderLeftColor: INCHEON_BLUE,
+              }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                  <Text style={{ fontSize: 18, marginRight: 8 }}>📍</Text>
+                  <Text style={{
+                    fontSize: 18,
+                    fontWeight: 'bold',
+                    color: '#333',
+                    fontFamily: 'NeoDunggeunmoPro-Regular'
+                  }}>
+                    {selectedCourse?.user_region_name || '알 수 없는 루트'}
+                  </Text>
+                </View>
+
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                  <Text style={{ fontSize: 16, marginRight: 8 }}>🏢</Text>
+                  <Text style={{
+                    fontSize: 14,
+                    color: '#666',
+                    fontFamily: 'NeoDunggeunmoPro-Regular'
+                  }}>
+                    지역: {selectedCourse?.user_region_name || '인천'}
+                  </Text>
+                </View>
+
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                  <Text style={{ fontSize: 16, marginRight: 8 }}>🗺️</Text>
+                  <Text style={{
+                    fontSize: 14,
+                    color: '#666',
+                    fontFamily: 'NeoDunggeunmoPro-Regular'
+                  }}>
+                    총 장소 수: {selectedCourse?.total_spots || selectedCourse?.spots?.length || 0}개
+                  </Text>
+                </View>
+
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={{ fontSize: 16, marginRight: 8 }}>✅</Text>
+                  <Text style={{
+                    fontSize: 14,
+                    color: '#28a745',
+                    fontWeight: '600',
+                    fontFamily: 'NeoDunggeunmoPro-Regular'
+                  }}>
+                    완료일: {selectedCourse?.completedDate || '알 수 없음'}
+                  </Text>
+                </View>
+              </View>
+
+              {/* 장소 목록 헤더 */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 15 }}>
+                <Text style={{ fontSize: 18, marginRight: 8 }}>≡</Text>
+                <Text style={{
+                  fontSize: 18,
+                  fontWeight: 'bold',
+                  color: '#333',
+                  fontFamily: 'NeoDunggeunmoPro-Regular'
+                }}>
+                  장소 목록
+                </Text>
+              </View>
+
+              {selectedCourse?.spots && selectedCourse.spots.length > 0 ? (
+                selectedCourse.spots.map((spot: any, index: number) => (
+                  <View key={spot.id} style={{
+                    marginBottom: 12,
+                    backgroundColor: '#fff',
+                    borderRadius: 12,
+                    padding: 16,
+                    borderWidth: 1,
+                    borderColor: '#e9ecef',
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.05,
+                    shadowRadius: 4,
+                    elevation: 2,
+                  }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                      <View style={{
+                        width: 24,
+                        height: 24,
+                        borderRadius: 12,
+                        backgroundColor: INCHEON_BLUE,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        marginRight: 12,
+                      }}>
+                        <Text style={{
+                          color: '#fff',
+                          fontSize: 12,
+                          fontWeight: 'bold',
+                          fontFamily: 'NeoDunggeunmoPro-Regular'
+                        }}>
+                          {index + 1}
+                        </Text>
+                      </View>
+                      <Text style={{
+                        fontSize: 16,
+                        fontWeight: 'bold',
+                        color: '#333',
+                        flex: 1,
+                        fontFamily: 'NeoDunggeunmoPro-Regular'
+                      }}>
+                        {spot.title}
+                      </Text>
+                    </View>
+                    {spot.address ? (
+                      <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginLeft: 36 }}>
+                        <Text style={{ fontSize: 14, marginRight: 6, marginTop: 2 }}>📍</Text>
+                        <Text style={{
+                          fontSize: 13,
+                          color: '#666',
+                          flex: 1,
+                          lineHeight: 18,
+                          fontFamily: 'NeoDunggeunmoPro-Regular'
+                        }}>
+                          {spot.address}
+                        </Text>
+                      </View>
+                    ) : (
+                      <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginLeft: 36 }}>
+                        <Text style={{ fontSize: 14, marginRight: 6, marginTop: 2 }}>📍</Text>
+                        <Text style={{
+                          fontSize: 13,
+                          color: '#999',
+                          flex: 1,
+                          lineHeight: 18,
+                          fontFamily: 'NeoDunggeunmoPro-Regular',
+                          fontStyle: 'italic'
+                        }}>
+                          주소 정보 없음
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                ))
+              ) : (
+                <View style={{
+                  backgroundColor: '#f8f9fa',
+                  borderRadius: 12,
+                  padding: 30,
+                  alignItems: 'center',
+                  borderWidth: 1,
+                  borderColor: '#e9ecef',
+                  borderStyle: 'dashed',
+                }}>
+                  <Text style={{ fontSize: 32, marginBottom: 10 }}>⏳</Text>
+                  <Text style={{
+                    fontSize: 14,
+                    color: '#6c757d',
+                    textAlign: 'center',
+                    fontFamily: 'NeoDunggeunmoPro-Regular'
+                  }}>
+                    장소 정보를 불러오는 중...
+                  </Text>
+                </View>
+              )}
+
+              {/* 코스 사진 섹션 */}
+              {selectedCourse?.photos && selectedCourse.photos.length > 0 && (
+                <>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 15, marginTop: 20 }}>
+                    <Text style={{ fontSize: 18, marginRight: 8 }}>📸</Text>
+                    <Text style={{
+                      fontSize: 18,
+                      fontWeight: 'bold',
+                      color: '#333',
+                      fontFamily: 'NeoDunggeunmoPro-Regular'
+                    }}>
+                      코스 사진
+                    </Text>
+                  </View>
+                  <View style={{
+                    flexDirection: 'row',
+                    flexWrap: 'wrap',
+                    justifyContent: 'space-between',
+                    marginBottom: 20,
+                  }}>
+                    {selectedCourse.photos.map((photo: any, index: number) => (
+                      <PhotoWithFallback 
+                        key={`modal-${selectedCourse.route_id}-${index}-${photo}`}
+                        photo={photo}
+                        index={index}
+                        style={{
+                          width: (width - 100) / 2,
+                          height: 110,
+                          borderRadius: 10,
+                          borderWidth: 1,
+                          borderColor: '#e0e0e0',
+                          marginBottom: 12,
+                        }}
+                        isModal={true}
+                      />
+                    ))}
+                  </View>
+                </>
+              )}
+            </View>
+          </ScrollView>
+
+          {/* 푸터 */}
+          <View style={{
+            paddingHorizontal: 25,
+            paddingVertical: 20,
+            backgroundColor: '#f8f9fa',
+            borderBottomLeftRadius: 20,
+            borderBottomRightRadius: 20,
+            borderTopWidth: 1,
+            borderTopColor: '#e9ecef',
+          }}>
+            <TouchableOpacity
+              style={{
+                backgroundColor: INCHEON_BLUE,
+                paddingVertical: 14,
+                borderRadius: 12,
+                alignItems: 'center',
+                shadowColor: INCHEON_BLUE,
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.3,
+                shadowRadius: 8,
+                elevation: 6,
+              }}
+              onPress={() => setCourseModalVisible(false)}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={{ fontSize: 18, color: '#fff', marginRight: 6 }}>✅</Text>
+                <Text style={{
+                  color: '#fff',
+                  fontSize: 16,
+                  fontWeight: 'bold',
+                  fontFamily: 'NeoDunggeunmoPro-Regular'
+                }}>
+                  다른 코스 보기
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
     </Modal>
   );
 

@@ -22,6 +22,7 @@ const { width, height } = Dimensions.get('window');
 
 
 export default function HomeScreen({ navigation }: any) {
+	const [user, setUser] = useState<any>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userProfile, setUserProfile] = useState<any>(null);
   const [hasOngoingCourse, setHasOngoingCourse] = useState(false);
@@ -212,7 +213,9 @@ export default function HomeScreen({ navigation }: any) {
           
           // 로그인된 상태에서만 missions.ts에 위치 설정
           if (isLoggedIn) {
-            const user = await authService.getUser();
+            const currentUser = await authService.getUser();
+            setUser(currentUser);
+
             console.log('[HomeScreen] 현재 사용자:', user);
             if (user?.id === 999999) {
               setCurrentLocationState({ lat: 37.4563, lng: 126.7052 });
@@ -1782,7 +1785,7 @@ export default function HomeScreen({ navigation }: any) {
         )}
 
         {/* 미션 시뮬레이션 버튼 (개발용) - 로그인되어 있고 진행중인 코스가 있는 경우에만 표시 */}
-        {isLoggedIn && hasOngoingCourse && (
+        {user?.id === 999999 && hasOngoingCourse && (
           <View style={styles.simulationSection}>
             <TouchableOpacity style={styles.simulationBtn} onPress={handleMissionSimulation}>
               <Text style={styles.simulationBtnText}>🎯 미션 시뮬레이션 (개발용)</Text>
@@ -1791,7 +1794,7 @@ export default function HomeScreen({ navigation }: any) {
         )}
 
         {/* 스팟 방문 처리 버튼 (개발용) */}
-        {isLoggedIn && hasOngoingCourse && (
+        {user?.id === 999999 && hasOngoingCourse && (
           <View style={styles.simulationSection}>
             <TouchableOpacity style={styles.spotVisitBtn} onPress={handleSpotVisit}>
               <Text style={styles.spotVisitBtnText}>📍 스팟 방문처리 (개발용)</Text>

@@ -15,8 +15,14 @@ export interface ChatbotResponse {
   ai_answer: string;
 }
 
+export interface DeleteMemoryRequest {
+  thread_id: number;
+}
+
 export interface DeleteMemoryResponse {
-  result: boolean; 
+  thread_id: number;
+  deleted_rows: number;
+  complete: boolean;
 }
 
 export class ChatbotService {
@@ -65,12 +71,12 @@ export class ChatbotService {
   /**
    * 챗봇 메모리 삭제 (로그아웃 시 사용)
    */
-  static async deleteMemory(userId: string): Promise<DeleteMemoryResponse> {
+  static async deleteMemory(request: DeleteMemoryRequest): Promise<DeleteMemoryResponse> {
     try {
       const tokens = await authService.getTokens();
       if (!tokens?.access) {
         console.log('[ChatbotService] 삭제할 유저가 없습니다.');
-        return { result: false };
+        throw new Error(``);
       }
 
       const response = await fetch(`${this.baseUrl}/v1/chatbot/memory/`, {
@@ -79,19 +85,21 @@ export class ChatbotService {
           'Authorization': `Bearer ${tokens.access}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ user_id: userId }),
+        body: JSON.stringify(request),
       });
       
-      if (response.ok) {
-        console.log('[ChatbotService] 채팅 메모리 삭제 성공');
-        return { result: true };
-      } else {
-        console.error('[ChatbotService] 채팅 메모리 삭제 실패:', response.status);
-        return { result: false };
-      }
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+      } 
+
+      const data = await response.json();
+      console.log('[ChatbotService] 채팅 메모리 삭제 성공:', data);
+      return data;
+
     } catch (error) {
       console.error('[ChatbotService] 채팅 메모리 삭제 오류:', error);
-      return { result: false };
+      throw error;
     }
   }
 }

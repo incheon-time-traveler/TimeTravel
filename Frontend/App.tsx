@@ -20,7 +20,7 @@ import LoginScreen from './src/screens/Auth/LoginScreen';
 import MissionScreen from './src/screens/Main/MissionScreen';
 import CameraScreen from './src/screens/Main/CameraScreen';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import ChatScreenWrapper from './src/screens/Chat/ChatScreen';
+import ChatScreen from './src/screens/Chat/ChatScreen';
 
 
 // UI Components
@@ -29,6 +29,12 @@ import FloatingChatBotButton from './src/components/ui/FloatingChatBotButton';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
+
+// ChatScreen에 navigation을 전달하는 래퍼 컴포넌트
+function ChatScreenWithNavigation({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+  const navigation = useNavigation();
+  return <ChatScreen visible={visible} onClose={onClose} navigation={navigation} />;
+}
 
 
 // ---  nesting navigators ---
@@ -206,7 +212,7 @@ export default function App() {
         {isOnboardingComplete && (
           <>
             <FloatingChatBotButton onPress={() => setChatVisible(true)} />
-            <ChatScreenWrapper visible={chatVisible} onClose={() => setChatVisible(false)} />
+            <ChatScreenWithNavigation visible={chatVisible} onClose={() => setChatVisible(false)} />
           </>
         )}
       </NavigationContainer>

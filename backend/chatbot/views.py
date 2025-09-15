@@ -22,6 +22,12 @@ def chat_with_bot(request):
         # 사용자 고유 정보 받기
         user_id = request.data.get("user_id") or request.POST.get("user_id")
 
+        # 사용자 추가 정보 받기
+        user_nickname = request.data.get("user_nickname") or request.POST.get("user_nickname")
+        user_gender = request.data.get("user_gender") or request.POST.get("user_gender")
+        user_age_group = request.data.get("user_age_group") or request.POST.get("user_age_group")
+
+        # 꼭 필요한 user_input, user_id 받기
         if not user_input or not user_id:
             return Response(
                 {"error": "user_question, user_id 파라미터가 필요합니다."},
@@ -39,6 +45,14 @@ def chat_with_bot(request):
             payload["user_location"] = {
                 "lat": float(user_lat),
                 "lng": float(user_lon)
+            }
+
+        # 사용자 추가 정보가 있으면 추가
+        if user_nickname or user_gender or user_age_group:
+            payload["user_info"] = {
+                "nickname": user_nickname,
+                "gender": user_gender,
+                "age_group": user_age_group
             }
 
         # FastAPI AI 서버에 요청
@@ -118,4 +132,79 @@ def health_check(request):
         return Response(
             {"status": "unhealthy", "ai_server": "error", "error": str(e)},
             status=status.HTTP_502_BAD_GATEWAY
+        )
+
+
+@api_view(["DELETE"])
+def memory(request):
+    """
+    사용자의 메모리 삭제
+    """
+    try:
+        # 사용자 고유 정보 받기
+        user_id = request.data.get("thread_id") or request.POST.get("thread_id")
+
+        # 꼭 필요한 user_input, user_id 받기
+        if not user_id:
+            return Response(
+                {"error": "thread_id 파라미터가 필요합니다."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # FastAPI AI 서버로 요청 데이터 준비
+        payload = {
+            "thread_id": user_id,
+        }
+
+        # FastAPI AI 서버에 요청
+        fastapi_url = f"{settings.FASTAPI_AI_SERVER_URL}/v1/memory"
+        
+        try:
+            response = requests.delete(
+                fastapi_url,
+                json=payload,
+                timeout=30,  # 30초 타임아웃
+                headers={'Content-Type': 'application/json'}
+            )
+            response.raise_for_status()  # HTTP 에러가 있으면 예외 발생
+            
+            response = response.json()
+            
+            # 삭제했다는 응답이 오면
+            if response.complete:
+                return Response(
+                    response,
+                    status=status.HTTP_200_OK
+                )
+            elif not response:
+                return Response(
+                    {"error": "메모리를 삭제하지 못했습니다."},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+            
+        except requests.exceptions.ConnectionError:
+            return Response(
+                {"error": "AI 서버에 연결할 수 없습니다. 서버 상태를 확인해주세요."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
+        except requests.exceptions.Timeout:
+            return Response(
+                {"error": "AI 서버 응답 시간이 초과되었습니다."},
+                status=status.HTTP_504_GATEWAY_TIMEOUT
+            )
+        except requests.exceptions.HTTPError as e:
+            return Response(
+                {"error": f"AI 서버 오류: {e}"},
+                status=status.HTTP_502_BAD_GATEWAY
+            )
+        except json.JSONDecodeError:
+            return Response(
+                {"error": "AI 서버 응답을 파싱할 수 없습니다."},
+                status=status.HTTP_502_BAD_GATEWAY
+            )
+
+    except Exception as e:
+        return Response(
+            {"error": f"챗봇 오류가 발생했습니다: {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )

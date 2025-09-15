@@ -129,23 +129,57 @@ export default function GalleryScreen({ navigation }: any) {
     }
   };
 
+	// 전체 미션 목록을 로드하는 함수 (로그인 상태와 관계없이)
+	const loadAllMissions = async () => {
+	  try {
+	    // 전체 미션 목록을 가져오는 API 호출 (또는 하드코딩된 목록 사용)
+	    const allMissions = [
+	      { id: 1, title: '부평향교', completed: false, hasStamp: false },
+	      { id: 2, title: '계양문화회관', completed: false, hasStamp: false },
+	      { id: 3, title: '계양산성박물관', completed: false, hasStamp: false },
+	      { id: 4, title: '인천도호부관아', completed: false, hasStamp: false },
+	      { id: 5, title: '구 인천우체국', completed: false, hasStamp: false },
+	      { id: 6, title: '인천내동성공회성당', completed: false, hasStamp: false },
+	      { id: 7, title: '대불호텔전시관', completed: false, hasStamp: false },
+	      { id: 8, title: '인천 답동성당', completed: false, hasStamp: false },
+	      { id: 9, title: '제물포 구락부', completed: false, hasStamp: false },
+	      { id: 10, title: '홍예문', completed: false, hasStamp: false },
+	      { id: 11, title: '연미정', completed: false, hasStamp: false },
+	      { id: 12, title: '팔미도 등대', completed: false, hasStamp: false },
+	      { id: 13, title: '논현포대', completed: false, hasStamp: false },
+	      { id: 14, title: '백련사(강화)', completed: false, hasStamp: false },
+	      { id: 15, title: '대한성공회 강화성당', completed: false, hasStamp: false },
+	      { id: 16, title: '용동큰우물', completed: false, hasStamp: false },
+	    ];
+	    
+	    setGalleryData(allMissions);
+	    setFoundCount(0); // 로그인하지 않은 사용자는 0개로 표시
+	  } catch (error) {
+	    console.error('[GalleryScreen] 전체 미션 목록 로드 실패:', error);
+	    setGalleryData([]);
+	    setFoundCount(0);
+	  }
+	};
+
 	// 데이터를 불러오는 전체 과정을 책임지는 함수를 새로 생성
 	const initializeScreen = async () => {
 	  setIsLoading(true);
 	  const loggedIn = await checkLoginStatus(); // 먼저 로그인 상태 확인
 	  if (!loggedIn) {
-	    setGalleryData([]);
-	    setFoundCount(0);
-	    setIsLoading(false);
+	    await loadAllMissions(); // 로그인하지 않은 사용자도 전체 미션 목록 표시
 	  } else {
 	    await loadLocalPhotos();
 	  }
+	  setIsLoading(false);
 	};
 
   const handleImagePress = (item: GalleryItem) => {
     if (item.completed) {
       setSelectedImage(item);
       setImageModalVisible(true);
+    } else if (!isLoggedIn) {
+      // 로그인하지 않은 사용자가 잠긴 사진틀을 클릭하면 로그인 모달 표시
+      setIsLoggedIn(false); // 로그인 모달을 강제로 표시
     }
   };
 
@@ -153,15 +187,13 @@ export default function GalleryScreen({ navigation }: any) {
     navigation.navigate('Profile');
   };
 	useEffect(() => {
-	  checkLoginStatus(); // 로그인 로직은 잠시 보류
-	  loadLocalPhotos();
+	  initializeScreen();
 	}, []);
 
 	useFocusEffect(
 	  React.useCallback(() => {
-	    checkLoginStatus();
-	    console.log('[GalleryScreen] 화면 포커스됨 - 로컬 갤러리 새로고침');
-	    loadLocalPhotos();
+	    console.log('[GalleryScreen] 화면 포커스됨 - 갤러리 새로고침');
+	    initializeScreen();
 	  }, [])
 	);
 
@@ -289,7 +321,10 @@ export default function GalleryScreen({ navigation }: any) {
                 >
                   <View style={styles.imageContainer}>
                     <Image
-                      source={{ uri: item.image_url || Image.resolveAssetSource(require('../../assets/images/대동여지도.jpg'))?.uri || '' }}
+                      source={item.completed && item.image_url ? 
+                        { uri: item.image_url } : 
+                        require('../../assets/images/대동여지도.jpg')
+                      }
                       style={styles.photo}
                       resizeMode="cover"
                       onLoad={() => console.log('[GalleryScreen] 이미지 로드 성공:', item.title, item.image_url)}

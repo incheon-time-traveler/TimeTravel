@@ -20,6 +20,7 @@ import Geolocation from '@react-native-community/geolocation';
 import { INCHEON_BLUE, INCHEON_BLUE_LIGHT, INCHEON_GRAY, TEXT_STYLES } from '../../styles/fonts';
 import { ChatMessage, ChatBotResponse } from '../../types/chat';
 import { ChatbotService } from '../../services/chatbotService';
+import AuthService from '../../services/authService'
 
 const { width, height } = Dimensions.get('window');
 
@@ -33,7 +34,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ visible, onClose, navigation })
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: '1',
-      text: '안녕하세요! 인천 시간 여행에 함께 해주셔서 감사해요. 무엇을 도와드릴까요?',
+      text: '안녕! 인천 시간 여행 재밌게 즐기는 중이야? 궁금한 거 있으면 물어봐!',
       isUser: false,
       timestamp: new Date(),
       type: 'text'
@@ -41,7 +42,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ visible, onClose, navigation })
   ]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [userId] = useState(() => ChatbotService.generateUserId());
+  // const [userId] = useState(() => ChatbotService.generateUserId());    // 이 부분 진짜 userID 또는 nickname 사용할 수 있도록
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
 
@@ -93,11 +94,15 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ visible, onClose, navigation })
 
     try {
       // 백엔드 API 호출
+      const user = await AuthService.getUser();
       const response = await ChatbotService.chatWithBot({
         user_question: currentInput,
-        user_id: userId,
+        user_id: user?.id.toString() || '',
         lat: userLocation?.lat || undefined,
         lng: userLocation?.lng || undefined,
+        user_nickname: user?.nickname || '',
+        user_gender: user?.gender || '',
+        user_age_group: user?.age || '',
       });
 
       const botMessage: ChatMessage = {
@@ -202,11 +207,18 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ visible, onClose, navigation })
       if (kakaoMapInfo) {
         // 챗봇 닫기
         onClose();
-        // 맵으로 이동
-        navigation.navigate('Map', {
-          screen: 'MapMain',
-          params: kakaoMapInfo
-        });
+        
+        // navigation 객체가 존재하는지 확인
+        if (navigation && navigation.navigate) {
+          // 맵으로 이동
+          navigation.navigate('Map', {
+            screen: 'MapMain',
+            params: kakaoMapInfo
+          });
+        } else {
+          console.error('[ChatScreen] navigation 객체가 없습니다:', navigation);
+          Alert.alert('오류', '네비게이션을 사용할 수 없습니다. 앱을 다시 시작해주세요.');
+        }
         return;
       }
 

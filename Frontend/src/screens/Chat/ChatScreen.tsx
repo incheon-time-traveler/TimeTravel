@@ -12,6 +12,7 @@ import {
   Modal,
   Alert,
   Linking,
+  DeviceEventEmitter,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NavigationProp } from '@react-navigation/native';
@@ -21,7 +22,7 @@ import { INCHEON_BLUE, INCHEON_BLUE_LIGHT, INCHEON_GRAY, TEXT_STYLES } from '../
 import { ChatMessage, ChatBotResponse } from '../../types/chat';
 import { ChatbotService } from '../../services/chatbotService';
 import AuthService, { authService } from '../../services/authService'
-
+import AsyncStorage from '@react-native-async-storage/async-storage';
 const { width, height } = Dimensions.get('window');
 
 interface ChatScreenProps {
@@ -31,29 +32,75 @@ interface ChatScreenProps {
 }
 
 const ChatScreen: React.FC<ChatScreenProps> = ({ visible, onClose, navigation }) => {
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
+  const STORAGE_KEY = 'chat_messages';
+  const initialMessage: ChatMessage = {
       id: '1',
       text: '안녕! 인천 시간 여행 재밌게 즐기는 중이야? 궁금한 거 있으면 물어봐!',
       isUser: false,
       timestamp: new Date(),
       type: 'text'
-    }
-  ]);
+    };
+  const [messages, setMessages] = useState<ChatMessage[]>([initialMessage]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
 
   useEffect(() => {
+    const loadMessages = async () => {
+      try {
+        const saved = await AsyncStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved).map((m: any) => ({
+            ...m,
+            timestamp: new Date(m.timestamp),
+          })) as ChatMessage[];
+          setMessages(parsed.length ? parsed : [initialMessage]);
+        }
+      } catch (e) {
+        console.error('[ChatScreen] 메시지 로드 실패:', e);
+      }
+    };
+
     if (visible) {
       setTimeout(() => {
         scrollViewRef.current?.scrollToEnd({ animated: true });
       }, 100);
       // 위치 정보 가져오기
       getCurrentLocation();
+      // 저장된 메시지 로드
+      loadMessages();
     }
-  }, [visible, messages]);
+  }, [visible]);
+
+  // 메시지 변경 시 저장
+  useEffect(() => {
+    const persist = async () => {
+      try {
+        const toSave = messages.map(m => ({...m, timestamp: m.timestamp.toISOString()}));
+        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
+      } catch {
+        console.error('[ChatScreen] 메시지 저장 실패');
+      }
+    };
+    persist();
+  }, [messages]);
+
+  // 로그아웃 이벤트 수신 시 로컬 상태 초기화 및 저장소 삭제
+  useEffect(() => {
+    const LOGOUT_EVENT = 'app.logout';
+    const sub = DeviceEventEmitter.addListener(LOGOUT_EVENT, async () => {
+      try {
+        await AsyncStorage.removeItem(STORAGE_KEY);
+      } catch {
+        console.error('[ChatScreen] 메시지 저장소 삭제 실패');
+      }
+      setMessages([initialMessage]);
+    });
+    return () => {
+      sub.remove();
+    };
+  })
 
   const getCurrentLocation = async () => {
     Geolocation.getCurrentPosition(

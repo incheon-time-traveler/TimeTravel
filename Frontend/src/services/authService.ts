@@ -31,6 +31,12 @@ class AuthService {
   // 토큰 저장
   async saveTokens(tokens: AuthTokens): Promise<void> {
     try {
+      // 로그인 직전 존재하던 게스트 채팅 기록 제거
+      try {
+        await AsyncStorage.removeItem('chat_messages');
+      } catch {
+        console.log('[authService.saveTokens] 게스트 채팅 기록 제거 실패');
+      }
       await AsyncStorage.setItem('access_token', tokens.access);
       await AsyncStorage.setItem('refresh_token', tokens.refresh);
       // 개발 모드에서 저장 검증 로그
@@ -125,24 +131,13 @@ class AuthService {
   // 로그아웃
   async logout(): Promise<void> {
     try {
-      // // 사용자 정보 가져오기
-      // const user = await this.getUser();
-      // const tokens = await this.getTokens();
-
-      // // // 챗봇 메모리 삭제
-      // // if (tokens?.access && user?.id) {
-      // //   try {
-      // //     const { ChatbotService } = await import('./chatbotService');
-      // //     await ChatbotService.deleteMemory({ thread_id: user.id });
-      // //   } catch (error) {
-      // //     console.error('챗봇 메모리 삭제 실패:', error);
-      // //   }
-      // // }
       
       await AsyncStorage.multiRemove([
         'access_token',
         'refresh_token',
-        'user'
+        'user',
+        // 채팅 기록 제거
+        'chat_messages',
       ]);
     } catch (error) {
       console.error('로그아웃 오류:', error);

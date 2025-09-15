@@ -127,12 +127,13 @@ class AuthService {
     try {
       // 사용자 정보 가져오기
       const user = await this.getUser();
+      const tokens = await this.getTokens();
 
       // 챗봇 메모리 삭제
-      if (user?.id) {
+      if (tokens?.access && user?.id) {
         try {
           const { ChatbotService } = await import('./chatbotService');
-          await ChatbotService.deleteMemory(user.id.toString());
+          await ChatbotService.deleteMemory({ thread_id: user.id });
         } catch (error) {
           console.error('챗봇 메모리 삭제 실패:', error);
         }

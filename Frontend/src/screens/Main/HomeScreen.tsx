@@ -307,8 +307,9 @@ export default function HomeScreen({ navigation }: any) {
 
   // 미션 시뮬레이션 버튼 클릭 (개발용 테스트)
   const handleMissionSimulation = async () => {
-    
     try {
+      console.log('[HomeScreen] 미션 시뮬레이션 시작 (개발용)');
+      
       // 스팟들 조회
       const spotsResponse = await fetch(`${BACKEND_API.BASE_URL}/v1/spots/`, {
         method: 'GET',
@@ -319,31 +320,41 @@ export default function HomeScreen({ navigation }: any) {
 
       if (spotsResponse.ok) {
         const spotsData = await spotsResponse.json();
+        console.log('[HomeScreen] 스팟 데이터 로드 완료:', spotsData.length, '개');
         
-        // 부평향교 찾기
-        const bupyeongSpot = spotsData.find((spot: any) => 
-          spot.name && spot.name.includes('인천내동성공회성당')
+        // 거리와 상관없이 과거 사진이 있는 모든 스팟 찾기 (미션이 가능한 스팟)
+        const missionSpots = spotsData.filter((spot: any) => 
+          spot.past_image_url && spot.past_image_url.trim() !== ''
         );
-
-        if (bupyeongSpot && bupyeongSpot.past_image_url) {
+        
+        console.log('[HomeScreen] 미션 가능한 스팟들:', missionSpots.length, '개');
+        
+        if (missionSpots.length > 0) {
+          // 랜덤하게 미션 스팟 선택 (개발용)
+          const randomIndex = Math.floor(Math.random() * missionSpots.length);
+          const selectedMissionSpot = missionSpots[randomIndex];
+          
+          console.log('[HomeScreen] 선택된 미션 스팟:', selectedMissionSpot.name);
+          
+          // 미션 객체 생성
           const testMission = {
-            id: bupyeongSpot.id,
+            id: selectedMissionSpot.id,
             location: {
-              id: bupyeongSpot.id,
-              name: bupyeongSpot.name,
-              lat: bupyeongSpot.lat || 37.4563,
-              lng: bupyeongSpot.lng || 126.7052,
+              id: selectedMissionSpot.id,
+              name: selectedMissionSpot.name,
+              lat: selectedMissionSpot.lat,
+              lng: selectedMissionSpot.lng,
               order: 1,
               radius: 300,
               completed: false,
             },
             historicalPhotos: [{
-              id: bupyeongSpot.id,
-              title: `${bupyeongSpot.name} 과거 사진`,
-              description: `${bupyeongSpot.name}의 과거 모습`,
-              imageUrl: bupyeongSpot.past_image_url,
+              id: selectedMissionSpot.id,
+              title: `${selectedMissionSpot.name} 과거 사진`,
+              description: `${selectedMissionSpot.name}의 과거 모습`,
+              imageUrl: selectedMissionSpot.past_image_url,
               year: '과거',
-              location: bupyeongSpot.address || bupyeongSpot.name || '주소 정보 없음',
+              location: selectedMissionSpot.address || selectedMissionSpot.name || '주소 정보 없음',
             }],
             completed: false,
             routeId: 1, // 테스트용
@@ -351,8 +362,16 @@ export default function HomeScreen({ navigation }: any) {
           
           setCurrentMission(testMission);
           setShowMissionNotification(true);
+          
+          console.log('[HomeScreen] 미션 시뮬레이션 성공:', testMission.location.name);
         } else {
-          Alert.alert('시뮬레이션 오류', '부평향교의 과거사진을 찾을 수 없습니다.');
+          // 미션이 없는 경우
+          console.log('[HomeScreen] 과거사진이 있는 스팟이 없습니다.');
+          Alert.alert(
+            '미션 없음', 
+            '과거사진이 있는 스팟이 없습니다.\n\n미션을 진행하려면 과거 사진이 있는 장소가 필요합니다.',
+            [{ text: '확인' }]
+          );
         }
       } else {
         console.error('[HomeScreen] 스팟 데이터 가져오기 실패:', spotsResponse.status);
@@ -488,17 +507,6 @@ export default function HomeScreen({ navigation }: any) {
                       `${currentSpot.title} 방문이 완료되었습니다!`,
                       [
                         { text: '확인' },
-                        { 
-                          text: '지도로 이동', 
-                          onPress: () => navigation.navigate('Map', {
-                            screen: 'MapMain',
-                            params: {
-                              destination: nextSpot.title || nextSpot.name,
-                              destinationLat: nextSpot.lat,
-                              destinationLng: nextSpot.lng,
-                            }
-                          })
-                        }
                       ]
                     );
                   } else {
@@ -847,7 +855,7 @@ export default function HomeScreen({ navigation }: any) {
                               ? spotDetailData.first_image 
                               : (spotDetailData.past_image_url && spotDetailData.past_image_url.trim() !== '')
                                 ? spotDetailData.past_image_url
-                                : Image.resolveAssetSource(require('../../assets/images/대동여지도.jpg'))?.uri || '';
+                                : require('../../assets/images/대동여지도.jpg');
                             
                             return imageUrl;
                           } else {
@@ -863,7 +871,7 @@ export default function HomeScreen({ navigation }: any) {
                       })
                     );
                     
-                    images = spotImages.filter((img: string) => img !== ''); // 빈 이미지 제거
+                    images = spotImages.filter((img: any) => img !== '' && img !== null && img !== undefined); // 빈 이미지 제거
                     
                   }
                 }
@@ -871,7 +879,7 @@ export default function HomeScreen({ navigation }: any) {
                 return {
             id: route.id || index,
                   title: route.user_region_name || route.title || '알 수 없는 루트',
-                  images: images.map(img => img.replace('http://', 'https://')), // HTTPS로 변환
+                  images: images.map(img => typeof img === 'string' ? img.replace('http://', 'https://') : img), // HTTPS로 변환 (문자열인 경우만)
             location: route.user_region_name || '인천',
             price: '$~~~', // 가격 정보 (현재는 고정값)
             locked: false,
@@ -971,7 +979,7 @@ export default function HomeScreen({ navigation }: any) {
                               ? spotDetailData.first_image 
                               : (spotDetailData.past_image_url && spotDetailData.past_image_url.trim() !== '')
                                 ? spotDetailData.past_image_url
-                                : Image.resolveAssetSource(require('../../assets/images/대동여지도.jpg'))?.uri || '';
+                                : require('../../assets/images/대동여지도.jpg');
                             
                             return imageUrl;
                           } else {
@@ -987,7 +995,7 @@ export default function HomeScreen({ navigation }: any) {
                       })
                     );
                     
-                    images = spotImages.filter((img: string) => img !== ''); // 빈 이미지 제거
+                    images = spotImages.filter((img: any) => img !== '' && img !== null && img !== undefined); // 빈 이미지 제거
                     
                   }
                 }
@@ -1146,7 +1154,7 @@ export default function HomeScreen({ navigation }: any) {
             ...spot,
             first_image: (spotData?.first_image && spotData.first_image.trim() !== '') 
               ? spotData.first_image 
-              : Image.resolveAssetSource(require('../../assets/images/대동여지도.jpg'))?.uri || '',
+              : require('../../assets/images/대동여지도.jpg'),
             past_image_url: spotData?.past_image_url || ''
           };
         });
@@ -1567,7 +1575,7 @@ export default function HomeScreen({ navigation }: any) {
           </>
         ) : (
           <>
-            <Text style={styles.sectionTitle}>코스 생성 예시</Text>
+            <Text style={styles.sectionTitle}>추천 코스</Text>
             <View style={styles.underline} />
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.cardScroll}>
               {isLoadingRecommended ? (
@@ -1608,11 +1616,16 @@ export default function HomeScreen({ navigation }: any) {
 
                           <View style={styles.imageContainer}>
                             <Image
-                              source={{
-                                uri: course.images[cardImageIndices[course.id] || 0]
-                              }}
+                              source={
+                                typeof course.images[cardImageIndices[course.id] || 0] === 'string'
+                                  ? { uri: course.images[cardImageIndices[course.id] || 0] }
+                                  : course.images[cardImageIndices[course.id] || 0]
+                              }
                               style={styles.courseImage}
                               resizeMode="cover"
+                              onError={() => {
+                                console.log('[HomeScreen] 이미지 로딩 실패, 대동여지도로 대체');
+                              }}
                             />
                           </View>
 

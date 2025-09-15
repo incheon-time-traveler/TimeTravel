@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Ionicons from '@react-native-vector-icons/ionicons';
 import {
   View,
   ScrollView,
@@ -15,7 +16,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
-import { INCHEON_BLUE, INCHEON_BLUE_LIGHT, INCHEON_GRAY, WARNING, TEXT_STYLES } from '../../styles/fonts';
+import { INCHEON_BLUE, INCHEON_BLUE_LIGHT, INCHEON_GRAY, WARNING, TEXT_STYLES, FONT_STYLES } from '../../styles/fonts';
 import PixelLockIcon from '../../components/ui/PixelLockIcon';
 import CheckIcon from '../../components/ui/CheckIcon';
 import { useNavigation } from '@react-navigation/native';
@@ -110,6 +111,7 @@ const TripsScreen: React.FC = () => {
   const [spotDescription, setSpotDescription] = useState<string | null>(null);
   const [selectedCourse, setSelectedCourse] = useState<any>(null);
   const [courseModalVisible, setCourseModalVisible] = useState(false);
+  const [selectedCompletedSpot, setSelectedCompletedSpot] = useState<any>(null);
   // 백엔드 데이터 상태
   const [userRouteSpot, setUserRouteSpot] = useState<any>(null);
   const [userCourses, setUserCourses] = useState<any[]>([]);
@@ -456,10 +458,8 @@ const TripsScreen: React.FC = () => {
     console.log('[TripsScreen] backgroundImage:', backgroundImage);
 
     // 자물쇠 이미지 URI 변환
-    const lockedResolved = Image.resolveAssetSource(lockedBase64);
-    const unlockedResolved = Image.resolveAssetSource(unlockedBase64);
-    const lockedUri = lockedResolved?.uri || '';
-    const unlockedUri = unlockedResolved?.uri || '';
+    const lockedUri = lockedBase64;
+    const unlockedUri = unlockedBase64;
 
     return `
       <!DOCTYPE html>
@@ -630,7 +630,7 @@ const TripsScreen: React.FC = () => {
                 <div class="pin ${pinClass}">
                   <img src="${spot.completed ? unlockedBase64 : lockedBase64}" class="pin-icon" alt="pin" />
                 </div>
-                <div class="pin-label">${spotsData.find(spot => !spot.completed).title != spot.title ? '' : spot.title}</div>
+                <div class="pin-label">${spotsData.find(spot => !spot.completed)?.title != spot.title ? '' : spot.title}</div>
               </div>
             `;
           }).join('')}
@@ -741,66 +741,244 @@ const TripsScreen: React.FC = () => {
                   animationType="fade"
                   onRequestClose={() => setSelectedSpot(null)}
                 >
-                  <View style={styles.modalOverlay}>
-                    <View style={styles.modalContainer}>
-                      <View style={styles.modalHeader}>
-                        <Text style={styles.modalTitle}>{selectedSpot.title}</Text>
+                  <View style={{
+                    flex: 1,
+                    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                  }}>
+                    <View style={{
+                      width: width - 30,
+                      maxHeight: height - 80,
+                      backgroundColor: '#fff',
+                      borderRadius: 20,
+                      margin: 15,
+                      shadowColor: '#000',
+                      shadowOffset: {
+                        width: 0,
+                        height: 10,
+                      },
+                      shadowOpacity: 0.25,
+                      shadowRadius: 20,
+                      elevation: 20,
+                    }}>
+                      {/* 헤더 */}
+                      <View style={{
+                        flexDirection: 'row',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        paddingHorizontal: 25,
+                        paddingVertical: 20,
+                        backgroundColor: INCHEON_BLUE_LIGHT,
+                        borderTopLeftRadius: 20,
+                        borderTopRightRadius: 20,
+                        borderBottomWidth: 2,
+                        borderBottomColor: INCHEON_BLUE,
+                      }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                          <Ionicons name="location" size={20} color={INCHEON_BLUE} style={{ marginRight: 8 }} />
+                          <Text style={{
+                            ...FONT_STYLES.pixel,
+                            fontSize: 20,
+                            fontWeight: 'bold',
+                            color: INCHEON_BLUE,
+                          }}>
+                            {selectedSpot.title}
+                          </Text>
+                        </View>
                         <TouchableOpacity
                           onPress={() => setSelectedSpot(null)}
-                          style={styles.modalCloseButton}
+                          style={{
+                            width: 32,
+                            height: 32,
+                            borderRadius: 16,
+                            backgroundColor: '#fff',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            shadowColor: '#000',
+                            shadowOffset: { width: 0, height: 2 },
+                            shadowOpacity: 0.1,
+                            shadowRadius: 4,
+                            elevation: 3,
+                          }}
                         >
-                          <Text style={styles.modalCloseButtonText}>✕</Text>
+                          <Ionicons name="close" size={18} color="#666" />
                         </TouchableOpacity>
                       </View>
 
-                      <ScrollView style={styles.modalTextContainer}>
-                        {/* 사용자 촬영 사진이 있으면 우선 표시, 없으면 기본 이미지 */}
-                        {userPhoto && userPhoto.image_url ? (
-                          <Image
-                            source={{ uri: userPhoto.image_url }}
-                            style={styles.modalImage}
-                            resizeMode="cover"
-                          />
-                        ) : spotDetail && spotDetail.first_image ? (
-                          <Image
-                            source={{ uri: spotDetail.first_image.replace("http://", "https://") }}
-                            style={styles.modalImage}
-                            resizeMode="cover"
-                          />
-                        ) : null}
-                        
-                        {/* 방문 상태 표시 */}
-                        <View style={styles.visitStatusContainer}>
-                          <Text style={styles.visitStatusText}>
-                            {selectedSpot.completed_at || selectedSpot.unlock_at ? '✅ 방문 완료' : '🔒 미방문'}
-                          </Text>
-                          {(selectedSpot.completed_at || selectedSpot.unlock_at) && (
-                            <Text style={styles.visitDateText}>
-                              방문일: {new Date(selectedSpot.completed_at || selectedSpot.unlock_at).toLocaleDateString('ko-KR')}
-                            </Text>
-                          )}
-                        </View>
-
-                        {/* 스팟 상세 정보 */}
-                        {spotDetail && (
-                          <View style={styles.spotDetailContainer}>
-                            <Text style={styles.spotDetailTitle}>장소 정보</Text>
-                            <Text style={styles.spotDetailText}>
-                              {spotDetail.description || '상세 정보가 없습니다.'}
-                            </Text>
-                            
-                            {spotDetail.address && (
-                              <Text style={styles.spotDetailLabel}>주소: {spotDetail.address}</Text>
-                            )}
-                            
-                            {spotDetail.lat && spotDetail.lng && (
-                              <Text style={styles.spotDetailLabel}>
-                                위치: {spotDetail.lat.toFixed(6)}, {spotDetail.lng.toFixed(6)}
+                      {/* 내용 */}
+                      <ScrollView
+                        style={{ maxHeight: height - 300 }}
+                        showsVerticalScrollIndicator={true}
+                        contentContainerStyle={{ paddingBottom: 20 }}
+                      >
+                        <View style={{ paddingHorizontal: 25, paddingTop: 20 }}>
+                          {/* 방문 완료 정보 */}
+                          <View style={{
+                            backgroundColor: '#f8f9fa',
+                            borderRadius: 12,
+                            padding: 16,
+                            marginBottom: 20,
+                            borderLeftWidth: 4,
+                            borderLeftColor: INCHEON_BLUE,
+                          }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                              <Ionicons name="checkmark-circle" size={18} color="#28a745" style={{ marginRight: 8 }} />
+                              <Text style={{
+                                ...FONT_STYLES.pixel,
+                                fontSize: 16,
+                                fontWeight: 'bold',
+                                color: INCHEON_BLUE,
+                              }}>
+                                방문 완료
+                              </Text>
+                            </View>
+                            {(selectedSpot.completed_at || selectedSpot.unlock_at) && (
+                              <Text style={{
+                                ...FONT_STYLES.pixel,
+                                fontSize: 14,
+                                color: '#666',
+                                marginLeft: 26,
+                              }}>
+                                방문일: {new Date(selectedSpot.completed_at || selectedSpot.unlock_at).toLocaleString('ko-KR', {
+                                  year: 'numeric',
+                                  month: '2-digit',
+                                  day: '2-digit',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                }).replace(/\./g, '. ').replace(/\s/g, '')}.
                               </Text>
                             )}
                           </View>
-                        )}
+
+                          {/* 장소 이미지 */}
+                          {(userPhoto && userPhoto.image_url) || (spotDetail && spotDetail.first_image) ? (
+                            <View style={{ marginBottom: 20 }}>
+                              <Image
+                                source={{ 
+                                  uri: userPhoto && userPhoto.image_url 
+                                    ? userPhoto.image_url 
+                                    : spotDetail.first_image.replace("http://", "https://")
+                                }}
+                                style={{
+                                  width: '100%',
+                                  height: 200,
+                                  borderRadius: 12,
+                                  borderWidth: 1,
+                                  borderColor: '#e0e0e0',
+                                }}
+                                resizeMode="cover"
+                              />
+                            </View>
+                          ) : null}
+
+                          {/* 장소 정보 */}
+                          {spotDetail && (
+                            <View style={{
+                              backgroundColor: '#fff',
+                              borderRadius: 12,
+                              padding: 16,
+                              borderWidth: 1,
+                              borderColor: '#e9ecef',
+                              shadowColor: '#000',
+                              shadowOffset: { width: 0, height: 2 },
+                              shadowOpacity: 0.05,
+                              shadowRadius: 4,
+                              elevation: 2,
+                            }}>
+                              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+                                <Ionicons name="information-circle" size={18} color={INCHEON_BLUE} style={{ marginRight: 8 }} />
+                                <Text style={{
+                                  ...FONT_STYLES.pixel,
+                                  fontSize: 18,
+                                  fontWeight: 'bold',
+                                  color: '#333'
+                                }}>
+                                  장소 정보
+                                </Text>
+                              </View>
+                              
+                              <Text style={{
+                                ...FONT_STYLES.pixel,
+                                fontSize: 14,
+                                color: '#333',
+                                lineHeight: 20,
+                                marginBottom: 12,
+                              }}>
+                                {spotDetail.description || '상세 정보가 없습니다.'}
+                              </Text>
+                              
+                              {spotDetail.address && (
+                                <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 8 }}>
+                                  <Ionicons name="location-outline" size={14} color="#666" style={{ marginRight: 6, marginTop: 2 }} />
+                                  <Text style={{
+                                    ...FONT_STYLES.pixel,
+                                    fontSize: 13,
+                                    color: '#666',
+                                    flex: 1,
+                                    lineHeight: 18,
+                                  }}>
+                                    주소: {spotDetail.address}
+                                  </Text>
+                                </View>
+                              )}
+                              
+                              {spotDetail.lat && spotDetail.lng && (
+                                <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+                                  <Ionicons name="map-outline" size={14} color="#666" style={{ marginRight: 6, marginTop: 2 }} />
+                                  <Text style={{
+                                    ...FONT_STYLES.pixel,
+                                    fontSize: 13,
+                                    color: '#666',
+                                    flex: 1,
+                                    lineHeight: 18,
+                                  }}>
+                                    위치: {spotDetail.lat.toFixed(6)}, {spotDetail.lng.toFixed(6)}
+                                  </Text>
+                                </View>
+                              )}
+                            </View>
+                          )}
+                        </View>
                       </ScrollView>
+
+                      {/* 푸터 */}
+                      <View style={{
+                        paddingHorizontal: 25,
+                        paddingVertical: 20,
+                        backgroundColor: '#f8f9fa',
+                        borderBottomLeftRadius: 20,
+                        borderBottomRightRadius: 20,
+                        borderTopWidth: 1,
+                        borderTopColor: '#e9ecef',
+                      }}>
+                        <TouchableOpacity
+                          style={{
+                            backgroundColor: INCHEON_BLUE,
+                            paddingVertical: 14,
+                            borderRadius: 12,
+                            alignItems: 'center',
+                            shadowColor: INCHEON_BLUE,
+                            shadowOffset: { width: 0, height: 4 },
+                            shadowOpacity: 0.3,
+                            shadowRadius: 8,
+                            elevation: 6,
+                          }}
+                          onPress={() => setSelectedSpot(null)}
+                        >
+                          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <Ionicons name="checkmark" size={18} color="#fff" style={{ marginRight: 6 }} />
+                            <Text style={{
+                              ...FONT_STYLES.pixel,
+                              color: '#fff',
+                              fontSize: 16,
+                              fontWeight: 'bold',
+                            }}>
+                              확인
+                            </Text>
+                          </View>
+                        </TouchableOpacity>
+                      </View>
                     </View>
                   </View>
                 </Modal>
@@ -820,7 +998,7 @@ const TripsScreen: React.FC = () => {
                     <Text style={styles.hotelCardText}>{spot.title}</Text>
                   </View>
                   <View style={{ flexDirection: 'row', alignItems: 'center', position: 'relative', paddingRight: 0 }}>
-                    <Text style={styles.arrowText}>></Text>
+                    <Text style={styles.arrowText}>{'>'}</Text>
                     <CheckIcon />
                   </View>
                 </TouchableOpacity>
@@ -1024,12 +1202,12 @@ const renderCompletedTab = () => (
             borderBottomColor: INCHEON_BLUE,
           }}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Text style={{ fontSize: 20, marginRight: 8 }}>🗺️</Text>
+              <Ionicons name="map" size={20} color={INCHEON_BLUE} style={{ marginRight: 8 }} />
               <Text style={{
+                ...FONT_STYLES.pixel,
                 fontSize: 20,
                 fontWeight: 'bold',
                 color: INCHEON_BLUE,
-                fontFamily: 'NeoDunggeunmoPro-Regular'
               }}>
                 코스 상세 정보
               </Text>
@@ -1050,7 +1228,7 @@ const renderCompletedTab = () => (
                 elevation: 3,
               }}
             >
-              <Text style={{ fontSize: 18, color: '#666' }}>✕</Text>
+              <Ionicons name="close" size={18} color="#666" />
             </TouchableOpacity>
           </View>
 
@@ -1071,46 +1249,46 @@ const renderCompletedTab = () => (
                 borderLeftColor: INCHEON_BLUE,
               }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                  <Text style={{ fontSize: 18, marginRight: 8 }}>📍</Text>
+                  <Ionicons name="location" size={18} color={INCHEON_BLUE} style={{ marginRight: 8 }} />
                   <Text style={{
+                    ...FONT_STYLES.pixel,
                     fontSize: 18,
                     fontWeight: 'bold',
-                    color: '#333',
-                    fontFamily: 'NeoDunggeunmoPro-Regular'
+                    color: '#333'
                   }}>
                     {selectedCourse?.user_region_name || '알 수 없는 루트'}
                   </Text>
                 </View>
 
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-                  <Text style={{ fontSize: 16, marginRight: 8 }}>🏢</Text>
+                  <Ionicons name="business" size={16} color="#4ECDC4" style={{ marginRight: 8 }} />
                   <Text style={{
+                    ...FONT_STYLES.pixel,
                     fontSize: 14,
-                    color: '#666',
-                    fontFamily: 'NeoDunggeunmoPro-Regular'
+                    color: '#666'
                   }}>
                     지역: {selectedCourse?.user_region_name || '인천'}
                   </Text>
                 </View>
 
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-                  <Text style={{ fontSize: 16, marginRight: 8 }}>🗺️</Text>
+                  <Ionicons name="map" size={16} color="#45B7D1" style={{ marginRight: 8 }} />
                   <Text style={{
+                    ...FONT_STYLES.pixel,
                     fontSize: 14,
-                    color: '#666',
-                    fontFamily: 'NeoDunggeunmoPro-Regular'
+                    color: '#666'
                   }}>
                     총 장소 수: {selectedCourse?.total_spots || selectedCourse?.spots?.length || 0}개
                   </Text>
                 </View>
 
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Text style={{ fontSize: 16, marginRight: 8 }}>✅</Text>
+                  <Ionicons name="checkmark-circle" size={16} color="#96CEB4" style={{ marginRight: 8 }} />
                   <Text style={{
+                    ...FONT_STYLES.pixel,
                     fontSize: 14,
                     color: '#28a745',
-                    fontWeight: '600',
-                    fontFamily: 'NeoDunggeunmoPro-Regular'
+                    fontWeight: '600'
                   }}>
                     완료일: {selectedCourse?.completedDate || '알 수 없음'}
                   </Text>
@@ -1119,12 +1297,12 @@ const renderCompletedTab = () => (
 
               {/* 장소 목록 헤더 */}
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 15 }}>
-                <Text style={{ fontSize: 18, marginRight: 8 }}>≡</Text>
+                <Ionicons name="list" size={18} color={INCHEON_BLUE} style={{ marginRight: 8 }} />
                 <Text style={{
+                  ...FONT_STYLES.pixel,
                   fontSize: 18,
                   fontWeight: 'bold',
-                  color: '#333',
-                  fontFamily: 'NeoDunggeunmoPro-Regular'
+                  color: '#333'
                 }}>
                   장소 목록
                 </Text>
@@ -1132,19 +1310,24 @@ const renderCompletedTab = () => (
 
               {selectedCourse?.spots && selectedCourse.spots.length > 0 ? (
                 selectedCourse.spots.map((spot: any, index: number) => (
-                  <View key={spot.id} style={{
-                    marginBottom: 12,
-                    backgroundColor: '#fff',
-                    borderRadius: 12,
-                    padding: 16,
-                    borderWidth: 1,
-                    borderColor: '#e9ecef',
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.05,
-                    shadowRadius: 4,
-                    elevation: 2,
-                  }}>
+                  <TouchableOpacity
+                    key={spot.id}
+                    style={{
+                      marginBottom: 12,
+                      backgroundColor: '#fff',
+                      borderRadius: 12,
+                      padding: 16,
+                      borderWidth: 1,
+                      borderColor: '#e9ecef',
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.05,
+                      shadowRadius: 4,
+                      elevation: 2,
+                    }}
+                    onPress={() => setSelectedCompletedSpot(spot)}
+                    activeOpacity={0.7}
+                  >
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
                       <View style={{
                         width: 24,
@@ -1156,53 +1339,54 @@ const renderCompletedTab = () => (
                         marginRight: 12,
                       }}>
                         <Text style={{
+                          ...FONT_STYLES.pixel,
                           color: '#fff',
                           fontSize: 12,
-                          fontWeight: 'bold',
-                          fontFamily: 'NeoDunggeunmoPro-Regular'
+                          fontWeight: 'bold'
                         }}>
                           {index + 1}
                         </Text>
                       </View>
                       <Text style={{
+                        ...FONT_STYLES.pixel,
                         fontSize: 16,
                         fontWeight: 'bold',
                         color: '#333',
                         flex: 1,
-                        fontFamily: 'NeoDunggeunmoPro-Regular'
                       }}>
                         {spot.title}
                       </Text>
+                      <Ionicons name="chevron-forward" size={16} color="#ccc" />
                     </View>
                     {spot.address ? (
                       <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginLeft: 36 }}>
-                        <Text style={{ fontSize: 14, marginRight: 6, marginTop: 2 }}>📍</Text>
+                        <Ionicons name="location-outline" size={14} color="#666" style={{ marginRight: 6, marginTop: 2 }} />
                         <Text style={{
+                          ...FONT_STYLES.pixel,
                           fontSize: 13,
                           color: '#666',
                           flex: 1,
                           lineHeight: 18,
-                          fontFamily: 'NeoDunggeunmoPro-Regular'
                         }}>
                           {spot.address}
                         </Text>
                       </View>
                     ) : (
                       <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginLeft: 36 }}>
-                        <Text style={{ fontSize: 14, marginRight: 6, marginTop: 2 }}>📍</Text>
+                        <Ionicons name="location-outline" size={14} color="#666" style={{ marginRight: 6, marginTop: 2 }} />
                         <Text style={{
+                          ...FONT_STYLES.pixel,
                           fontSize: 13,
                           color: '#999',
                           flex: 1,
                           lineHeight: 18,
-                          fontFamily: 'NeoDunggeunmoPro-Regular',
                           fontStyle: 'italic'
                         }}>
                           주소 정보 없음
                         </Text>
                       </View>
                     )}
-                  </View>
+                  </TouchableOpacity>
                 ))
               ) : (
                 <View style={{
@@ -1214,12 +1398,12 @@ const renderCompletedTab = () => (
                   borderColor: '#e9ecef',
                   borderStyle: 'dashed',
                 }}>
-                  <Text style={{ fontSize: 32, marginBottom: 10 }}>⏳</Text>
+                  <Ionicons name="hourglass-outline" size={32} color="#adb5bd" style={{ marginBottom: 10 }} />
                   <Text style={{
+                    ...FONT_STYLES.pixel,
                     fontSize: 14,
                     color: '#6c757d',
-                    textAlign: 'center',
-                    fontFamily: 'NeoDunggeunmoPro-Regular'
+                    textAlign: 'center'
                   }}>
                     장소 정보를 불러오는 중...
                   </Text>
@@ -1230,12 +1414,12 @@ const renderCompletedTab = () => (
               {selectedCourse?.photos && selectedCourse.photos.length > 0 && (
                 <>
                   <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 15, marginTop: 20 }}>
-                    <Text style={{ fontSize: 18, marginRight: 8 }}>📸</Text>
+                    <Ionicons name="camera" size={18} color={INCHEON_BLUE} style={{ marginRight: 8 }} />
                     <Text style={{
+                      ...FONT_STYLES.pixel,
                       fontSize: 18,
                       fontWeight: 'bold',
-                      color: '#333',
-                      fontFamily: 'NeoDunggeunmoPro-Regular'
+                      color: '#333'
                     }}>
                       코스 사진
                     </Text>
@@ -1293,14 +1477,280 @@ const renderCompletedTab = () => (
               onPress={() => setCourseModalVisible(false)}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Text style={{ fontSize: 18, color: '#fff', marginRight: 6 }}>✅</Text>
+                <Ionicons name="checkmark" size={18} color="#fff" style={{ marginRight: 6 }} />
                 <Text style={{
+                  ...FONT_STYLES.pixel,
                   color: '#fff',
                   fontSize: 16,
                   fontWeight: 'bold',
-                  fontFamily: 'NeoDunggeunmoPro-Regular'
                 }}>
                   다른 코스 보기
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+
+  // 진행완료 탭에서 장소 클릭 시 나타나는 상세 정보 모달
+  const renderCompletedSpotModal = () => (
+    <Modal
+      visible={!!selectedCompletedSpot}
+      transparent={true}
+      animationType="fade"
+      onRequestClose={() => setSelectedCompletedSpot(null)}
+    >
+      <View style={{
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.6)',
+        justifyContent: 'center',
+        alignItems: 'center',
+      }}>
+        <View style={{
+          width: width - 30,
+          maxHeight: height - 80,
+          backgroundColor: '#fff',
+          borderRadius: 20,
+          margin: 15,
+          shadowColor: '#000',
+          shadowOffset: {
+            width: 0,
+            height: 10,
+          },
+          shadowOpacity: 0.25,
+          shadowRadius: 20,
+          elevation: 20,
+        }}>
+          {/* 헤더 */}
+          <View style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            paddingHorizontal: 25,
+            paddingVertical: 20,
+            backgroundColor: INCHEON_BLUE_LIGHT,
+            borderTopLeftRadius: 20,
+            borderTopRightRadius: 20,
+            borderBottomWidth: 2,
+            borderBottomColor: INCHEON_BLUE,
+          }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Ionicons name="location" size={20} color={INCHEON_BLUE} style={{ marginRight: 8 }} />
+              <Text style={{
+                ...FONT_STYLES.pixel,
+                fontSize: 20,
+                fontWeight: 'bold',
+                color: INCHEON_BLUE,
+              }}>
+                {selectedCompletedSpot?.title}
+              </Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => setSelectedCompletedSpot(null)}
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 16,
+                backgroundColor: '#fff',
+                justifyContent: 'center',
+                alignItems: 'center',
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.1,
+                shadowRadius: 4,
+                elevation: 3,
+              }}
+            >
+              <Ionicons name="close" size={18} color="#666" />
+            </TouchableOpacity>
+          </View>
+
+          {/* 내용 */}
+          <ScrollView
+            style={{ maxHeight: height - 300 }}
+            showsVerticalScrollIndicator={true}
+            contentContainerStyle={{ paddingBottom: 20 }}
+          >
+            <View style={{ paddingHorizontal: 25, paddingTop: 20 }}>
+              {/* 방문 완료 정보 */}
+              <View style={{
+                backgroundColor: '#f8f9fa',
+                borderRadius: 12,
+                padding: 16,
+                marginBottom: 20,
+                borderLeftWidth: 4,
+                borderLeftColor: INCHEON_BLUE,
+              }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                  <Ionicons name="checkmark-circle" size={18} color="#28a745" style={{ marginRight: 8 }} />
+                  <Text style={{
+                    ...FONT_STYLES.pixel,
+                    fontSize: 16,
+                    fontWeight: 'bold',
+                    color: INCHEON_BLUE,
+                  }}>
+                    방문 완료
+                  </Text>
+                </View>
+                {(selectedCompletedSpot?.completed_at || selectedCompletedSpot?.unlock_at) && (
+                  <Text style={{
+                    ...FONT_STYLES.pixel,
+                    fontSize: 14,
+                    color: '#666',
+                    marginLeft: 26,
+                  }}>
+                    방문일: {new Date(selectedCompletedSpot.completed_at || selectedCompletedSpot.unlock_at).toLocaleString('ko-KR', {
+                      year: 'numeric',
+                      month: '2-digit',
+                      day: '2-digit',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    }).replace(/\./g, '. ').replace(/\s/g, '')}.
+                  </Text>
+                )}
+              </View>
+
+              {/* 장소 이미지 */}
+              {(() => {
+                const spotDetail = spotsData.find((spot: any) => spot.id === selectedCompletedSpot?.id);
+                const userPhoto = userPhotos.find((photo: any) => photo.spot_id === selectedCompletedSpot?.id);
+                
+                if ((userPhoto && userPhoto.image_url) || (spotDetail && spotDetail.first_image)) {
+                  return (
+                    <View style={{ marginBottom: 20 }}>
+                      <Image
+                        source={{ 
+                          uri: userPhoto && userPhoto.image_url 
+                            ? userPhoto.image_url 
+                            : spotDetail.first_image.replace("http://", "https://")
+                        }}
+                        style={{
+                          width: '100%',
+                          height: 200,
+                          borderRadius: 12,
+                          borderWidth: 1,
+                          borderColor: '#e0e0e0',
+                        }}
+                        resizeMode="cover"
+                      />
+                    </View>
+                  );
+                }
+                return null;
+              })()}
+
+              {/* 장소 정보 */}
+              {(() => {
+                const spotDetail = spotsData.find((spot: any) => spot.id === selectedCompletedSpot?.id);
+                
+                if (spotDetail) {
+                  return (
+                    <View style={{
+                      backgroundColor: '#fff',
+                      borderRadius: 12,
+                      padding: 16,
+                      borderWidth: 1,
+                      borderColor: '#e9ecef',
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.05,
+                      shadowRadius: 4,
+                      elevation: 2,
+                    }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+                        <Ionicons name="information-circle" size={18} color={INCHEON_BLUE} style={{ marginRight: 8 }} />
+                        <Text style={{
+                          ...FONT_STYLES.pixel,
+                          fontSize: 18,
+                          fontWeight: 'bold',
+                          color: '#333'
+                        }}>
+                          장소 정보
+                        </Text>
+                      </View>
+                      
+                      <Text style={{
+                        ...FONT_STYLES.pixel,
+                        fontSize: 14,
+                        color: '#333',
+                        lineHeight: 20,
+                        marginBottom: 12,
+                      }}>
+                        {spotDetail.description || '상세 정보가 없습니다.'}
+                      </Text>
+                      
+                      {spotDetail.address && (
+                        <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 8 }}>
+                          <Ionicons name="location-outline" size={14} color="#666" style={{ marginRight: 6, marginTop: 2 }} />
+                          <Text style={{
+                            ...FONT_STYLES.pixel,
+                            fontSize: 13,
+                            color: '#666',
+                            flex: 1,
+                            lineHeight: 18,
+                          }}>
+                            주소: {spotDetail.address}
+                          </Text>
+                        </View>
+                      )}
+                      
+                      {spotDetail.lat && spotDetail.lng && (
+                        <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+                          <Ionicons name="map-outline" size={14} color="#666" style={{ marginRight: 6, marginTop: 2 }} />
+                          <Text style={{
+                            ...FONT_STYLES.pixel,
+                            fontSize: 13,
+                            color: '#666',
+                            flex: 1,
+                            lineHeight: 18,
+                          }}>
+                            위치: {spotDetail.lat.toFixed(6)}, {spotDetail.lng.toFixed(6)}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  );
+                }
+                return null;
+              })()}
+            </View>
+          </ScrollView>
+
+          {/* 푸터 */}
+          <View style={{
+            paddingHorizontal: 25,
+            paddingVertical: 20,
+            backgroundColor: '#f8f9fa',
+            borderBottomLeftRadius: 20,
+            borderBottomRightRadius: 20,
+            borderTopWidth: 1,
+            borderTopColor: '#e9ecef',
+          }}>
+            <TouchableOpacity
+              style={{
+                backgroundColor: INCHEON_BLUE,
+                paddingVertical: 14,
+                borderRadius: 12,
+                alignItems: 'center',
+                shadowColor: INCHEON_BLUE,
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.3,
+                shadowRadius: 8,
+                elevation: 6,
+              }}
+              onPress={() => setSelectedCompletedSpot(null)}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Ionicons name="checkmark" size={18} color="#fff" style={{ marginRight: 6 }} />
+                <Text style={{
+                  ...FONT_STYLES.pixel,
+                  color: '#fff',
+                  fontSize: 16,
+                  fontWeight: 'bold',
+                }}>
+                  확인
                 </Text>
               </View>
             </TouchableOpacity>
@@ -1359,6 +1809,9 @@ const renderCompletedTab = () => (
 
       {/* 코스 상세 모달 */}
       {renderCourseModal()}
+      
+      {/* 진행완료 탭 장소 상세 모달 */}
+      {renderCompletedSpotModal()}
     </>
   );
 };

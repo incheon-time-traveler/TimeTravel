@@ -115,17 +115,37 @@ export default function GalleryScreen({ navigation }: any) {
           spot_id: photoData.missionInfo.spot_id,
           isUserPhoto: true,
         }));
-        setGalleryData(localGalleryData.reverse());
-        setFoundCount(localGalleryData.length);
-      } else {
-        setGalleryData([]);
-        setFoundCount(0);
+        
+        // 기존 갤러리 데이터와 병합
+        setGalleryData(prevData => {
+          const updatedData = [...prevData];
+          let completedCount = 0;
+          
+          localGalleryData.forEach(localPhoto => {
+            const existingIndex = updatedData.findIndex(item => item.title === localPhoto.title);
+            if (existingIndex !== -1) {
+              // 기존 항목을 완료된 상태로 업데이트
+              updatedData[existingIndex] = {
+                ...updatedData[existingIndex],
+                completed: true,
+                image_url: localPhoto.image_url,
+                past_image_url: localPhoto.past_image_url,
+                hasStamp: true,
+                isUserPhoto: true,
+              };
+            }
+          });
+          
+          // 완료된 항목 개수 계산
+          completedCount = updatedData.filter(item => item.completed).length;
+          setFoundCount(completedCount);
+          
+          return updatedData;
+        });
       }
     } catch (error) {
       console.error('[GalleryScreen] 로컬 사진 불러오기 실패:', error);
       Alert.alert('오류', '사진을 불러오는 중 문제가 발생했습니다.');
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -133,27 +153,30 @@ export default function GalleryScreen({ navigation }: any) {
 	const loadAllMissions = async () => {
 	  try {
 	    // 전체 미션 목록을 가져오는 API 호출 (또는 하드코딩된 목록 사용)
-	    const allMissions = [
-	      { id: 1, title: '부평향교', completed: false, hasStamp: false },
-	      { id: 2, title: '계양문화회관', completed: false, hasStamp: false },
-	      { id: 3, title: '계양산성박물관', completed: false, hasStamp: false },
-	      { id: 4, title: '인천도호부관아', completed: false, hasStamp: false },
-	      { id: 5, title: '구 인천우체국', completed: false, hasStamp: false },
-	      { id: 6, title: '인천내동성공회성당', completed: false, hasStamp: false },
-	      { id: 7, title: '대불호텔전시관', completed: false, hasStamp: false },
-	      { id: 8, title: '인천 답동성당', completed: false, hasStamp: false },
-	      { id: 9, title: '제물포 구락부', completed: false, hasStamp: false },
-	      { id: 10, title: '홍예문', completed: false, hasStamp: false },
-	      { id: 11, title: '연미정', completed: false, hasStamp: false },
-	      { id: 12, title: '팔미도 등대', completed: false, hasStamp: false },
-	      { id: 13, title: '논현포대', completed: false, hasStamp: false },
-	      { id: 14, title: '백련사(강화)', completed: false, hasStamp: false },
-	      { id: 15, title: '대한성공회 강화성당', completed: false, hasStamp: false },
-	      { id: 16, title: '용동큰우물', completed: false, hasStamp: false },
+	    const allMissions: GalleryItem[] = [
+	      { id: 1, title: '부평향교', completed: false, hasStamp: false, stampUsed: false, route_id: 1, spot_id: 1, image_url: '', past_image_url: '' },
+	      { id: 2, title: '계양문화회관', completed: false, hasStamp: false, stampUsed: false, route_id: 2, spot_id: 2, image_url: '', past_image_url: '' },
+	      { id: 3, title: '계양산성박물관', completed: false, hasStamp: false, stampUsed: false, route_id: 3, spot_id: 3, image_url: '', past_image_url: '' },
+	      { id: 4, title: '인천도호부관아', completed: false, hasStamp: false, stampUsed: false, route_id: 4, spot_id: 4, image_url: '', past_image_url: '' },
+	      { id: 5, title: '구 인천우체국', completed: false, hasStamp: false, stampUsed: false, route_id: 5, spot_id: 5, image_url: '', past_image_url: '' },
+	      { id: 6, title: '인천내동성공회성당', completed: false, hasStamp: false, stampUsed: false, route_id: 6, spot_id: 6, image_url: '', past_image_url: '' },
+	      { id: 7, title: '대불호텔전시관', completed: false, hasStamp: false, stampUsed: false, route_id: 7, spot_id: 7, image_url: '', past_image_url: '' },
+	      { id: 8, title: '인천 답동성당', completed: false, hasStamp: false, stampUsed: false, route_id: 8, spot_id: 8, image_url: '', past_image_url: '' },
+	      { id: 9, title: '제물포 구락부', completed: false, hasStamp: false, stampUsed: false, route_id: 9, spot_id: 9, image_url: '', past_image_url: '' },
+	      { id: 10, title: '홍예문', completed: false, hasStamp: false, stampUsed: false, route_id: 10, spot_id: 10, image_url: '', past_image_url: '' },
+	      { id: 11, title: '연미정', completed: false, hasStamp: false, stampUsed: false, route_id: 11, spot_id: 11, image_url: '', past_image_url: '' },
+	      { id: 12, title: '팔미도 등대', completed: false, hasStamp: false, stampUsed: false, route_id: 12, spot_id: 12, image_url: '', past_image_url: '' },
+	      { id: 13, title: '논현포대', completed: false, hasStamp: false, stampUsed: false, route_id: 13, spot_id: 13, image_url: '', past_image_url: '' },
+	      { id: 14, title: '백련사(강화)', completed: false, hasStamp: false, stampUsed: false, route_id: 14, spot_id: 14, image_url: '', past_image_url: '' },
+	      { id: 15, title: '대한성공회 강화성당', completed: false, hasStamp: false, stampUsed: false, route_id: 15, spot_id: 15, image_url: '', past_image_url: '' },
+	      { id: 16, title: '용동큰우물', completed: false, hasStamp: false, stampUsed: false, route_id: 16, spot_id: 16, image_url: '', past_image_url: '' },
 	    ];
 	    
 	    setGalleryData(allMissions);
-	    setFoundCount(0); // 로그인하지 않은 사용자는 0개로 표시
+	    // 로그인하지 않은 사용자는 0개로 표시, 로그인한 사용자는 나중에 loadLocalPhotos에서 업데이트됨
+	    if (!isLoggedIn) {
+	      setFoundCount(0);
+	    }
 	  } catch (error) {
 	    console.error('[GalleryScreen] 전체 미션 목록 로드 실패:', error);
 	    setGalleryData([]);
@@ -165,11 +188,15 @@ export default function GalleryScreen({ navigation }: any) {
 	const initializeScreen = async () => {
 	  setIsLoading(true);
 	  const loggedIn = await checkLoginStatus(); // 먼저 로그인 상태 확인
-	  if (!loggedIn) {
-	    await loadAllMissions(); // 로그인하지 않은 사용자도 전체 미션 목록 표시
-	  } else {
+	  
+	  // 모든 사용자에게 전체 미션 목록을 먼저 로드
+	  await loadAllMissions();
+	  
+	  // 로그인한 사용자는 추가로 로컬 사진도 로드
+	  if (loggedIn) {
 	    await loadLocalPhotos();
 	  }
+	  
 	  setIsLoading(false);
 	};
 

@@ -192,83 +192,37 @@ const TripsScreen: React.FC = () => {
       console.log(`[TripsScreen] 코스 조회 시작 (시도 ${retryCount + 1}/${maxRetries + 1})`);
       console.log(`[TripsScreen] 백엔드 URL: ${BACKEND_API.BASE_URL}`);
 
-      // 시뮬레이션 모드 확인
-      const isSimulationMode = await AsyncStorage.getItem('isSimulationMode');
-      console.log('[TripsScreen] 시뮬레이션 모드 확인:', isSimulationMode);
-
+      // API에서 데이터 가져오기
       let response;
-      let data: any[] = [];
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10초 타임아웃
 
-      if (isSimulationMode === 'true') {
-        // 시뮬레이션 모드일 때는 AsyncStorage에서 데이터 가져오기
-        const simulatedData = await AsyncStorage.getItem('simulatedCourses');
-        if (simulatedData) {
-          data = JSON.parse(simulatedData);
-          console.log('[TripsScreen] 시뮬레이션된 데이터 사용:', data);
-          console.log('[TripsScreen] 시뮬레이션된 데이터 첫 번째 코스 스팟들:', data[0]?.spots?.map((s: any) => ({ 
-            title: s.title, 
-            unlock_at: s.unlock_at, 
-            completed_at: s.completed_at 
-          })));
-          
-          // 시뮬레이션 모드일 때는 모든 스팟을 완료된 것으로 강제 설정
-          if (data[0]?.spots) {
-            console.log('[TripsScreen] 시뮬레이션 모드 - 모든 스팟을 완료된 것으로 강제 설정');
-            data[0].spots.forEach((spot: any, index: number) => {
-              console.log(`[TripsScreen] 스팟 ${index + 1} (${spot.title}) 원본 데이터:`, {
-                unlock_at: spot.unlock_at,
-                completed_at: spot.completed_at
-              });
-              
-              // 시뮬레이션 모드에서는 모든 스팟을 완료된 것으로 설정
-              if (!spot.unlock_at) {
-                spot.unlock_at = new Date().toISOString();
-                console.log(`[TripsScreen] 스팟 ${spot.title}의 unlock_at 강제 설정: ${spot.unlock_at}`);
-              }
-            });
-          }
-          
-          // 시뮬레이션 데이터를 사용하기 위해 가짜 response 객체 생성
-          response = { ok: true, status: 200, statusText: 'OK' };
-        } else {
-          console.log('[TripsScreen] 시뮬레이션 데이터가 없음');
-          return;
+        response = await fetch(`${BACKEND_API.BASE_URL}/v1/courses/user_routes/`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${tokens.access}`,
+          },
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+        console.log(`[TripsScreen] 코스 조회 응답: ${response.status} ${response.statusText}`);
+      } catch (fetchError) {
+        console.error(`[TripsScreen] API 호출 에러 (시도 ${retryCount + 1}):`, fetchError);
+
+        // 네트워크 에러인 경우 재시도
+        if (retryCount < maxRetries) {
+          console.log(`[TripsScreen] 네트워크 에러, ${retryCount + 1}/${maxRetries} 재시도 중...`);
+          await new Promise(resolve => setTimeout(resolve, 2000 * (retryCount + 1))); // 2초, 4초, 6초 대기
+          return fetchUserCourses(retryCount + 1);
         }
-      } else {
-        // 일반 모드일 때는 API에서 데이터 가져오기
-        try {
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 10000); // 10초 타임아웃
 
-          response = await fetch(`${BACKEND_API.BASE_URL}/v1/courses/user_routes/`, {
-            method: 'GET',
-            headers: {
-              'Authorization': `Bearer ${tokens.access}`,
-            },
-            signal: controller.signal,
-          });
-
-          clearTimeout(timeoutId);
-          console.log(`[TripsScreen] 코스 조회 응답: ${response.status} ${response.statusText}`);
-        } catch (fetchError) {
-          console.error(`[TripsScreen] API 호출 에러 (시도 ${retryCount + 1}):`, fetchError);
-
-          // 네트워크 에러인 경우 재시도
-          if (retryCount < maxRetries) {
-            console.log(`[TripsScreen] 네트워크 에러, ${retryCount + 1}/${maxRetries} 재시도 중...`);
-            await new Promise(resolve => setTimeout(resolve, 2000 * (retryCount + 1))); // 2초, 4초, 6초 대기
-            return fetchUserCourses(retryCount + 1);
-          }
-
-          throw fetchError;
-        }
+        throw fetchError;
       }
 
       if (response.ok) {
-        // 시뮬레이션 모드가 아닐 때만 response.json() 호출
-        if (isSimulationMode !== 'true') {
-          data = await response.json();
-        }
+        const data = await response.json();
         setUserRouteSpot(data);
         console.log('[TripsScreen] 사용자 코스 데이터:', data);
         
@@ -411,19 +365,12 @@ const TripsScreen: React.FC = () => {
             
             // 완료된 코스의 사진 정보 생성
             const completedPhotos = spotsWithImages.map((spot: any) => {
-              // 시뮬레이션 모드에서는 각 스팟의 first_image 사용
-              if (isSimulationMode === 'true') {
-                return spot.first_image || Image.resolveAssetSource(require('../../assets/images/대동여지도.jpg'))?.uri || '';
-              } else {
-                // 일반 모드에서는 기본 이미지 사용
-                return require('../../assets/icons/대불호텔.jpg');
-              }
+              return spot.first_image || Image.resolveAssetSource(require('../../assets/images/대동여지도.jpg'))?.uri || '';
             });
             
             console.log(`[TripsScreen] 완료된 코스 사진 정보:`, {
               totalSpots,
-              photos: completedPhotos,
-              isSimulationMode
+              photos: completedPhotos
             });
             
             completed.push({

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Dimensions, Alert, AppState, Modal, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Dimensions, Alert, AppState, Modal, ActivityIndicator, Platform, PermissionsAndroid } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import Geolocation from '@react-native-community/geolocation';
 import { INCHEON_BLUE, INCHEON_BLUE_LIGHT, INCHEON_GRAY, TEXT_STYLES, FONT_STYLES } from '../../styles/fonts';
@@ -28,8 +28,6 @@ export default function HomeScreen({ navigation }: any) {
   const [ongoingCourses, setOngoingCourses] = useState<any[]>([]);
   const [recommendedCourses, setRecommendedCourses] = useState<any[]>([]);
   const [isLoadingRecommended, setIsLoadingRecommended] = useState(true);
-  const [isSimulationMode, setIsSimulationMode] = useState(false);
-  const [simulatedCourses, setSimulatedCourses] = useState<any[]>([]);
 
   // 미션 관련 상태
   const [currentMission, setCurrentMission] = useState<any>(null);
@@ -94,18 +92,11 @@ export default function HomeScreen({ navigation }: any) {
 
   // 상태 변화 추적
   useEffect(() => {
-    console.log('[HomeScreen] 상태 변화:', {
-      isLoggedIn,
-      hasOngoingCourse,
-      ongoingCoursesLength: ongoingCourses.length,
-      userProfile: userProfile?.nickname || userProfile?.username
-    });
   }, [isLoggedIn, hasOngoingCourse, ongoingCourses, userProfile]);
 
   // 로그인 상태가 변경될 때 추천 코스 다시 로드
   useEffect(() => {
     // 로그인 여부와 관계없이 추천 코스를 로드
-    console.log('[HomeScreen] 추천 코스 로드');
     fetchRecommendedCourses();
   }, [isLoggedIn]);
 
@@ -151,47 +142,138 @@ export default function HomeScreen({ navigation }: any) {
     }
   };
 
-  // 현재 위치 설정 (GPS나 네트워크 기반 위치 서비스에서 가져오기)
+  // Android 위치 권한 요청
+  const requestLocationPermission = async () => {
+    if (Platform.OS === 'android') {
+      try {
+        // 먼저 권한이 이미 있는지 확인
+        const hasPermission = await PermissionsAndroid.check(
+          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
+        );
+        
+        if (hasPermission) {
+          console.log('[HomeScreen] 위치 권한 이미 허용됨');
+          return true;
+        }
+
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+          {
+            title: '위치 권한 요청',
+            message: '미션 장소 감지와 코스 추천을 위해 현재 위치 정보가 필요합니다.',
+            buttonNeutral: '나중에',
+            buttonNegative: '거부',
+            buttonPositive: '허용',
+          }
+        );
+        
+        if (granted === PermissionsAndroid.RESULTS.GRANTED) {
+          console.log('[HomeScreen] 위치 권한 허용됨');
+          return true;
+        } else {
+          console.log('[HomeScreen] 위치 권한 거부됨');
+          return false;
+        }
+      } catch (err) {
+        console.warn('[HomeScreen] 위치 권한 요청 오류:', err);
+        return false;
+      }
+    }
+    return true; // iOS는 권한 요청이 자동으로 처리됨
+  };
+
+  // 현재 위치 설정 (개선된 버전)
   const setUserLocation = async () => {
     try {
+      console.log('[HomeScreen] 위치 요청 시작...');
+      
+      // 먼저 권한 확인
+      const hasPermission = await requestLocationPermission();
+      if (!hasPermission) {
+        console.log('[HomeScreen] 위치 권한이 거부됨, 기본 위치 사용');
+        const defaultLat = 37.4563;
+        const defaultLng = 126.7052;
+        setCurrentLocationState({ lat: defaultLat, lng: defaultLng });
+        
+        if (isLoggedIn) {
+          setCurrentLocation(defaultLat, defaultLng);
+          startLocationDetection();
+        }
+        return;
+      }
+
       // React Native Geolocation 사용
       Geolocation.getCurrentPosition(
         async (position: any) => {
           const { latitude, longitude } = position.coords;
-          console.log(`[HomeScreen] GPS 위치 획득: ${latitude}, ${longitude}`);
+          console.log(`[HomeScreen] 위치 획득 성공: ${latitude}, ${longitude}`);
 
           setCurrentLocationState({ lat: latitude, lng: longitude });
+          
           // 로그인된 상태에서만 missions.ts에 위치 설정
           if (isLoggedIn) {
-            setCurrentLocation(latitude, longitude);
-            const user = await authService.getUser()
-            console.log("user", user)
-            if(user?.id === 999999 || user?.id === 33){
+            const user = await authService.getUser();
+            console.log('[HomeScreen] 현재 사용자:', user);
+            if (user?.id === 999999 || user?.id === 33) {
               setCurrentLocationState({ lat: 37.4563, lng: 126.7052 });
-              console.log("테스트 계정으로 기본 위치 설정")
+              setCurrentLocation(37.4563, 126.7052);
+              console.log('[HomeScreen] 테스트 계정으로 기본 위치 설정');
+            } else {
+            setCurrentLocation(latitude, longitude);
             }
             startLocationDetection();
           }
         },
         (error: any) => {
-          console.error('[HomeScreen] GPS 위치 획득 실패:', error);
+          console.error('[HomeScreen] 네트워크 위치 획득 실패:', error);
 
-          // GPS 실패시 기본 위치 설정 (인천 근처)
+          // GPS 기반으로 재시도
+          console.log('[HomeScreen] GPS 기반 위치 재시도...');
+          Geolocation.getCurrentPosition(
+            async (position: any) => {
+              const { latitude, longitude } = position.coords;
+              console.log(`[HomeScreen] GPS 위치 획득: ${latitude}, ${longitude}`);
+
+              setCurrentLocationState({ lat: latitude, lng: longitude });
+              
+              if (isLoggedIn) {
+                const user = await authService.getUser();
+                if (user?.id === 999999 || user?.id === 33) {
+                  setCurrentLocationState({ lat: 37.4563, lng: 126.7052 });
+                  setCurrentLocation(37.4563, 126.7052);
+                  console.log('[HomeScreen] 테스트 계정으로 기본 위치 설정');
+                } else {
+                  setCurrentLocation(latitude, longitude);
+                }
+                startLocationDetection();
+              }
+            },
+            (gpsError: any) => {
+              console.error('[HomeScreen] GPS 위치도 실패:', gpsError);
+
+              // 마지막으로 기본 위치 설정 (인천 근처)
           const defaultLat = 37.4563;
           const defaultLng = 126.7052;
           console.log(`[HomeScreen] 기본 위치 설정: ${defaultLat}, ${defaultLng}`);
 
           setCurrentLocationState({ lat: defaultLat, lng: defaultLng });
           
-          // 로그인된 상태에서만 missions.ts에 위치 설정
           if (isLoggedIn) {
             setCurrentLocation(defaultLat, defaultLng);
-          }
+                startLocationDetection();
+              }
+            },
+            {
+              enableHighAccuracy: true, // GPS 기반
+              timeout: 30000, // 30초
+              maximumAge: 0, // 캐시 사용 안함
+            }
+          );
         },
         {
-          enableHighAccuracy: false, // true → false로 변경하여 배터리 절약
-          timeout: 10000, // 15초 → 10초로 단축
-          maximumAge: 300000, // 10초 → 5분으로 증가 (캐시된 위치 사용)
+          enableHighAccuracy: false, // 네트워크 기반 먼저 시도
+          timeout: 15000, // 15초로 증가
+          maximumAge: 300000, // 5분 캐시
         }
       );
     } catch (error) {
@@ -225,7 +307,6 @@ export default function HomeScreen({ navigation }: any) {
 
   // 미션 시뮬레이션 버튼 클릭 (개발용 테스트)
   const handleMissionSimulation = async () => {
-    console.log('[HomeScreen] 미션 시뮬레이션 시작');
     
     try {
       // 스팟들 조회
@@ -238,7 +319,6 @@ export default function HomeScreen({ navigation }: any) {
 
       if (spotsResponse.ok) {
         const spotsData = await spotsResponse.json();
-        console.log('[HomeScreen] 스팟 데이터:', spotsData);
         
         // 부평향교 찾기
         const bupyeongSpot = spotsData.find((spot: any) => 
@@ -269,7 +349,6 @@ export default function HomeScreen({ navigation }: any) {
             routeId: 1, // 테스트용
           };
           
-          console.log('[HomeScreen] 부평향교 미션 생성:', testMission);
           setCurrentMission(testMission);
           setShowMissionNotification(true);
         } else {
@@ -285,10 +364,30 @@ export default function HomeScreen({ navigation }: any) {
     }
   };
 
-  // 코스 완료 테스트 - 마지막 스팟 제외하고 모든 스팟 방문 완료 처리
-  const handleCompleteAllSpotsExceptLast = async () => {
+      
+  // 스팟 방문 처리 (테스트용)
+  const handleSpotVisit = async () => {
     try {
-      console.log('[HomeScreen] 코스 완료 테스트 시작 - 마지막 스팟 제외하고 모든 스팟 방문 완료');
+      // 진행중인 코스가 있는지 확인
+      if (!hasOngoingCourse || ongoingCourses.length === 0) {
+        Alert.alert('오류', '진행중인 코스가 없습니다.');
+        return;
+      }
+
+      const currentCourse = ongoingCourses[0];
+      if (!currentCourse || !currentCourse.spots) {
+        Alert.alert('오류', '진행중인 코스 정보를 찾을 수 없습니다.');
+        return;
+      }
+
+      // 1단계: route_id 가져오기
+      console.log('[HomeScreen] ===== 1단계: route_id 가져오기 =====');
+      const routeId = currentCourse.route_id;
+      console.log('[HomeScreen] route_id:', routeId);
+      console.log('[HomeScreen] ========================================');
+
+      // 2단계: route_id로 routespot들 정보 가져오기
+      console.log('[HomeScreen] ===== 2단계: route_id로 routespot들 정보 가져오기 =====');
       
       const tokens = await authService.getTokens();
       if (!tokens?.access) {
@@ -296,271 +395,66 @@ export default function HomeScreen({ navigation }: any) {
         return;
       }
 
-      // 진행중인 코스가 있는지 확인
-      if (!hasOngoingCourse || ongoingCourses.length === 0) {
-        Alert.alert('오류', '진행중인 코스가 없습니다.');
-        return;
-      }
-
-      // 최신 코스 데이터를 다시 가져오기
-      console.log('[HomeScreen] 최신 코스 데이터 다시 가져오기...');
-      const courseResponse = await fetch(`${BACKEND_API.BASE_URL}/v1/courses/user_routes/`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${tokens.access}`,
-        },
-      });
-
-      if (!courseResponse.ok) {
-        Alert.alert('오류', '코스 데이터를 가져올 수 없습니다.');
-        return;
-      }
-
-      const freshData = await courseResponse.json();
-      console.log('[HomeScreen] 최신 코스 데이터:', freshData);
-
-      if (!freshData || freshData.length === 0) {
-        Alert.alert('오류', '진행중인 코스가 없습니다.');
-        return;
-      }
-
-      const currentCourse = freshData[0];
-      const spots = currentCourse.spots || [];
-      
-      console.log('[HomeScreen] currentCourse:', currentCourse);
-      console.log('[HomeScreen] currentCourse.spots:', spots);
-      
-      if (spots.length === 0) {
-        Alert.alert('오류', '코스에 스팟이 없습니다.');
-        return;
-      }
-
-      console.log(`[HomeScreen] 현재 코스 스팟 수: ${spots.length}`);
-      console.log('[HomeScreen] 스팟 목록:', spots.map((s: any) => ({ id: s.id, title: s.title, completed: !!(s.completed_at || s.unlock_at) })));
-      
-      // 실제 스팟 데이터 구조 확인을 위한 상세 로그
-      console.log('[HomeScreen] 첫 번째 스팟 상세 데이터:', spots[0]);
-      console.log('[HomeScreen] 모든 스팟의 키 확인:', spots.map((s: any) => Object.keys(s)));
-      
-      // 각 스팟의 모든 필드와 값 출력
-      spots.forEach((spot: any, index: number) => {
-        console.log(`[HomeScreen] 스팟 ${index + 1} (${spot.title}) 모든 필드:`, spot);
-        console.log(`[HomeScreen] 스팟 ${index + 1} 모든 키:`, Object.keys(spot));
-      });
-
-      // 마지막 스팟을 제외한 모든 스팟 찾기
-      const spotsToComplete = spots.slice(0, -1); // 마지막 스팟 제외
-      
-      console.log(`[HomeScreen] 방문 완료할 스팟 수: ${spotsToComplete.length}`);
-      console.log('[HomeScreen] 방문 완료할 스팟들:', spotsToComplete.map((s: any) => ({ id: s.id, title: s.title })));
-
-      // 백엔드 API 대신 프론트엔드에서 unlock_at 시뮬레이션
-      console.log('[HomeScreen] 백엔드 API 호출 대신 프론트엔드에서 unlock_at 시뮬레이션 시작');
-      setIsSimulationMode(true);
-      
-      let successCount = 0;
-      const currentTime = new Date().toISOString();
-      
-      for (let i = 0; i < spotsToComplete.length; i++) {
-        const spot = spotsToComplete[i];
-        console.log(`[HomeScreen] 스팟 ${i + 1}/${spotsToComplete.length} 방문 완료 시뮬레이션: ${spot.title} (ID: ${spot.id})`);
-        
-        // unlock_at을 현재 시간으로 설정 (시뮬레이션)
-        spot.unlock_at = currentTime;
-        
-        // 스팟의 모든 정보를 유지하면서 unlock_at만 업데이트
-        const updatedSpot = {
-          ...spot,
-          unlock_at: currentTime
-        };
-        
-        console.log(`[HomeScreen] ✅ 스팟 ${spot.title} unlock_at 설정: ${currentTime}`);
-        console.log(`[HomeScreen] 스팟 ${spot.title} 전체 정보:`, updatedSpot);
-        
-        // 원본 배열에서 해당 스팟을 업데이트된 정보로 교체
-        const spotIndex = spots.findIndex((s: any) => s.id === spot.id);
-        if (spotIndex !== -1) {
-          spots[spotIndex] = updatedSpot;
-        }
-        
-        successCount++;
-      }
-      
-      console.log(`[HomeScreen] 방문 완료 처리 결과: ${successCount}/${spotsToComplete.length} 성공`);
-
-      // 시뮬레이션된 데이터를 ongoingCourses 상태에 반영
-      const updatedCourses = ongoingCourses.map((course: any) => {
-        if (course.route_id === currentCourse.route_id) {
-          return {
-            ...course,
-            spots: spots // 이미 업데이트된 spots 배열 사용
-          };
-        }
-        return course;
-      });
-      
-      setOngoingCourses(updatedCourses);
-      setSimulatedCourses(updatedCourses); // 시뮬레이션된 데이터 저장
-      
-      // AsyncStorage에 시뮬레이션된 데이터 저장
       try {
-        await AsyncStorage.setItem('simulatedCourses', JSON.stringify(updatedCourses));
-        await AsyncStorage.setItem('isSimulationMode', 'true');
-        console.log('[HomeScreen] 시뮬레이션된 데이터 AsyncStorage에 저장 완료');
-        console.log('[HomeScreen] 저장된 데이터 확인:', updatedCourses[0]?.spots?.map((s: any) => ({ 
-          title: s.title, 
-          unlock_at: s.unlock_at, 
-          completed_at: s.completed_at 
-        })));
-      } catch (error) {
-        console.error('[HomeScreen] AsyncStorage 저장 오류:', error);
-      }
-      
-      console.log('[HomeScreen] ongoingCourses 상태 업데이트 완료');
-      console.log('[HomeScreen] 시뮬레이션된 데이터 저장:', updatedCourses);
-      console.log('[HomeScreen] 업데이트된 첫 번째 스팟:', updatedCourses[0]?.spots[0]);
-
-      Alert.alert(
-        '테스트 완료', 
-        `마지막 스팟을 제외한 ${spotsToComplete.length}개 스팟 중 ${successCount}개 스팟 방문 완료 처리했습니다.\n\n이제 "마지막 스팟 완료" 버튼을 눌러 코스 완료를 테스트해보세요!`,
-        [
-          {
-            text: '확인',
-            onPress: () => {
-              // 시뮬레이션 중이므로 데이터 새로고침하지 않음
-              console.log('[HomeScreen] 시뮬레이션 모드 - 데이터 새로고침 건너뜀');
-            }
+        // 3단계: user_routes API 호출로 route_spot_id들 가져오기
+        console.log('[HomeScreen] ===== 3단계: user_routes API로 route_spot_id들 가져오기 =====');
+        
+        const userRoutesResponse = await fetch(`${BACKEND_API.BASE_URL}/v1/courses/user_routes/`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${tokens.access}`,
+          },
+        });
+        
+        if (userRoutesResponse.ok) {
+          const userRoutesData = await userRoutesResponse.json();
+          console.log('[HomeScreen] user_routes API 응답:', userRoutesData);
+          
+          // route_id 176에 해당하는 코스 찾기
+          const targetCourse = userRoutesData.find((course: any) => course.route_id === routeId);
+          
+          if (targetCourse) {
+            console.log('[HomeScreen] 찾은 코스:', targetCourse);
+            console.log('[HomeScreen] 코스의 spots:', targetCourse.spots);
+            
+            // 각 spot에서 route_spot_id 추출
+            const routeSpotIds: number[] = [];
+            targetCourse.spots.forEach((spot: any, index: number) => {
+              console.log(`[HomeScreen] 스팟 ${index + 1}:`, {
+                id: spot.id,
+                title: spot.title,
+                order: spot.order,
+                user_route_spot_id: spot.user_route_spot_id, // 이게 우리가 찾던 ID!
+                route_spot_id: spot.route_spot_id,
+                unlock_at: spot.unlock_at
+              });
+              
+              // user_route_spot_id가 있으면 추가
+              if (spot.user_route_spot_id) {
+                routeSpotIds.push(spot.user_route_spot_id);
+              }
+            });
+            
+            console.log('[HomeScreen] 추출된 route_spot_id들:', routeSpotIds);
+            console.log('[HomeScreen] ========================================');
+            
+            Alert.alert('3단계 완료', `route_id ${routeId}의 route_spot_id들: ${routeSpotIds.join(', ')}`);
+          } else {
+            console.log('[HomeScreen] route_id 176에 해당하는 코스를 찾을 수 없습니다.');
+            Alert.alert('오류', '해당 route_id의 코스를 찾을 수 없습니다.');
           }
-        ]
-      );
+        } else {
+          console.error('[HomeScreen] user_routes API 호출 실패:', userRoutesResponse.status);
+          Alert.alert('오류', '사용자 코스 정보를 가져올 수 없습니다.');
+        }
+      } catch (error) {
+        console.error('[HomeScreen] user_routes API 호출 오류:', error);
+        Alert.alert('오류', '사용자 코스 조회 중 오류가 발생했습니다.');
+      }
 
     } catch (error) {
-      console.error('[HomeScreen] 코스 완료 테스트 오류:', error);
-      Alert.alert('오류', '코스 완료 테스트 중 오류가 발생했습니다.');
-    }
-  };
-
-  // 코스 완료 테스트 - 마지막 스팟 방문 완료 처리
-  const handleCompleteLastSpot = async () => {
-    try {
-      console.log('[HomeScreen] 코스 완료 테스트 시작 - 마지막 스팟 방문 완료');
-      
-      const tokens = await authService.getTokens();
-      if (!tokens?.access) {
-        Alert.alert('오류', '로그인이 필요합니다.');
-        return;
-      }
-
-      // 진행중인 코스가 있는지 확인
-      if (!hasOngoingCourse || ongoingCourses.length === 0) {
-        Alert.alert('오류', '진행중인 코스가 없습니다.');
-        return;
-      }
-
-      // 최신 코스 데이터를 다시 가져오기
-      console.log('[HomeScreen] 최신 코스 데이터 다시 가져오기...');
-      const courseResponse = await fetch(`${BACKEND_API.BASE_URL}/v1/courses/user_routes/`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${tokens.access}`,
-        },
-      });
-
-      if (!courseResponse.ok) {
-        Alert.alert('오류', '코스 데이터를 가져올 수 없습니다.');
-        return;
-      }
-
-      const freshData = await courseResponse.json();
-      console.log('[HomeScreen] 최신 코스 데이터:', freshData);
-
-      if (!freshData || freshData.length === 0) {
-        Alert.alert('오류', '진행중인 코스가 없습니다.');
-        return;
-      }
-
-      const currentCourse = freshData[0];
-      const spots = currentCourse.spots || [];
-      
-      if (spots.length === 0) {
-        Alert.alert('오류', '코스에 스팟이 없습니다.');
-        return;
-      }
-
-      // 마지막 스팟 찾기
-      const lastSpot = spots[spots.length - 1];
-      
-      console.log(`[HomeScreen] 마지막 스팟: ${lastSpot.title} (ID: ${lastSpot.id})`);
-      console.log(`[HomeScreen] 마지막 스팟 현재 상태: completed_at=${lastSpot.completed_at}, unlock_at=${lastSpot.unlock_at}`);
-
-      // 마지막 스팟 방문 완료 시뮬레이션
-      console.log(`[HomeScreen] 마지막 스팟 방문 완료 시뮬레이션 시작: ${lastSpot.title}`);
-      setIsSimulationMode(true);
-      
-      const currentTime = new Date().toISOString();
-      
-      // 마지막 스팟의 모든 정보를 유지하면서 unlock_at만 업데이트
-      const updatedLastSpot = {
-        ...lastSpot,
-        unlock_at: currentTime
-      };
-      
-      // 원본 배열에서 마지막 스팟을 업데이트된 정보로 교체
-      spots[spots.length - 1] = updatedLastSpot;
-      
-      console.log(`[HomeScreen] ✅ 마지막 스팟 ${lastSpot.title} unlock_at 설정: ${currentTime}`);
-      console.log(`[HomeScreen] 마지막 스팟 ${lastSpot.title} 전체 정보:`, updatedLastSpot);
-      
-      // 시뮬레이션된 데이터를 ongoingCourses 상태에 반영
-      const updatedCourses = ongoingCourses.map((course: any) => {
-        if (course.route_id === currentCourse.route_id) {
-          return {
-            ...course,
-            spots: spots // 이미 업데이트된 spots 배열 사용
-          };
-        }
-        return course;
-      });
-      
-      setOngoingCourses(updatedCourses);
-      setSimulatedCourses(updatedCourses); // 시뮬레이션된 데이터 저장
-      
-      // AsyncStorage에 시뮬레이션된 데이터 저장
-      try {
-        await AsyncStorage.setItem('simulatedCourses', JSON.stringify(updatedCourses));
-        await AsyncStorage.setItem('isSimulationMode', 'true');
-        console.log('[HomeScreen] 시뮬레이션된 데이터 AsyncStorage에 저장 완료');
-        console.log('[HomeScreen] 저장된 데이터 확인:', updatedCourses[0]?.spots?.map((s: any) => ({ 
-          title: s.title, 
-          unlock_at: s.unlock_at, 
-          completed_at: s.completed_at 
-        })));
-      } catch (error) {
-        console.error('[HomeScreen] AsyncStorage 저장 오류:', error);
-      }
-      
-      console.log('[HomeScreen] ongoingCourses 상태 업데이트 완료');
-      console.log('[HomeScreen] 시뮬레이션된 데이터 저장:', updatedCourses);
-      console.log('[HomeScreen] 업데이트된 마지막 스팟:', updatedCourses[0]?.spots[updatedCourses[0]?.spots.length - 1]);
-      console.log('[HomeScreen] ✅ 마지막 스팟 방문 완료 처리 성공 - 코스 완료!');
-      
-      Alert.alert(
-        '🎉 코스 완료!', 
-        `${lastSpot.title} 방문이 완료되었습니다!\n\n이제 TripsScreen에서 "진행 완료" 탭을 확인해보세요.`,
-        [
-          {
-            text: '확인',
-            onPress: () => {
-              // 시뮬레이션 중이므로 데이터 새로고침하지 않음
-              console.log('[HomeScreen] 시뮬레이션 모드 - 데이터 새로고침 건너뜀');
-            }
-          }
-        ]
-      );
-
-    } catch (error) {
-      console.error('[HomeScreen] 마지막 스팟 방문 완료 처리 오류:', error);
-      Alert.alert('오류', '마지막 스팟 방문 완료 처리 중 오류가 발생했습니다.');
+      console.error('[HomeScreen] 스팟 방문 처리 오류:', error);
+      Alert.alert('오류', '방문 처리 중 오류가 발생했습니다.');
     }
   };
 
@@ -618,7 +512,7 @@ export default function HomeScreen({ navigation }: any) {
           await refreshMissionData();
           
           // 진행중인 코스 데이터 새로고침
-          await fetchOngoingCourses();
+          await checkOngoingCourses();
           
           // 다음 장소 안내 표시
           const currentCourse = ongoingCourses[0];
@@ -700,12 +594,6 @@ export default function HomeScreen({ navigation }: any) {
 
   const checkOngoingCourses = async () => {
     try {
-      // 시뮬레이션 모드일 때는 API 호출하지 않음
-      if (isSimulationMode) {
-        console.log('[HomeScreen] 시뮬레이션 모드 - API 호출 건너뜀');
-        return;
-      }
-      
       const tokens = await authService.getTokens();
       if (!tokens?.access) {
         setHasOngoingCourse(false);
@@ -726,11 +614,6 @@ export default function HomeScreen({ navigation }: any) {
 
         // API 응답 구조 상세 분석
         if (data.length > 0) {
-          console.log('[HomeScreen] 첫 번째 코스 상세:', data[0]);
-          if (data[0].spots && data[0].spots.length > 0) {
-            console.log('[HomeScreen] 첫 번째 스팟 상세:', data[0].spots[0]);
-            console.log('[HomeScreen] 첫 번째 스팟의 모든 키:', Object.keys(data[0].spots[0]));
-          }
         }
 
         // 진행중인 코스만 필터링 (모든 스팟이 완료되지 않은 코스)
@@ -800,7 +683,6 @@ export default function HomeScreen({ navigation }: any) {
 
   const fetchRecommendedCourses = async () => {
     try {
-      console.log('[HomeScreen] 인기 추천 루트 데이터 가져오기 시작');
       setIsLoadingRecommended(true);
 
       // 로그인 여부와 관계없이 추천 코스를 가져옴
@@ -831,7 +713,6 @@ export default function HomeScreen({ navigation }: any) {
       }
 
       // 2. 인기 루트 데이터 가져오기 (best_routes API 사용)
-      console.log('[HomeScreen] 인기 루트 데이터 가져오기 시작...');
       const bestRoutesResponse = await fetch(`${BACKEND_API.BASE_URL}/v1/routes/best/`, {
         method: 'GET',
         headers: {
@@ -841,8 +722,6 @@ export default function HomeScreen({ navigation }: any) {
 
       if (bestRoutesResponse.ok) {
         const bestRoutesData = await bestRoutesResponse.json();
-        console.log('[HomeScreen] 인기 루트 데이터 가져오기 완료:', bestRoutesData.length, '개');
-        console.log('[HomeScreen] 인기 루트 데이터:', bestRoutesData);
 
         if (Array.isArray(bestRoutesData) && bestRoutesData.length > 0) {
           // 최대 5개까지만 표시
@@ -863,24 +742,20 @@ export default function HomeScreen({ navigation }: any) {
                 let images: string[] = [];
                 if (detailResponse.ok) {
                   const detailData = await detailResponse.json();
-                  console.log(`[HomeScreen] 루트 ${route.id} 상세 데이터:`, detailData);
                   
                   // spots 배열에서 모든 스팟의 이미지 가져오기
                   if (detailData.spots && detailData.spots.length > 0) {
-                    console.log(`[HomeScreen] 루트 ${route.id}의 스팟들:`, detailData.spots);
                     
                     // 각 스팟의 상세 정보를 개별적으로 가져오기
                     const spotImages = await Promise.all(
                       detailData.spots.map(async (spot: any, spotIndex: number) => {
                         try {
-                          console.log(`[HomeScreen] 스팟 ${spot.id} (${spot.title}) 상세 정보 가져오기...`);
                           
                           // 공개 API이므로 인증 토큰 없이 요청
                           const headers: any = {
                             'Content-Type': 'application/json',
                           };
                           
-                          console.log(`[HomeScreen] 공개 API로 스팟 ${spot.id} 상세 정보 요청`);
                           
                           const spotDetailResponse = await fetch(`${BACKEND_API.BASE_URL}/v1/spots/${spot.id}/`, {
                             method: 'GET',
@@ -889,7 +764,6 @@ export default function HomeScreen({ navigation }: any) {
                           
                           if (spotDetailResponse.ok) {
                             const spotDetailData = await spotDetailResponse.json();
-                            console.log(`[HomeScreen] 스팟 ${spot.id} 상세 데이터:`, spotDetailData);
                             
                             // first_image가 없거나 null인 경우 기본 이미지 사용
                             const imageUrl = (spotDetailData.first_image && spotDetailData.first_image.trim() !== '') 
@@ -897,11 +771,9 @@ export default function HomeScreen({ navigation }: any) {
                               : (spotDetailData.past_image_url && spotDetailData.past_image_url.trim() !== '')
                                 ? spotDetailData.past_image_url
                                 : Image.resolveAssetSource(require('../../assets/images/대동여지도.jpg'))?.uri || '';
-                            console.log(`[HomeScreen] 스팟 ${spot.id} 이미지 URL:`, imageUrl);
                             
                             return imageUrl;
                           } else {
-                            console.log(`[HomeScreen] 스팟 ${spot.id} 상세 정보 가져오기 실패:`, spotDetailResponse.status);
                             return '';
                           }
                         } catch (error) {
@@ -916,8 +788,6 @@ export default function HomeScreen({ navigation }: any) {
                     
                     images = spotImages.filter((img: string) => img !== ''); // 빈 이미지 제거
                     
-                    console.log(`[HomeScreen] 루트 ${route.id} 최종 이미지들:`, images);
-                    console.log(`[HomeScreen] 루트 ${route.id} 이미지 개수:`, images.length);
                   }
                 }
 
@@ -944,7 +814,6 @@ export default function HomeScreen({ navigation }: any) {
           );
 
           setRecommendedCourses(formattedCourses);
-          console.log('[HomeScreen] 포맷된 인기 추천 루트:', formattedCourses);
         } else {
           console.log('[HomeScreen] 인기 루트가 없음, 일반 루트로 대체');
           // 인기 루트가 없으면 일반 루트로 대체
@@ -1000,20 +869,17 @@ export default function HomeScreen({ navigation }: any) {
                 if (detailResponse.ok) {
                   const detailData = await detailResponse.json();
                   if (detailData.spots && detailData.spots.length > 0) {
-                    console.log(`[HomeScreen] 일반 루트 ${route.id}의 스팟들:`, detailData.spots);
                     
                     // 각 스팟의 상세 정보를 개별적으로 가져오기
                     const spotImages = await Promise.all(
                       detailData.spots.map(async (spot: any, spotIndex: number) => {
                         try {
-                          console.log(`[HomeScreen] 일반 루트 스팟 ${spot.id} (${spot.title}) 상세 정보 가져오기...`);
                           
                           // 공개 API이므로 인증 토큰 없이 요청
                           const headers: any = {
                             'Content-Type': 'application/json',
                           };
                           
-                          console.log(`[HomeScreen] 공개 API로 일반 루트 스팟 ${spot.id} 상세 정보 요청`);
                           
                           const spotDetailResponse = await fetch(`${BACKEND_API.BASE_URL}/v1/spots/${spot.id}/`, {
                             method: 'GET',
@@ -1022,7 +888,6 @@ export default function HomeScreen({ navigation }: any) {
                           
                           if (spotDetailResponse.ok) {
                             const spotDetailData = await spotDetailResponse.json();
-                            console.log(`[HomeScreen] 일반 루트 스팟 ${spot.id} 상세 데이터:`, spotDetailData);
                             
                             // first_image가 없거나 null인 경우 기본 이미지 사용
                             const imageUrl = (spotDetailData.first_image && spotDetailData.first_image.trim() !== '') 
@@ -1030,11 +895,9 @@ export default function HomeScreen({ navigation }: any) {
                               : (spotDetailData.past_image_url && spotDetailData.past_image_url.trim() !== '')
                                 ? spotDetailData.past_image_url
                                 : Image.resolveAssetSource(require('../../assets/images/대동여지도.jpg'))?.uri || '';
-                            console.log(`[HomeScreen] 일반 루트 스팟 ${spot.id} 이미지 URL:`, imageUrl);
                             
                             return imageUrl;
                           } else {
-                            console.log(`[HomeScreen] 일반 루트 스팟 ${spot.id} 상세 정보 가져오기 실패:`, spotDetailResponse.status);
                             return '';
                           }
                         } catch (error) {
@@ -1049,8 +912,6 @@ export default function HomeScreen({ navigation }: any) {
                     
                     images = spotImages.filter((img: string) => img !== ''); // 빈 이미지 제거
                     
-                    console.log(`[HomeScreen] 일반 루트 ${route.id} 최종 이미지들:`, images);
-                    console.log(`[HomeScreen] 일반 루트 ${route.id} 이미지 개수:`, images.length);
                   }
                 }
 
@@ -1077,7 +938,6 @@ export default function HomeScreen({ navigation }: any) {
           );
 
           setRecommendedCourses(formattedCourses);
-          console.log('[HomeScreen] 포맷된 일반 추천 루트:', formattedCourses);
         } else {
           setRecommendedCourses([]);
         }
@@ -1188,7 +1048,6 @@ export default function HomeScreen({ navigation }: any) {
 
       if (response.ok) {
         const routeData = await response.json();
-        console.log('[HomeScreen] 루트 상세 데이터:', routeData);
 
         // spots API에서 이미지 정보 가져오기
         const spotsResponse = await fetch(`${BACKEND_API.BASE_URL}/v1/spots/`, {
@@ -1227,7 +1086,6 @@ export default function HomeScreen({ navigation }: any) {
         console.log('[HomeScreen] 모달 상태 설정 완료');
 
       } else {
-        console.log('[HomeScreen] 루트 상세 조회 실패:', response.status, response.statusText);
         Alert.alert('오류', '루트 정보를 가져올 수 없습니다.');
       }
     } catch (error) {
@@ -1463,7 +1321,7 @@ export default function HomeScreen({ navigation }: any) {
 
                   {route.mission_available && (
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                      <Ionicons name="target" size={16} color="#96CEB4" style={{ marginRight: 8 }} />
+                      <Ionicons name="checkmark-circle" size={16} color="#96CEB4" style={{ marginRight: 8 }} />
                       <Text style={{
                         ...FONT_STYLES.pixel,
                         fontSize: 14,
@@ -1730,48 +1588,15 @@ export default function HomeScreen({ navigation }: any) {
           </TouchableOpacity>
         </View>
 
-        {/* 코스 완료 테스트 버튼들 (개발용) */}
+        {/* 스팟 방문 처리 버튼 (개발용) */}
         {isLoggedIn && hasOngoingCourse && (
-          <View style={styles.courseTestSection}>
-            <Text style={styles.courseTestTitle}>코스 완료 테스트</Text>
-            <TouchableOpacity 
-              style={styles.courseTestBtn} 
-              onPress={handleCompleteAllSpotsExceptLast}
-            >
-              <Text style={styles.courseTestBtnText}>1️⃣ 마지막 스팟 제외하고 모든 스팟 완료</Text>
+          <View style={styles.simulationSection}>
+            <TouchableOpacity style={styles.spotVisitBtn} onPress={handleSpotVisit}>
+              <Text style={styles.spotVisitBtnText}>📍 스팟 방문처리 (개발용)</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.courseTestBtn}
-              onPress={handleCompleteLastSpot}
-            >
-              <Text style={styles.courseTestBtnText}>2️⃣ 마지막 스팟 완료 (코스 완료)</Text>
-            </TouchableOpacity>
-            
-            {isSimulationMode && (
-              <TouchableOpacity
-                style={[styles.courseTestBtn, { backgroundColor: '#ff6b6b' }]}
-                onPress={async () => {
-                  setIsSimulationMode(false);
-                  setSimulatedCourses([]); // 시뮬레이션 데이터 초기화
-                  
-                  // AsyncStorage 초기화
-                  try {
-                    await AsyncStorage.removeItem('simulatedCourses');
-                    await AsyncStorage.removeItem('isSimulationMode');
-                    console.log('[HomeScreen] AsyncStorage 시뮬레이션 데이터 초기화 완료');
-                  } catch (error) {
-                    console.error('[HomeScreen] AsyncStorage 초기화 오류:', error);
-                  }
-                  
-                  checkOngoingCourses();
-                  Alert.alert('시뮬레이션 모드 해제', '실제 데이터로 복원되었습니다.');
-                }}
-              >
-                <Text style={styles.courseTestBtnText}>🔄 시뮬레이션 모드 해제</Text>
-              </TouchableOpacity>
-            )}
           </View>
         )}
+
       </ScrollView>
 
       {/* 미션 알림 컴포넌트 */}
@@ -2160,37 +1985,12 @@ underline: {
     fontSize: 14,
     fontWeight: '600',
   },
-  simulationSection: {
-    alignItems: 'center',
-    marginTop: 20,
-    marginBottom: 20,
-    paddingHorizontal: 20,
-  },
-  courseTestSection: {
-    alignItems: 'center',
-    marginTop: 20,
-    marginBottom: 20,
-    paddingHorizontal: 20,
-    backgroundColor: '#f8f9fa',
-    borderRadius: 12,
-    marginHorizontal: 16,
-    paddingVertical: 16,
-    borderWidth: 2,
-    borderColor: '#28a745',
-    borderStyle: 'dashed',
-  },
-  courseTestTitle: {
-    ...TEXT_STYLES.subtitle,
-    color: '#28a745',
-    marginBottom: 12,
-    fontWeight: 'bold',
-  },
-  courseTestBtn: {
+  spotVisitBtn: {
     backgroundColor: '#28a745',
-    borderRadius: 20,
+    borderRadius: 24,
     paddingVertical: 12,
     paddingHorizontal: 24,
-    marginBottom: 8,
+    marginTop: 8,
     shadowColor: '#28a745',
     shadowOffset: {
       width: 0,
@@ -2199,15 +1999,18 @@ underline: {
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 6,
-    width: '100%',
-    alignItems: 'center',
   },
-  courseTestBtnText: {
+  spotVisitBtnText: {
     ...TEXT_STYLES.button,
     color: '#fff',
     fontSize: 14,
     fontWeight: '600',
-    textAlign: 'center',
+  },
+  simulationSection: {
+    alignItems: 'center',
+    marginTop: 20,
+    marginBottom: 20,
+    paddingHorizontal: 20,
   },
   spotsList: {
     width: '100%',

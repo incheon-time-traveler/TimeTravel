@@ -463,19 +463,21 @@ export default function CourseRecommendationScreen({ navigation }: any) {
       setIsLoading(false);
     }
   };
-	// 현재 위치 간단한 주소 요청
+	// 현재 위치 주소 요청 (어드민 계정은 '인천' 표시)
   const getAddressFromCoords = async (lat: number, lng: number): Promise<string | null> => {
     try {
-      const response = await fetch(
-        `https://dapi.kakao.com/v2/local/geo/coord2regioncode.json?x=${lng}&y=${lat}`,
-        { headers: { Authorization: `KakaoAK ${KAKAO_REST_API_KEY}` } }
-      );
-      if (!response.ok) throw new Error('API 요청 실패');
-      const result = await response.json();
-      return result.documents?.[0]?.address_name || `위도: ${lat} 경도: ${lng}`;
+      // 어드민 계정 확인
+      const user = await authService.getUser();
+      if (user?.id === 999999) {
+        // 어드민 계정은 '인천'으로 표시
+        return '인천';
+      }
+      
+      // 일반 사용자는 실제 위치 표시
+      return `위도: ${lat.toFixed(6)}\n경도: ${lng.toFixed(6)}`;
     } catch (error) {
       console.error('주소 가져오기 오류:', error);
-      return '인천';
+      return '현재 위치';
     }
   };
 

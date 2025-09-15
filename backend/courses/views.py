@@ -244,6 +244,8 @@ def user_routes(request, route_id=None):
                     'lat': spot.lat,
                     'lng': spot.lng,
                     'order': user_route_spot.order,
+                    'user_route_spot_id': user_route_spot.id,  # UserRouteSpot의 ID 추가
+                    'route_spot_id': user_route_spot.route_spot_id.id,  # RouteSpot의 ID 추가
                     'is_unlocked': user_route_spot.is_unlocked if hasattr(user_route_spot, 'is_unlocked') else True,
                     'completed_at': user_route_spot.completed_at if hasattr(user_route_spot, 'completed_at') else None,
                     'unlock_at': user_route_spot.unlock_at

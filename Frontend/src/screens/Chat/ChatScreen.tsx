@@ -42,7 +42,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ visible, onClose, navigation })
   ]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [userId] = useState(() => ChatbotService.generateUserId());    // 이 부분 진짜 userID 또는 nickname 사용할 수 있도록
+  // const [userId] = useState(() => ChatbotService.generateUserId());    // 이 부분 진짜 userID 또는 nickname 사용할 수 있도록
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
 
@@ -94,11 +94,15 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ visible, onClose, navigation })
 
     try {
       // 백엔드 API 호출
+      const user = await AuthService.getUser();
       const response = await ChatbotService.chatWithBot({
         user_question: currentInput,
-        user_id: userId,
+        user_id: user?.id.toString() || '',
         lat: userLocation?.lat || undefined,
         lng: userLocation?.lng || undefined,
+        user_nickname: user?.nickname || '',
+        user_gender: user?.gender || '',
+        user_age_group: user?.age || '',
       });
 
       const botMessage: ChatMessage = {

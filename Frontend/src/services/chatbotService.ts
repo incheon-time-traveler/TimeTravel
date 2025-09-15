@@ -15,6 +15,10 @@ export interface ChatbotResponse {
   ai_answer: string;
 }
 
+export interface DeleteMemoryResponse {
+  result: boolean; 
+}
+
 export class ChatbotService {
   private static baseUrl = BACKEND_API.BASE_URL;
 
@@ -27,6 +31,7 @@ export class ChatbotService {
       if (!tokens?.access) {
         return { ai_answer: '안녕! 나는 인천 여행 도우미야. 도움이 필요하면 로그인 후에 더 많은 정보를 받을 수 있어!' };
       }
+
       const response = await fetch(`${this.baseUrl}/v1/chatbot/`, {
         method: 'POST',
         headers: {
@@ -50,12 +55,43 @@ export class ChatbotService {
     }
   }
 
+  // /**
+  //  * 사용자 ID 생성 (임시로 사용)
+  //  */
+  // static generateUserId(): string {
+  //   return `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  // }
+
   /**
-   * 사용자 ID 생성 (임시로 사용)
+   * 챗봇 메모리 삭제 (로그아웃 시 사용)
    */
-  static generateUserId(): string {
-    return `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  static async deleteMemory(userId: string): Promise<DeleteMemoryResponse> {
+    try {
+      const tokens = await authService.getTokens();
+      if (!tokens?.access) {
+        console.log('[ChatbotService] 삭제할 유저가 없습니다.');
+        return { result: false };
+      }
+
+      const response = await fetch(`${this.baseUrl}/v1/chatbot/memory/`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${tokens.access}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ user_id: userId }),
+      });
+      
+      if (response.ok) {
+        console.log('[ChatbotService] 채팅 메모리 삭제 성공');
+        return { result: true };
+      } else {
+        console.error('[ChatbotService] 채팅 메모리 삭제 실패:', response.status);
+        return { result: false };
+      }
+    } catch (error) {
+      console.error('[ChatbotService] 채팅 메모리 삭제 오류:', error);
+      return { result: false };
+    }
   }
-
-
 }

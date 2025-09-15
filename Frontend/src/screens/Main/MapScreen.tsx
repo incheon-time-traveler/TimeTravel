@@ -40,9 +40,9 @@ const MapScreen: React.FC = () => {
       const loggedIn = !!user;
       setIsLoggedIn(loggedIn);
       
-      if (loggedIn && user?.isSuperUser === true) {
-        // 어드민 계정은 인천 기본 위치 사용
-        console.log('[MapScreen] 어드민 계정 - 인천 기본 위치 사용');
+      // 먼저 사용자 ID 체크 (테스트 계정이면 GPS 위치 가져오지 않음)
+      if (loggedIn && (user?.isSuperUser === true || user?.id === 999999)) {
+        // 어드민 계정 또는 테스트 계정(id: 999999)은 인천 기본 위치 사용
         setCurrentLocation({ lat: 37.4563, lng: 126.7052 });
         setCurrentLocationName('인천');
         return;
@@ -54,8 +54,8 @@ const MapScreen: React.FC = () => {
         async (position) => {
           const { latitude, longitude } = position.coords;
           console.log('[MapScreen] 현재 위치 획득:', latitude, longitude);
-          setCurrentLocation({ lat: latitude, lng: longitude });
           
+          setCurrentLocation({ lat: latitude, lng: longitude });
           // 위치명 가져오기
           const locationName = await getLocationName(latitude, longitude);
           setCurrentLocationName(locationName);
@@ -79,8 +79,8 @@ const MapScreen: React.FC = () => {
         async (position) => {
           const { latitude, longitude } = position.coords;
           console.log('[MapScreen] 현재 위치 획득:', latitude, longitude);
-          setCurrentLocation({ lat: latitude, lng: longitude });
           
+          setCurrentLocation({ lat: latitude, lng: longitude });
           // 위치명 가져오기
           const locationName = await getLocationName(latitude, longitude);
           setCurrentLocationName(locationName);

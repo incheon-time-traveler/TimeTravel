@@ -852,25 +852,57 @@ const TripsScreen: React.FC = () => {
                           </View>
 
                           {/* 장소 이미지 */}
-                          {(userPhoto && userPhoto.image_url) || (spotDetail && spotDetail.first_image) ? (
-                            <View style={{ marginBottom: 20 }}>
-                              <Image
-                                source={{ 
-                                  uri: userPhoto && userPhoto.image_url 
-                                    ? userPhoto.image_url 
-                                    : spotDetail.first_image.replace("http://", "https://")
-                                }}
-                                style={{
-                                  width: '100%',
-                                  height: 200,
-                                  borderRadius: 12,
-                                  borderWidth: 1,
-                                  borderColor: '#e0e0e0',
-                                }}
-                                resizeMode="cover"
-                              />
-                            </View>
-                          ) : null}
+                          {(() => {
+                            // 진행중 코스에서 해당 스팟의 first_image 찾기
+                            const currentCourse = userCourses.find(course => 
+                              course.spots.some(spot => spot.id === selectedSpot?.id)
+                            );
+                            
+                            if (currentCourse && currentCourse.spots) {
+                              const currentSpot = currentCourse.spots.find(spot => spot.id === selectedSpot?.id);
+                              const photoUrl = currentSpot?.first_image;
+                              
+                              console.log('[TripsScreen] 진행중 장소 모달 - spotsWithImages 사용:');
+                              console.log('  - currentCourse:', currentCourse);
+                              console.log('  - currentSpot:', currentSpot);
+                              console.log('  - photoUrl:', photoUrl);
+                              
+                              return (
+                                <View style={{ marginBottom: 20 }}>
+                                  <PhotoWithFallback 
+                                    photo={photoUrl}
+                                    index={0}
+                                    style={{
+                                      width: '100%',
+                                      height: 200,
+                                      borderRadius: 12,
+                                      borderWidth: 1,
+                                      borderColor: '#e0e0e0',
+                                    }}
+                                    isModal={true}
+                                  />
+                                </View>
+                              );
+                            } else {
+                              // fallback: 기본 이미지
+                              return (
+                                <View style={{ marginBottom: 20 }}>
+                                  <PhotoWithFallback 
+                                    photo={require('../../assets/images/대동여지도.jpg')}
+                                    index={0}
+                                    style={{
+                                      width: '100%',
+                                      height: 200,
+                                      borderRadius: 12,
+                                      borderWidth: 1,
+                                      borderColor: '#e0e0e0',
+                                    }}
+                                    isModal={true}
+                                  />
+                                </View>
+                              );
+                            }
+                          })()}
 
                           {/* 장소 정보 */}
                           {spotDetail && (
@@ -1044,21 +1076,15 @@ const TripsScreen: React.FC = () => {
         <Text style={[styles.photoSectionTitle, { fontFamily: 'NeoDunggeunmoPro-Regular' }]}>미션 완료</Text>
         <View style={styles.photoGrid}>
           {currentCourse.spots.map((spot: any, idx: number) => {
-            // 해당 스팟의 사용자 촬영 사진 찾기
-            const userPhoto = userPhotos.find((photo: any) => photo.spot_id === spot.id);
-            
             return (
               <View key={idx} style={styles.photoSlot}>
                 {spot.completed_at || spot.unlock_at ? (
-                  userPhoto && userPhoto.image_url ? (
-                    <Image 
-                      source={{ uri: userPhoto.image_url }} 
-                      style={styles.photo} 
-                      resizeMode="cover" 
-                    />
-                  ) : (
-                    <Image source={require('../../assets/icons/대불호텔.jpg')} style={styles.photo} resizeMode="cover" />
-                  )
+                  // spotsWithImages의 first_image 직접 사용 (진행완료 코스와 동일한 로직)
+                  <PhotoWithFallback 
+                    photo={spot.first_image}
+                    index={idx}
+                    style={styles.photo}
+                  />
                 ) : (
                   <PixelLockIcon />
                 )}
@@ -1614,18 +1640,26 @@ const renderCompletedTab = () => (
 
               {/* 장소 이미지 */}
               {(() => {
-                const spotDetail = spotsData.find((spot: any) => spot.id === selectedCompletedSpot?.id);
-                const userPhoto = userPhotos.find((photo: any) => photo.spot_id === selectedCompletedSpot?.id);
+                // 진행완료 코스에서 해당 스팟의 completedPhotos 찾기
+                const currentCourse = completedCourses.find(course => 
+                  course.spots.some(spot => spot.id === selectedCompletedSpot?.id)
+                );
                 
-                if ((userPhoto && userPhoto.image_url) || (spotDetail && spotDetail.first_image)) {
+                if (currentCourse && currentCourse.photos) {
+                  const spotIndex = currentCourse.spots.findIndex(spot => spot.id === selectedCompletedSpot?.id);
+                  const photoUrl = currentCourse.photos[spotIndex];
+                  
+                  console.log('[TripsScreen] 완료된 장소 모달 - completedPhotos 사용:');
+                  console.log('  - currentCourse:', currentCourse);
+                  console.log('  - spotIndex:', spotIndex);
+                  console.log('  - photoUrl:', photoUrl);
+                  console.log('  - currentCourse.photos:', currentCourse.photos);
+                  
                   return (
                     <View style={{ marginBottom: 20 }}>
-                      <Image
-                        source={{ 
-                          uri: userPhoto && userPhoto.image_url 
-                            ? userPhoto.image_url 
-                            : spotDetail.first_image.replace("http://", "https://")
-                        }}
+                      <PhotoWithFallback 
+                        photo={photoUrl}
+                        index={spotIndex}
                         style={{
                           width: '100%',
                           height: 200,
@@ -1633,12 +1667,29 @@ const renderCompletedTab = () => (
                           borderWidth: 1,
                           borderColor: '#e0e0e0',
                         }}
-                        resizeMode="cover"
+                        isModal={true}
+                      />
+                    </View>
+                  );
+                } else {
+                  // fallback: 기본 이미지
+                  return (
+                    <View style={{ marginBottom: 20 }}>
+                      <PhotoWithFallback 
+                        photo={require('../../assets/images/대동여지도.jpg')}
+                        index={0}
+                        style={{
+                          width: '100%',
+                          height: 200,
+                          borderRadius: 12,
+                          borderWidth: 1,
+                          borderColor: '#e0e0e0',
+                        }}
+                        isModal={true}
                       />
                     </View>
                   );
                 }
-                return null;
               })()}
 
               {/* 장소 정보 */}

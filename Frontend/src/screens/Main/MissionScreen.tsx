@@ -41,13 +41,14 @@ interface MissionScreenProps {
   route: {
     params: {
       mission: MissionData;
+      onMissionComplete?: (mission: MissionData) => void;
     };
   };
   navigation: any;
 }
 
 export default function MissionScreen({ route, navigation }: MissionScreenProps) {
-  const { mission } = route.params;
+  const { mission, onMissionComplete } = route.params;
   const [pastImages, setPastImages] = useState<PastImageData[]>([]);
   const [selectedImages, setSelectedImages] = useState<PastImageData[]>([]);
   const [correctAnswer, setCorrectAnswer] = useState<PastImageData | null>(null);
@@ -96,7 +97,8 @@ export default function MissionScreen({ route, navigation }: MissionScreenProps)
           id: spot.id,
           name: spot.name || spot.title || `스팟 ${spot.id}`,
           past_image_url: spot.past_image_url,
-          address: spot.address || spot.name || '주소 정보 없음'
+          address: spot.address || spot.name || '주소 정보 없음',
+          route_id: mission.routeId // 미션에서 routeId 가져오기
         }));
 
         console.log('[MissionScreen] 변환된 과거사진 데이터:', pastImagesData);
@@ -171,19 +173,28 @@ export default function MissionScreen({ route, navigation }: MissionScreenProps)
     if (isCorrect) {
       setGameCompleted(true);
       
-      // 정답 선택 시 카메라로 이동할지 선택
+      // 정답 선택 시 즉시 미션 완료 처리
+      if (onMissionComplete) {
+        onMissionComplete(mission);
+      } else {
+        // fallback: 기존 로직 사용
+        completeMission(mission.id).then((success) => {
+          if (success) {
+            console.log('[MissionScreen] 미션 완료 처리 성공');
+          }
+        });
+      }
+      
+      // 미션 완료 후 카메라로 이동할지 선택
       Alert.alert(
         '정답입니다! 🎉',
-        '과거 사진을 성공적으로 선택했습니다!\n이제 현재 모습을 촬영해보세요.',
+        '과거 사진을 성공적으로 선택했습니다!\n미션이 완료되었습니다!\n이제 현재 모습을 촬영해보세요.',
         [
           {
             text: '나중에',
-            onPress: async () => {
-              // 미션 완료 처리 후 갤러리로 이동
-              const success = await completeMission(mission.id);
-              if (success) {
-                navigation.navigate('MainTabs', { screen: 'Gallery' });
-              }
+            onPress: () => {
+              // 홈으로 돌아가기
+              navigation.navigate('MainTabs', { screen: 'Home' });
             }
           },
           {

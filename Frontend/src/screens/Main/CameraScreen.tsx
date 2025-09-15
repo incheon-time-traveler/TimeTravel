@@ -20,6 +20,7 @@ interface PastImageData {
   name: string;
   past_image_url: string;
   address: string;
+  route_id?: number;
 }
 
 export default function CameraScreen({ route, navigation }: any) {

@@ -151,19 +151,13 @@ def memory(request):
                 {"error": "thread_id 파라미터가 필요합니다."},
                 status=status.HTTP_400_BAD_REQUEST
             )
-
-        # FastAPI AI 서버로 요청 데이터 준비
-        payload = {
-            "thread_id": user_id,
-        }
-
+            
         # FastAPI AI 서버에 요청
         fastapi_url = f"{settings.FASTAPI_AI_SERVER_URL}/v1/memory"
         
         try:
             response = requests.delete(
-                fastapi_url,
-                json=payload,
+                f"{fastapi_url}?thread_id={user_id}",
                 timeout=30,  # 30초 타임아웃
                 headers={'Content-Type': 'application/json'}
             )

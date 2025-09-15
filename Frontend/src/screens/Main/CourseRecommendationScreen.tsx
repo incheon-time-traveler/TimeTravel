@@ -15,7 +15,6 @@ import {
 import { Picker } from '@react-native-picker/picker';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import Geolocation from '@react-native-community/geolocation';
-import Geocoder from 'react-native-geocoding';
 import { INCHEON_BLUE, INCHEON_BLUE_LIGHT, INCHEON_GRAY, TEXT_STYLES } from '../../styles/fonts';
 import { BACKEND_API } from '../../config/apiKeys';
 import authService from '../../services/authService';
@@ -464,7 +463,7 @@ export default function CourseRecommendationScreen({ navigation }: any) {
       setIsLoading(false);
     }
   };
-	// 현재 위치 주소 요청 (백엔드 API 활용)
+	// 현재 위치 주소 요청 (카카오 API 사용)
   const getAddressFromCoords = async (lat: number, lng: number): Promise<string | null> => {
     try {
       // 어드민 계정 확인
@@ -474,29 +473,32 @@ export default function CourseRecommendationScreen({ navigation }: any) {
         return '인천';
       }
       
-      // 백엔드 API를 통해 지역명 가져오기
-      try {
-        const response = await fetch(
-          `${BACKEND_API.BASE_URL}/v1/courses/mission_proposal/?user_lat=${lat}&user_lon=${lng}&move_to_other_region=true`
-        );
-
-        if (response.ok) {
-          const data = await response.json();
-          console.log('[CourseRecommendationScreen] 지역명 응답:', data);
-          
-          if (data.user_region_name) {
-            return data.user_region_name;
-          }
-        }
-      } catch (apiError) {
-        console.log('[CourseRecommendationScreen] 백엔드 API 실패:', apiError);
+      // 카카오 API를 사용해서 실제 주소 가져오기
+      const response = await fetch(
+        `https://dapi.kakao.com/v2/local/geo/coord2regioncode.json?x=${lng}&y=${lat}`,
+        { headers: { Authorization: `KakaoAK ${KAKAO_REST_API_KEY}` } }
+      );
+      
+      if (!response.ok) {
+        console.error('카카오 API 요청 실패:', response.status, response.statusText);
+        return `위도: ${lat.toFixed(6)}\n경도: ${lng.toFixed(6)}`;
       }
       
-      // API 실패 시 좌표를 더 읽기 쉽게 표시
-      return `위치: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+      const result = await response.json();
+      console.log('[CourseRecommendationScreen] 카카오 API 응답:', result);
+      
+      // 주소 정보가 있으면 반환, 없으면 좌표 반환
+      if (result.documents && result.documents.length > 0) {
+        const addressName = result.documents[0].address_name;
+        console.log('[CourseRecommendationScreen] 주소 변환 성공:', addressName);
+        return addressName;
+      } else {
+        console.log('[CourseRecommendationScreen] 주소 정보 없음, 좌표 반환');
+        return `위도: ${lat.toFixed(6)}\n경도: ${lng.toFixed(6)}`;
+      }
     } catch (error) {
-      console.error('주소 가져오기 오류:', error);
-      return '현재 위치';
+      console.error('[CourseRecommendationScreen] 주소 가져오기 오류:', error);
+      return `위도: ${lat.toFixed(6)}\n경도: ${lng.toFixed(6)}`;
     }
   };
 

@@ -91,20 +91,8 @@ def google_callback(request):
         print("[google_callback] Failed to fetch userinfo with access_token")
         return redirect("/")
     
-    # 사용자 생성 또는 로그인
-    user, created = User.objects.get_or_create(
-        useremail=email,
-        defaults={
-            "username" : name,
-            "nickname" : nickname,
-            "age" : "",
-            "gender" : "",
-            "phone" : "",
-        },
-    )
-    
     # 테스트용 계정 생성 또는 로그인
-    if (email == "incheontimetraveler@gmail.com"):
+    if email == "incheontimetraveler@gmail.com":
         user, created = User.objects.get_or_create(
             useremail=email,
             id=999999,
@@ -114,9 +102,22 @@ def google_callback(request):
                 "age" : "",
                 "gender" : "",
                 "phone" : "",
-        },
-    )
+                },
+            )
 
+    # 사용자 생성 또는 로그인
+    else:
+        user, created = User.objects.get_or_create(
+            useremail=email,
+            defaults={
+                "username" : name,
+                "nickname" : nickname,
+                "age" : "",
+                "gender" : "",
+                "phone" : "",
+                },
+            )
+    
     refresh_token = RefreshToken.for_user(user)
     access_token = str(refresh_token.access_token)
     

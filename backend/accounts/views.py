@@ -91,17 +91,32 @@ def google_callback(request):
         print("[google_callback] Failed to fetch userinfo with access_token")
         return redirect("/")
     
+    # 테스트용 계정 생성 또는 로그인
+    if email == "incheontimetraveler@gmail.com":
+        user, created = User.objects.get_or_create(
+            useremail=email,
+            defaults={
+                "username" : name,
+                "nickname" : nickname,
+                "age" : "",
+                "gender" : "",
+                "phone" : "",
+                "id" : 999999,
+                },
+            )
+
     # 사용자 생성 또는 로그인
-    user, created = User.objects.get_or_create(
-        useremail=email,
-        defaults={
-            "username" : name,
-            "nickname" : nickname,
-            "age" : "",
-            "gender" : "",
-            "phone" : "",
-        },
-    )
+    else:
+        user, created = User.objects.get_or_create(
+            useremail=email,
+            defaults={
+                "username" : name,
+                "nickname" : nickname,
+                "age" : "",
+                "gender" : "",
+                "phone" : "",
+                },
+            )
     
     refresh_token = RefreshToken.for_user(user)
     access_token = str(refresh_token.access_token)
@@ -354,11 +369,9 @@ def auth_success(request):
     </html>
     """
     
-    return Response(html_content, content_type='text/html')
+    return HttpResponse(html_content, content_type='text/html')
 
 
-@api_view(['GET'])
-@permission_classes([AllowAny])
 def login_success(request):
     """
     카카오 로그인 성공 후 리다이렉트되는 페이지
@@ -381,8 +394,8 @@ def login_success(request):
                 align-items: center;
                 height: 100vh;
                 margin: 0;
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                color: white;
+                background: linear-gradient(135deg, #FFFFFF 0%, #e2e2e2 100%);
+                color: black;
             }}
             .container {{
                 text-align: center;
@@ -438,5 +451,5 @@ def login_success(request):
     </html>
     """
     
-    return Response(html_content, content_type='text/html')
+    return HttpResponse(html_content, content_type='text/html')
 

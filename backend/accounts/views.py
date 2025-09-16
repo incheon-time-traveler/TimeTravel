@@ -103,6 +103,20 @@ def google_callback(request):
         },
     )
     
+    # 테스트용 계정 생성 또는 로그인
+    if (email == "incheontimetraveler@gmail.com"):
+        user, created = User.objects.get_or_create(
+            useremail=email,
+            id=999999,
+            defaults={
+                "username" : name,
+                "nickname" : nickname,
+                "age" : "",
+                "gender" : "",
+                "phone" : "",
+        },
+    )
+
     refresh_token = RefreshToken.for_user(user)
     access_token = str(refresh_token.access_token)
     

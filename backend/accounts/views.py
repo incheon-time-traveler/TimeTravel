@@ -354,11 +354,9 @@ def auth_success(request):
     </html>
     """
     
-    return Response(html_content, content_type='text/html')
+    return HttpResponse(html_content, content_type='text/html')
 
 
-@api_view(['GET'])
-@permission_classes([AllowAny])
 def login_success(request):
     """
     카카오 로그인 성공 후 리다이렉트되는 페이지
@@ -381,8 +379,8 @@ def login_success(request):
                 align-items: center;
                 height: 100vh;
                 margin: 0;
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                color: white;
+                background: linear-gradient(135deg, #FFFFFF 0%, #e2e2e2 100%);
+                color: black;
             }}
             .container {{
                 text-align: center;
@@ -438,5 +436,5 @@ def login_success(request):
     </html>
     """
     
-    return Response(html_content, content_type='text/html')
+    return HttpResponse(html_content, content_type='text/html')
 

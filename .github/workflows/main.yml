@@ -38,4 +38,8 @@ jobs:
             docker-compose exec web python manage.py migrate
             docker-compose exec web python manage.py collectstatic --noinput
 
+            echo "🧹 Clean up unused Docker images"
+            docker image prune -f
+            docker system prune -f --volumes
+
             echo "✅ Deployment complete"

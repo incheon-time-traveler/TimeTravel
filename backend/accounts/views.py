@@ -95,13 +95,13 @@ def google_callback(request):
     if email == "incheontimetraveler@gmail.com":
         user, created = User.objects.get_or_create(
             useremail=email,
-            id=999999,
             defaults={
                 "username" : name,
                 "nickname" : nickname,
                 "age" : "",
                 "gender" : "",
                 "phone" : "",
+                "id" : 999999,
                 },
             )
 

@@ -194,10 +194,10 @@ export const createMissionsFromUserCourse = async (authToken?: string): Promise<
 
     console.log('[missions] 사용자 코스의 스팟들:', userCourse.spots);
     
-    // 다음 목적지 찾기 (첫 번째 스팟이 현재 목적지)
-    const nextDestination = userCourse.spots[0];
+    // 다음 목적지 찾기 (아직 방문하지 않은 첫 번째 스팟)
+    const nextDestination = userCourse.spots.find((spot: any) => !spot.completed_at && !spot.unlock_at);
     if (!nextDestination) {
-      console.log('[missions] 다음 목적지가 없습니다.');
+      console.log('[missions] 방문할 수 있는 스팟이 없습니다. 모든 스팟이 완료되었습니다.');
       return [];
     }
     

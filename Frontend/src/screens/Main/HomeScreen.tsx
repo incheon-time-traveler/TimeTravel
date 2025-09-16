@@ -22,7 +22,6 @@ const { width, height } = Dimensions.get('window');
 
 
 export default function HomeScreen({ navigation }: any) {
-	const [user, setUser] = useState<any>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userProfile, setUserProfile] = useState<any>(null);
   const [hasOngoingCourse, setHasOngoingCourse] = useState(false);
@@ -115,13 +114,18 @@ export default function HomeScreen({ navigation }: any) {
       clearInterval(locationIntervalRef.current);
     }
 
-    // 30초마다 위치 기반 미션 감지 (더 빠른 감지)
+    // 15초마다 위치 기반 미션 감지 (빠른 감지)
     locationIntervalRef.current = setInterval(async () => {
       if (currentLocation && isLoggedIn) {
         try {
           const nearbyMission = await startLocationBasedMissionDetection();
           if (nearbyMission && nearbyMission.id !== currentMission?.id) {
-            console.log('[HomeScreen] 새로운 미션 발견:', nearbyMission.location.name);
+            console.log('[HomeScreen] 새로운 미션/방문지 발견:', nearbyMission.location.name);
+            
+            // 과거사진이 있는지 확인하여 미션 타입 결정
+            const hasHistoricalPhotos = nearbyMission.historicalPhotos && nearbyMission.historicalPhotos.length > 0;
+            console.log('[HomeScreen] 미션 타입:', hasHistoricalPhotos ? '미션 (과거사진 있음)' : '방문처리 (과거사진 없음)');
+            
             setCurrentMission(nearbyMission);
             setShowMissionNotification(true);
           }
@@ -129,9 +133,9 @@ export default function HomeScreen({ navigation }: any) {
           console.error('[HomeScreen] 위치 기반 미션 감지 실패:', error);
         }
       }
-    }, 30000); // 30초마다 (더 빠른 감지)
+    }, 15000); // 15초마다 (빠른 감지)
 
-    console.log('[HomeScreen] 위치 기반 미션 감지 시작 (30초 간격)');
+    console.log('[HomeScreen] 위치 기반 미션 감지 시작 (15초 간격)');
   };
 
   // 위치 기반 미션 감지 중지
@@ -213,11 +217,8 @@ export default function HomeScreen({ navigation }: any) {
           
           // 로그인된 상태에서만 missions.ts에 위치 설정
           if (isLoggedIn) {
-            const currentUser = await authService.getUser();
-            setUser(currentUser);
-
-            console.log('[HomeScreen] 현재 사용자:', user);
-            if (user?.id === 999999) {
+            console.log('[HomeScreen] 현재 사용자:', userProfile);
+            if (userProfile?.id === 999999) {
               setCurrentLocationState({ lat: 37.4563, lng: 126.7052 });
               setCurrentLocation(37.4563, 126.7052);
               console.log('[HomeScreen] 테스트 계정으로 기본 위치 설정');
@@ -240,8 +241,7 @@ export default function HomeScreen({ navigation }: any) {
               setCurrentLocationState({ lat: latitude, lng: longitude });
               
               if (isLoggedIn) {
-                const user = await authService.getUser();
-                if  (user?.id === 999999) {
+                if (userProfile?.id === 999999) {
                   setCurrentLocationState({ lat: 37.4563, lng: 126.7052 });
                   setCurrentLocation(37.4563, 126.7052);
                   console.log('[HomeScreen] 테스트 계정으로 기본 위치 설정');
@@ -1767,7 +1767,7 @@ export default function HomeScreen({ navigation }: any) {
         )}
 
         {/* 미션 시뮬레이션 버튼 (개발용) - 로그인되어 있고 진행중인 코스가 있는 경우에만 표시 */}
-        {user?.id === 999999 && hasOngoingCourse && (
+        {userProfile?.id === 999999 && hasOngoingCourse && (
           <View style={styles.simulationSection}>
             <TouchableOpacity style={styles.simulationBtn} onPress={handleMissionSimulation}>
               <Text style={styles.simulationBtnText}>🎯 미션 시뮬레이션 (개발용)</Text>
@@ -1776,7 +1776,7 @@ export default function HomeScreen({ navigation }: any) {
         )}
 
         {/* 스팟 방문 처리 버튼 (개발용) */}
-        {user?.id === 999999 && hasOngoingCourse && (
+        {userProfile?.id === 999999 && hasOngoingCourse && (
           <View style={styles.simulationSection}>
             <TouchableOpacity style={styles.spotVisitBtn} onPress={handleSpotVisit}>
               <Text style={styles.spotVisitBtnText}>📍 스팟 방문처리 (개발용)</Text>

@@ -4,6 +4,7 @@ import { Canvas, Image, Skia, useCanvasRef } from '@shopify/react-native-skia';
 import RNFS from 'react-native-fs';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { INCHEON_BLUE, INCHEON_BLUE_LIGHT, INCHEON_GRAY, TEXT_STYLES } from '../styles/fonts';
+import { BACKEND_API } from '../config/apiKeys';
 
 const { width, height } = Dimensions.get('window');
 
@@ -56,6 +57,7 @@ export default function ImageSaveScreen({ route, navigation }) {
       const newPath = `${RNFS.DocumentDirectoryPath}/${Date.now()}.jpg`;
       await RNFS.writeFile(newPath, base64, 'base64');
 
+      // 1. 로컬 저장 (기존 로직)
       const savedJSON = await AsyncStorage.getItem('saved_photos');
       const photosArray = savedJSON ? JSON.parse(savedJSON) : [];
       const newPhotoData = {
@@ -70,6 +72,41 @@ export default function ImageSaveScreen({ route, navigation }) {
 
       photosArray.push(newPhotoData);
       await AsyncStorage.setItem('saved_photos', JSON.stringify(photosArray));
+
+      // 2. 백엔드 DB 저장
+      try {
+        const authToken = await AsyncStorage.getItem('access_token');
+        console.log('[ImageSaveScreen] selectedPhoto 데이터:', selectedPhoto);
+        console.log('[ImageSaveScreen] authToken 존재:', !!authToken);
+        console.log('[ImageSaveScreen] selectedPhoto.route_id:', selectedPhoto.route_id);
+        
+        if (authToken && selectedPhoto.route_id) {
+          console.log('[ImageSaveScreen] 백엔드에 사진 저장 시작');
+          
+          const response = await fetch(`${BACKEND_API.BASE_URL}/v1/photos/${selectedPhoto.route_id}/${selectedPhoto.id}/`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${authToken}`,
+            },
+            body: JSON.stringify({
+              image_url: newPath, // 로컬 파일 경로
+            }),
+          });
+
+          if (response.ok) {
+            const savedPhotoData = await response.json();
+            console.log('[ImageSaveScreen] 백엔드 사진 저장 성공:', savedPhotoData);
+          } else {
+            console.error('[ImageSaveScreen] 백엔드 사진 저장 실패:', response.status);
+          }
+        } else {
+          console.log('[ImageSaveScreen] 인증 토큰 또는 route_id가 없어 백엔드 저장 건너뜀');
+        }
+      } catch (backendError) {
+        console.error('[ImageSaveScreen] 백엔드 저장 오류:', backendError);
+        // 백엔드 저장 실패해도 로컬 저장은 성공했으므로 계속 진행
+      }
 
       Alert.alert('저장 완료', '사진이 앱에 보관되었습니다.', [
         { text: '확인', onPress: () => navigation.navigate('MainTabs', { screen: 'Gallery' }) }

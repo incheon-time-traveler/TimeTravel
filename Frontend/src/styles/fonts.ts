@@ -54,6 +54,11 @@ export const TEXT_STYLES = StyleSheet.create({
     fontSize: 12,
     color: '#5C5D60',
   },
+  number: {
+    ...FONT_STYLES.pixel,
+    fontSize: 12,
+    color: '#5C5D60',
+  },
 });
 
 export const WARNING = '#D21D1D';

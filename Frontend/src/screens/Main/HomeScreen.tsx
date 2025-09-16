@@ -22,6 +22,7 @@ const { width, height } = Dimensions.get('window');
 
 
 export default function HomeScreen({ navigation }: any) {
+	const [user, setUser] = useState<any>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userProfile, setUserProfile] = useState<any>(null);
   const [hasOngoingCourse, setHasOngoingCourse] = useState(false);
@@ -212,7 +213,9 @@ export default function HomeScreen({ navigation }: any) {
           
           // 로그인된 상태에서만 missions.ts에 위치 설정
           if (isLoggedIn) {
-            const user = await authService.getUser();
+            const currentUser = await authService.getUser();
+            setUser(currentUser);
+
             console.log('[HomeScreen] 현재 사용자:', user);
             if (user?.id === 999999) {
               setCurrentLocationState({ lat: 37.4563, lng: 126.7052 });
@@ -296,8 +299,11 @@ export default function HomeScreen({ navigation }: any) {
     setShowMissionNotification(false);
     console.log('[HomeScreen] 미션 시작:', mission.location.name);
 
-    // MissionScreen으로 이동
-    navigation.navigate('Mission', { mission });
+    // MissionScreen으로 이동 (onMissionComplete 콜백 포함)
+    navigation.navigate('Mission', { 
+      mission,
+      onMissionComplete: handleMissionComplete
+    });
   };
 
   // 미션 알림 닫기
@@ -310,72 +316,81 @@ export default function HomeScreen({ navigation }: any) {
     try {
       console.log('[HomeScreen] 미션 시뮬레이션 시작 (개발용)');
       
-      // 스팟들 조회
-      const spotsResponse = await fetch(`${BACKEND_API.BASE_URL}/v1/spots/`, {
+      // 진행 중인 코스가 있는지 확인
+      if (!hasOngoingCourse || ongoingCourses.length === 0) {
+        Alert.alert('미션 없음', '진행 중인 코스가 없습니다.\n\n먼저 코스를 시작해주세요.');
+        return;
+      }
+
+      const currentCourse = ongoingCourses[0];
+      if (!currentCourse || !currentCourse.spots) {
+        Alert.alert('미션 없음', '진행 중인 코스 정보를 찾을 수 없습니다.');
+        return;
+      }
+
+      // 다음 목적지 찾기 (첫 번째 미완료 스팟)
+      const nextSpot = currentCourse.spots.find((spot: any) => !spot.completed_at && !spot.unlock_at);
+      
+      if (!nextSpot) {
+        Alert.alert('미션 없음', '모든 스팟이 완료되었습니다.\n\n새로운 코스를 시작해주세요.');
+        return;
+      }
+
+      console.log('[HomeScreen] 다음 목적지:', nextSpot.title || nextSpot.name);
+
+      // 해당 스팟의 상세 정보 가져오기
+      const spotDetailResponse = await fetch(`${BACKEND_API.BASE_URL}/v1/spots/${nextSpot.id}/`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
         },
       });
 
-      if (spotsResponse.ok) {
-        const spotsData = await spotsResponse.json();
-        console.log('[HomeScreen] 스팟 데이터 로드 완료:', spotsData.length, '개');
-        
-        // 거리와 상관없이 과거 사진이 있는 모든 스팟 찾기 (미션이 가능한 스팟)
-        const missionSpots = spotsData.filter((spot: any) => 
-          spot.past_image_url && spot.past_image_url.trim() !== ''
-        );
-        
-        console.log('[HomeScreen] 미션 가능한 스팟들:', missionSpots.length, '개');
-        
-        if (missionSpots.length > 0) {
-          // 랜덤하게 미션 스팟 선택 (개발용)
-          const randomIndex = Math.floor(Math.random() * missionSpots.length);
-          const selectedMissionSpot = missionSpots[randomIndex];
-          
-          console.log('[HomeScreen] 선택된 미션 스팟:', selectedMissionSpot.name);
-          
-          // 미션 객체 생성
-          const testMission = {
-            id: selectedMissionSpot.id,
-            location: {
-              id: selectedMissionSpot.id,
-              name: selectedMissionSpot.name,
-              lat: selectedMissionSpot.lat,
-              lng: selectedMissionSpot.lng,
-              order: 1,
-              radius: 300,
-              completed: false,
-            },
-            historicalPhotos: [{
-              id: selectedMissionSpot.id,
-              title: `${selectedMissionSpot.name} 과거 사진`,
-              description: `${selectedMissionSpot.name}의 과거 모습`,
-              imageUrl: selectedMissionSpot.past_image_url,
-              year: '과거',
-              location: selectedMissionSpot.address || selectedMissionSpot.name || '주소 정보 없음',
-            }],
-            completed: false,
-            routeId: 1, // 테스트용
-          };
-          
-          setCurrentMission(testMission);
-          setShowMissionNotification(true);
-          
-          console.log('[HomeScreen] 미션 시뮬레이션 성공:', testMission.location.name);
-        } else {
-          // 미션이 없는 경우
-          console.log('[HomeScreen] 과거사진이 있는 스팟이 없습니다.');
+      if (spotDetailResponse.ok) {
+        const spotDetailData = await spotDetailResponse.json();
+        console.log('[HomeScreen] 스팟 상세 정보:', spotDetailData);
+
+        // 과거 사진이 있는지 확인
+        if (!spotDetailData.past_image_url || spotDetailData.past_image_url.trim() === '') {
           Alert.alert(
             '미션 없음', 
-            '과거사진이 있는 스팟이 없습니다.\n\n미션을 진행하려면 과거 사진이 있는 장소가 필요합니다.',
+            `${nextSpot.title || nextSpot.name}에는 과거 사진이 없습니다.\n\n미션을 진행하려면 과거 사진이 있는 장소가 필요합니다.`,
             [{ text: '확인' }]
           );
+          return;
         }
+
+        // 미션 객체 생성
+        const testMission = {
+          id: nextSpot.id,
+          location: {
+            id: nextSpot.id,
+            name: nextSpot.title || nextSpot.name,
+            lat: nextSpot.lat,
+            lng: nextSpot.lng,
+            order: nextSpot.order || 1,
+            radius: 300,
+            completed: false,
+          },
+          historicalPhotos: [{
+            id: nextSpot.id,
+            title: `${nextSpot.title || nextSpot.name} 과거 사진`,
+            description: `${nextSpot.title || nextSpot.name}의 과거 모습`,
+            imageUrl: spotDetailData.past_image_url,
+            year: '과거',
+            location: spotDetailData.address || nextSpot.title || nextSpot.name || '주소 정보 없음',
+          }],
+          completed: false,
+          routeId: currentCourse.route_id,
+        };
+        
+        setCurrentMission(testMission);
+        setShowMissionNotification(true);
+        
+        console.log('[HomeScreen] 미션 시뮬레이션 성공:', testMission.location.name);
       } else {
-        console.error('[HomeScreen] 스팟 데이터 가져오기 실패:', spotsResponse.status);
-        Alert.alert('시뮬레이션 오류', '스팟 데이터를 가져올 수 없습니다.');
+        console.error('[HomeScreen] 스팟 상세 정보 가져오기 실패:', spotDetailResponse.status);
+        Alert.alert('시뮬레이션 오류', '스팟 정보를 가져올 수 없습니다.');
       }
     } catch (error) {
       console.error('[HomeScreen] 미션 시뮬레이션 오류:', error);
@@ -472,7 +487,33 @@ export default function HomeScreen({ navigation }: any) {
                 route_spot_id: currentSpot.route_spot_id
               });
               
-              // unlock_route_spot API 호출
+              // 스팟 상세 정보 가져와서 과거사진 확인
+              const spotDetailResponse = await fetch(`${BACKEND_API.BASE_URL}/v1/spots/${currentSpot.id}/`, {
+                method: 'GET',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+              });
+
+              if (spotDetailResponse.ok) {
+                const spotDetailData = await spotDetailResponse.json();
+                console.log('[HomeScreen] 스팟 상세 정보:', spotDetailData);
+
+                // 과거사진이 있는지 확인
+                if (spotDetailData.past_image_url && spotDetailData.past_image_url.trim() !== '') {
+                  // 과거사진이 있는 경우 미션 시뮬레이션 안내
+                  Alert.alert(
+                    '미션이 있는 장소입니다! 🎯',
+                    `${currentSpot.title}에는 과거사진이 있습니다.\n\n미션을 진행하려면 "미션 시뮬레이션" 버튼을 눌러주세요!`,
+                    [
+                      { text: '확인' }
+                    ]
+                  );
+                  return; // 미션 안내 후 함수 종료
+                }
+              }
+              
+              // 과거사진이 없는 경우 일반 방문 처리
               const unlockResponse = await fetch(`${BACKEND_API.BASE_URL}/v1/courses/unlock_route_spot/${currentSpot.route_spot_id}/`, {
                 method: 'PATCH',
                 headers: {
@@ -640,6 +681,78 @@ export default function HomeScreen({ navigation }: any) {
     } catch (error) {
       console.error('[HomeScreen] 방문 완료 처리 오류:', error);
       Alert.alert('오류', '방문 완료 처리 중 오류가 발생했습니다.');
+    }
+  };
+
+  // 미션 완료 처리 (미션이 있는 spot용)
+  const handleMissionComplete = async (mission: any) => {
+    try {
+      setShowMissionNotification(false);
+      console.log('[HomeScreen] 미션 완료 처리 시작:', mission.location.name);
+
+      const tokens = await authService.getTokens();
+      if (!tokens?.access) {
+        Alert.alert('오류', '로그인이 필요합니다.');
+        return;
+      }
+
+      // 현재 진행중인 코스에서 해당 spot의 UserRouteSpot ID 찾기
+      const currentCourse = ongoingCourses[0]; // 첫 번째 진행중인 코스
+      if (!currentCourse || !currentCourse.spots) {
+        Alert.alert('오류', '진행중인 코스 정보를 찾을 수 없습니다.');
+        return;
+      }
+
+      // 현재 미션 spot과 일치하는 UserRouteSpot 찾기
+      const currentSpot = currentCourse.spots.find((spot: any) => spot.id === mission.id);
+      if (!currentSpot) {
+        Alert.alert('오류', '해당 스팟을 찾을 수 없습니다.');
+        return;
+      }
+
+      // UserRouteSpot ID를 사용하여 방문 완료 처리
+      if (currentSpot.user_route_spot_id && currentSpot.route_spot_id) {
+        console.log('[HomeScreen] 🔗 미션 완료 API 호출: PATCH /v1/courses/unlock_route_spot/');
+        console.log('[HomeScreen] 📋 요청 데이터:', {
+          id: currentSpot.user_route_spot_id
+        });
+        
+        const response = await fetch(`${BACKEND_API.BASE_URL}/v1/courses/unlock_route_spot/${currentSpot.route_spot_id}/`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${tokens.access}`,
+          },
+          body: JSON.stringify({
+            id: currentSpot.user_route_spot_id
+          }),
+        });
+        
+        console.log('[HomeScreen] ✅ 미션 완료 API 응답:', response.status, response.statusText);
+
+        if (response.ok) {
+          console.log('[HomeScreen] 미션 완료 처리 성공');
+          
+          // 미션 데이터 새로고침
+          await refreshMissionData();
+          
+          // 진행중인 코스 데이터 새로고침
+          await checkOngoingCourses();
+          
+          // 미션 완료 처리만 수행 (Alert 제거)
+          console.log(`[HomeScreen] ${mission.location.name} 미션 완료 처리됨`);
+        } else {
+          console.error('[HomeScreen] 미션 완료 처리 실패:', response.status);
+          Alert.alert('오류', '미션 완료 처리에 실패했습니다.');
+        }
+      } else {
+        console.error('[HomeScreen] UserRouteSpot ID를 찾을 수 없습니다.');
+        Alert.alert('오류', '미션 완료 처리에 필요한 정보를 찾을 수 없습니다.');
+      }
+
+    } catch (error) {
+      console.error('[HomeScreen] 미션 완료 처리 오류:', error);
+      Alert.alert('오류', '미션 완료 처리 중 오류가 발생했습니다.');
     }
   };
 
@@ -1326,9 +1439,7 @@ export default function HomeScreen({ navigation }: any) {
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <Ionicons name="map" size={20} color={INCHEON_BLUE} style={{ marginRight: 8 }} />
                 <Text style={{
-                  ...FONT_STYLES.pixel,
-                  fontSize: 20,
-                  fontWeight: 'bold',
+                  ...TEXT_STYLES.title,
                   color: INCHEON_BLUE,
                 }}>
                   코스 상세 정보
@@ -1373,9 +1484,7 @@ export default function HomeScreen({ navigation }: any) {
                   <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
                     <Ionicons name="location" size={18} color={INCHEON_BLUE} style={{ marginRight: 8 }} />
                     <Text style={{
-                      ...FONT_STYLES.pixel,
-                      fontSize: 18,
-                      fontWeight: 'bold',
+                      ...TEXT_STYLES.subtitle,
                       color: '#333'
                     }}>
                       {route.title || '알 수 없는 루트'}
@@ -1385,8 +1494,7 @@ export default function HomeScreen({ navigation }: any) {
                   <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
                     <Ionicons name="business" size={16} color="#4ECDC4" style={{ marginRight: 8 }} />
                     <Text style={{
-                      ...FONT_STYLES.pixel,
-                      fontSize: 14,
+                      ...TEXT_STYLES.small,
                       color: '#666'
                     }}>
                       지역: {route.user_region_name || '인천'}
@@ -1396,8 +1504,7 @@ export default function HomeScreen({ navigation }: any) {
                   <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
                     <Ionicons name="map" size={16} color="#45B7D1" style={{ marginRight: 8 }} />
                     <Text style={{
-                      ...FONT_STYLES.pixel,
-                      fontSize: 14,
+                      ...TEXT_STYLES.small,
                       color: '#666'
                     }}>
                       총 장소 수: {route.total_spots || spots.length}개
@@ -1408,10 +1515,8 @@ export default function HomeScreen({ navigation }: any) {
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                       <Ionicons name="checkmark-circle" size={16} color="#96CEB4" style={{ marginRight: 8 }} />
                       <Text style={{
-                        ...FONT_STYLES.pixel,
-                        fontSize: 14,
-                        color: '#28a745',
-                        fontWeight: '600'
+                        ...TEXT_STYLES.small,
+                        color: '#28a745'
                       }}>
                         미션 가능: 예
                       </Text>
@@ -1423,9 +1528,7 @@ export default function HomeScreen({ navigation }: any) {
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 15 }}>
                   <Ionicons name="list" size={18} color={INCHEON_BLUE} style={{ marginRight: 8 }} />
                   <Text style={{
-                    ...FONT_STYLES.pixel,
-                    fontSize: 18,
-                    fontWeight: 'bold',
+                    ...TEXT_STYLES.heading,
                     color: '#333'
                   }}>
                     장소 목록
@@ -1458,18 +1561,14 @@ export default function HomeScreen({ navigation }: any) {
                           marginRight: 12,
                         }}>
                                                   <Text style={{
-                          ...FONT_STYLES.pixel,
+                          ...TEXT_STYLES.number,
                           color: '#fff',
-                          fontSize: 12,
-                          fontWeight: 'bold'
                         }}>
                           {index + 1}
                         </Text>
                         </View>
                         <Text style={{
-                          ...FONT_STYLES.pixel,
-                          fontSize: 16,
-                          fontWeight: 'bold',
+                          ...TEXT_STYLES.heading,
                           color: '#333',
                           flex: 1,
                         }}>
@@ -1480,8 +1579,7 @@ export default function HomeScreen({ navigation }: any) {
                         <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginLeft: 36 }}>
                           <Ionicons name="location-outline" size={14} color="#666" style={{ marginRight: 6, marginTop: 2 }} />
                           <Text style={{
-                            ...FONT_STYLES.pixel,
-                            fontSize: 13,
+                            ...TEXT_STYLES.small,
                             color: '#666',
                             flex: 1,
                             lineHeight: 18,
@@ -1504,8 +1602,7 @@ export default function HomeScreen({ navigation }: any) {
                   }}>
                     <Ionicons name="hourglass-outline" size={32} color="#adb5bd" style={{ marginBottom: 10 }} />
                     <Text style={{
-                      ...FONT_STYLES.pixel,
-                      fontSize: 14,
+                      ...TEXT_STYLES.small,
                       color: '#6c757d',
                       textAlign: 'center'
                     }}>
@@ -1543,10 +1640,8 @@ export default function HomeScreen({ navigation }: any) {
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                   <Ionicons name="checkmark" size={18} color="#fff" style={{ marginRight: 6 }} />
                   <Text style={{
-                    ...FONT_STYLES.pixel,
+                    ...TEXT_STYLES.button,
                     color: '#fff',
-                    fontSize: 16,
-                    fontWeight: 'bold',
                   }}>
                     다른 코스 보기
                   </Text>
@@ -1671,15 +1766,17 @@ export default function HomeScreen({ navigation }: any) {
           </>
         )}
 
-        {/* 미션 시뮬레이션 버튼 (개발용) */}
-        <View style={styles.simulationSection}>
-          <TouchableOpacity style={styles.simulationBtn} onPress={handleMissionSimulation}>
-            <Text style={styles.simulationBtnText}>🎯 미션 시뮬레이션 (개발용)</Text>
-          </TouchableOpacity>
-        </View>
+        {/* 미션 시뮬레이션 버튼 (개발용) - 로그인되어 있고 진행중인 코스가 있는 경우에만 표시 */}
+        {user?.id === 999999 && hasOngoingCourse && (
+          <View style={styles.simulationSection}>
+            <TouchableOpacity style={styles.simulationBtn} onPress={handleMissionSimulation}>
+              <Text style={styles.simulationBtnText}>🎯 미션 시뮬레이션 (개발용)</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* 스팟 방문 처리 버튼 (개발용) */}
-        {isLoggedIn && hasOngoingCourse && (
+        {user?.id === 999999 && hasOngoingCourse && (
           <View style={styles.simulationSection}>
             <TouchableOpacity style={styles.spotVisitBtn} onPress={handleSpotVisit}>
               <Text style={styles.spotVisitBtnText}>📍 스팟 방문처리 (개발용)</Text>
@@ -1696,6 +1793,7 @@ export default function HomeScreen({ navigation }: any) {
         onClose={handleCloseMissionNotification}
         onStartMission={handleStartMission}
         onCompleteVisit={handleCompleteVisit}
+        onMissionComplete={handleMissionComplete}
       />
 
       {/* 루트 상세 정보 모달 */}

@@ -81,6 +81,7 @@ export class ChatbotService {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${tokens.access}`,
+          'Accept': 'application/json',
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(request),

@@ -778,9 +778,7 @@ const TripsScreen: React.FC = () => {
                         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                           <Ionicons name="location" size={20} color={INCHEON_BLUE} style={{ marginRight: 8 }} />
                           <Text style={{
-                            ...FONT_STYLES.pixel,
-                            fontSize: 20,
-                            fontWeight: 'bold',
+                            ...TEXT_STYLES.title,
                             color: INCHEON_BLUE,
                           }}>
                             {selectedSpot.title}
@@ -825,18 +823,15 @@ const TripsScreen: React.FC = () => {
                             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
                               <Ionicons name="checkmark-circle" size={18} color="#28a745" style={{ marginRight: 8 }} />
                               <Text style={{
-                                ...FONT_STYLES.pixel,
-                                fontSize: 16,
-                                fontWeight: 'bold',
+                                ...TEXT_STYLES.heading,
                                 color: INCHEON_BLUE,
                               }}>
                                 방문 완료
-                              </Text>
+                          </Text>
                             </View>
-                            {(selectedSpot.completed_at || selectedSpot.unlock_at) && (
+                          {(selectedSpot.completed_at || selectedSpot.unlock_at) && (
                               <Text style={{
-                                ...FONT_STYLES.pixel,
-                                fontSize: 14,
+                                ...TEXT_STYLES.small,
                                 color: '#666',
                                 marginLeft: 26,
                               }}>
@@ -847,33 +842,65 @@ const TripsScreen: React.FC = () => {
                                   hour: '2-digit',
                                   minute: '2-digit'
                                 }).replace(/\./g, '. ').replace(/\s/g, '')}.
-                              </Text>
-                            )}
-                          </View>
+                            </Text>
+                          )}
+                        </View>
 
                           {/* 장소 이미지 */}
-                          {(userPhoto && userPhoto.image_url) || (spotDetail && spotDetail.first_image) ? (
-                            <View style={{ marginBottom: 20 }}>
-                              <Image
-                                source={{ 
-                                  uri: userPhoto && userPhoto.image_url 
-                                    ? userPhoto.image_url 
-                                    : spotDetail.first_image.replace("http://", "https://")
-                                }}
-                                style={{
-                                  width: '100%',
-                                  height: 200,
-                                  borderRadius: 12,
-                                  borderWidth: 1,
-                                  borderColor: '#e0e0e0',
-                                }}
-                                resizeMode="cover"
-                              />
-                            </View>
-                          ) : null}
+                          {(() => {
+                            // 진행중 코스에서 해당 스팟의 first_image 찾기
+                            const currentCourse = userCourses.find(course => 
+                              course.spots.some(spot => spot.id === selectedSpot?.id)
+                            );
+                            
+                            if (currentCourse && currentCourse.spots) {
+                              const currentSpot = currentCourse.spots.find(spot => spot.id === selectedSpot?.id);
+                              const photoUrl = currentSpot?.first_image;
+                              
+                              console.log('[TripsScreen] 진행중 장소 모달 - spotsWithImages 사용:');
+                              console.log('  - currentCourse:', currentCourse);
+                              console.log('  - currentSpot:', currentSpot);
+                              console.log('  - photoUrl:', photoUrl);
+                              
+                              return (
+                                <View style={{ marginBottom: 20 }}>
+                                  <PhotoWithFallback 
+                                    photo={photoUrl}
+                                    index={0}
+                                    style={{
+                                      width: '100%',
+                                      height: 200,
+                                      borderRadius: 12,
+                                      borderWidth: 1,
+                                      borderColor: '#e0e0e0',
+                                    }}
+                                    isModal={true}
+                                  />
+                                </View>
+                              );
+                            } else {
+                              // fallback: 기본 이미지
+                              return (
+                                <View style={{ marginBottom: 20 }}>
+                                  <PhotoWithFallback 
+                                    photo={require('../../assets/images/대동여지도.jpg')}
+                                    index={0}
+                                    style={{
+                                      width: '100%',
+                                      height: 200,
+                                      borderRadius: 12,
+                                      borderWidth: 1,
+                                      borderColor: '#e0e0e0',
+                                    }}
+                                    isModal={true}
+                                  />
+                                </View>
+                              );
+                            }
+                          })()}
 
                           {/* 장소 정보 */}
-                          {spotDetail && (
+                        {spotDetail && (
                             <View style={{
                               backgroundColor: '#fff',
                               borderRadius: 12,
@@ -889,9 +916,7 @@ const TripsScreen: React.FC = () => {
                               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
                                 <Ionicons name="information-circle" size={18} color={INCHEON_BLUE} style={{ marginRight: 8 }} />
                                 <Text style={{
-                                  ...FONT_STYLES.pixel,
-                                  fontSize: 18,
-                                  fontWeight: 'bold',
+                                  ...TEXT_STYLES.heading,
                                   color: '#333'
                                 }}>
                                   장소 정보
@@ -899,21 +924,19 @@ const TripsScreen: React.FC = () => {
                               </View>
                               
                               <Text style={{
-                                ...FONT_STYLES.pixel,
-                                fontSize: 14,
+                                ...TEXT_STYLES.small,
                                 color: '#333',
                                 lineHeight: 20,
                                 marginBottom: 12,
                               }}>
-                                {spotDetail.description || '상세 정보가 없습니다.'}
-                              </Text>
-                              
-                              {spotDetail.address && (
+                              {spotDetail.description || '상세 정보가 없습니다.'}
+                            </Text>
+                            
+                            {spotDetail.address && (
                                 <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 8 }}>
                                   <Ionicons name="location-outline" size={14} color="#666" style={{ marginRight: 6, marginTop: 2 }} />
                                   <Text style={{
-                                    ...FONT_STYLES.pixel,
-                                    fontSize: 13,
+                                    ...TEXT_STYLES.small,
                                     color: '#666',
                                     flex: 1,
                                     lineHeight: 18,
@@ -921,24 +944,23 @@ const TripsScreen: React.FC = () => {
                                     주소: {spotDetail.address}
                                   </Text>
                                 </View>
-                              )}
-                              
-                              {spotDetail.lat && spotDetail.lng && (
+                            )}
+                            
+                            {spotDetail.lat && spotDetail.lng && (
                                 <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
                                   <Ionicons name="map-outline" size={14} color="#666" style={{ marginRight: 6, marginTop: 2 }} />
                                   <Text style={{
-                                    ...FONT_STYLES.pixel,
-                                    fontSize: 13,
+                                    ...TEXT_STYLES.small,
                                     color: '#666',
                                     flex: 1,
                                     lineHeight: 18,
                                   }}>
-                                    위치: {spotDetail.lat.toFixed(6)}, {spotDetail.lng.toFixed(6)}
-                                  </Text>
+                                위치: {spotDetail.lat.toFixed(6)}, {spotDetail.lng.toFixed(6)}
+                              </Text>
                                 </View>
-                              )}
-                            </View>
-                          )}
+                            )}
+                          </View>
+                        )}
                         </View>
                       </ScrollView>
 
@@ -969,10 +991,8 @@ const TripsScreen: React.FC = () => {
                           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                             <Ionicons name="checkmark" size={18} color="#fff" style={{ marginRight: 6 }} />
                             <Text style={{
-                              ...FONT_STYLES.pixel,
+                              ...TEXT_STYLES.button,
                               color: '#fff',
-                              fontSize: 16,
-                              fontWeight: 'bold',
                             }}>
                               확인
                             </Text>
@@ -1044,21 +1064,15 @@ const TripsScreen: React.FC = () => {
         <Text style={[styles.photoSectionTitle, { fontFamily: 'NeoDunggeunmoPro-Regular' }]}>미션 완료</Text>
         <View style={styles.photoGrid}>
           {currentCourse.spots.map((spot: any, idx: number) => {
-            // 해당 스팟의 사용자 촬영 사진 찾기
-            const userPhoto = userPhotos.find((photo: any) => photo.spot_id === spot.id);
-            
             return (
               <View key={idx} style={styles.photoSlot}>
                 {spot.completed_at || spot.unlock_at ? (
-                  userPhoto && userPhoto.image_url ? (
-                    <Image 
-                      source={{ uri: userPhoto.image_url }} 
+                  // spotsWithImages의 first_image 직접 사용 (진행완료 코스와 동일한 로직)
+                  <PhotoWithFallback 
+                    photo={spot.first_image}
+                    index={idx}
                       style={styles.photo} 
-                      resizeMode="cover" 
                     />
-                  ) : (
-                    <Image source={require('../../assets/icons/대불호텔.jpg')} style={styles.photo} resizeMode="cover" />
-                  )
                 ) : (
                   <PixelLockIcon />
                 )}
@@ -1204,9 +1218,7 @@ const renderCompletedTab = () => (
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Ionicons name="map" size={20} color={INCHEON_BLUE} style={{ marginRight: 8 }} />
               <Text style={{
-                ...FONT_STYLES.pixel,
-                fontSize: 20,
-                fontWeight: 'bold',
+                ...TEXT_STYLES.title,
                 color: INCHEON_BLUE,
               }}>
                 코스 상세 정보
@@ -1229,8 +1241,8 @@ const renderCompletedTab = () => (
               }}
             >
               <Ionicons name="close" size={18} color="#666" />
-            </TouchableOpacity>
-          </View>
+          </TouchableOpacity>
+        </View>
 
           {/* 내용 */}
           <ScrollView
@@ -1251,9 +1263,7 @@ const renderCompletedTab = () => (
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
                   <Ionicons name="location" size={18} color={INCHEON_BLUE} style={{ marginRight: 8 }} />
                   <Text style={{
-                    ...FONT_STYLES.pixel,
-                    fontSize: 18,
-                    fontWeight: 'bold',
+                    ...TEXT_STYLES.subtitle,
                     color: '#333'
                   }}>
                     {selectedCourse?.user_region_name || '알 수 없는 루트'}
@@ -1263,19 +1273,17 @@ const renderCompletedTab = () => (
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
                   <Ionicons name="business" size={16} color="#4ECDC4" style={{ marginRight: 8 }} />
                   <Text style={{
-                    ...FONT_STYLES.pixel,
-                    fontSize: 14,
+                    ...TEXT_STYLES.small,
                     color: '#666'
                   }}>
                     지역: {selectedCourse?.user_region_name || '인천'}
                   </Text>
-                </View>
+            </View>
 
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
                   <Ionicons name="map" size={16} color="#45B7D1" style={{ marginRight: 8 }} />
                   <Text style={{
-                    ...FONT_STYLES.pixel,
-                    fontSize: 14,
+                    ...TEXT_STYLES.small,
                     color: '#666'
                   }}>
                     총 장소 수: {selectedCourse?.total_spots || selectedCourse?.spots?.length || 0}개
@@ -1285,10 +1293,8 @@ const renderCompletedTab = () => (
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                   <Ionicons name="checkmark-circle" size={16} color="#96CEB4" style={{ marginRight: 8 }} />
                   <Text style={{
-                    ...FONT_STYLES.pixel,
-                    fontSize: 14,
-                    color: '#28a745',
-                    fontWeight: '600'
+                    ...TEXT_STYLES.small,
+                    color: '#28a745'
                   }}>
                     완료일: {selectedCourse?.completedDate || '알 수 없음'}
                   </Text>
@@ -1299,9 +1305,7 @@ const renderCompletedTab = () => (
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 15 }}>
                 <Ionicons name="list" size={18} color={INCHEON_BLUE} style={{ marginRight: 8 }} />
                 <Text style={{
-                  ...FONT_STYLES.pixel,
-                  fontSize: 18,
-                  fontWeight: 'bold',
+                  ...TEXT_STYLES.heading,
                   color: '#333'
                 }}>
                   장소 목록
@@ -1339,18 +1343,14 @@ const renderCompletedTab = () => (
                         marginRight: 12,
                       }}>
                         <Text style={{
-                          ...FONT_STYLES.pixel,
+                          ...TEXT_STYLES.number,
                           color: '#fff',
-                          fontSize: 12,
-                          fontWeight: 'bold'
                         }}>
                           {index + 1}
                         </Text>
                       </View>
                       <Text style={{
-                        ...FONT_STYLES.pixel,
-                        fontSize: 16,
-                        fontWeight: 'bold',
+                        ...TEXT_STYLES.heading,
                         color: '#333',
                         flex: 1,
                       }}>
@@ -1362,8 +1362,7 @@ const renderCompletedTab = () => (
                       <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginLeft: 36 }}>
                         <Ionicons name="location-outline" size={14} color="#666" style={{ marginRight: 6, marginTop: 2 }} />
                         <Text style={{
-                          ...FONT_STYLES.pixel,
-                          fontSize: 13,
+                          ...TEXT_STYLES.small,
                           color: '#666',
                           flex: 1,
                           lineHeight: 18,
@@ -1375,8 +1374,7 @@ const renderCompletedTab = () => (
                       <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginLeft: 36 }}>
                         <Ionicons name="location-outline" size={14} color="#666" style={{ marginRight: 6, marginTop: 2 }} />
                         <Text style={{
-                          ...FONT_STYLES.pixel,
-                          fontSize: 13,
+                          ...TEXT_STYLES.small,
                           color: '#999',
                           flex: 1,
                           lineHeight: 18,
@@ -1400,8 +1398,7 @@ const renderCompletedTab = () => (
                 }}>
                   <Ionicons name="hourglass-outline" size={32} color="#adb5bd" style={{ marginBottom: 10 }} />
                   <Text style={{
-                    ...FONT_STYLES.pixel,
-                    fontSize: 14,
+                    ...TEXT_STYLES.small,
                     color: '#6c757d',
                     textAlign: 'center'
                   }}>
@@ -1416,9 +1413,7 @@ const renderCompletedTab = () => (
                   <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 15, marginTop: 20 }}>
                     <Ionicons name="camera" size={18} color={INCHEON_BLUE} style={{ marginRight: 8 }} />
                     <Text style={{
-                      ...FONT_STYLES.pixel,
-                      fontSize: 18,
-                      fontWeight: 'bold',
+                      ...TEXT_STYLES.heading,
                       color: '#333'
                     }}>
                       코스 사진
@@ -1445,8 +1440,8 @@ const renderCompletedTab = () => (
                         }}
                         isModal={true}
                       />
-                    ))}
-                  </View>
+            ))}
+          </View>
                 </>
               )}
             </View>
@@ -1479,10 +1474,8 @@ const renderCompletedTab = () => (
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <Ionicons name="checkmark" size={18} color="#fff" style={{ marginRight: 6 }} />
                 <Text style={{
-                  ...FONT_STYLES.pixel,
+                  ...TEXT_STYLES.button,
                   color: '#fff',
-                  fontSize: 16,
-                  fontWeight: 'bold',
                 }}>
                   다른 코스 보기
                 </Text>
@@ -1539,9 +1532,7 @@ const renderCompletedTab = () => (
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Ionicons name="location" size={20} color={INCHEON_BLUE} style={{ marginRight: 8 }} />
               <Text style={{
-                ...FONT_STYLES.pixel,
-                fontSize: 20,
-                fontWeight: 'bold',
+                ...TEXT_STYLES.title,
                 color: INCHEON_BLUE,
               }}>
                 {selectedCompletedSpot?.title}
@@ -1586,9 +1577,7 @@ const renderCompletedTab = () => (
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
                   <Ionicons name="checkmark-circle" size={18} color="#28a745" style={{ marginRight: 8 }} />
                   <Text style={{
-                    ...FONT_STYLES.pixel,
-                    fontSize: 16,
-                    fontWeight: 'bold',
+                    ...TEXT_STYLES.heading,
                     color: INCHEON_BLUE,
                   }}>
                     방문 완료
@@ -1596,8 +1585,7 @@ const renderCompletedTab = () => (
                 </View>
                 {(selectedCompletedSpot?.completed_at || selectedCompletedSpot?.unlock_at) && (
                   <Text style={{
-                    ...FONT_STYLES.pixel,
-                    fontSize: 14,
+                    ...TEXT_STYLES.small,
                     color: '#666',
                     marginLeft: 26,
                   }}>
@@ -1614,18 +1602,26 @@ const renderCompletedTab = () => (
 
               {/* 장소 이미지 */}
               {(() => {
-                const spotDetail = spotsData.find((spot: any) => spot.id === selectedCompletedSpot?.id);
-                const userPhoto = userPhotos.find((photo: any) => photo.spot_id === selectedCompletedSpot?.id);
+                // 진행완료 코스에서 해당 스팟의 completedPhotos 찾기
+                const currentCourse = completedCourses.find(course => 
+                  course.spots.some(spot => spot.id === selectedCompletedSpot?.id)
+                );
                 
-                if ((userPhoto && userPhoto.image_url) || (spotDetail && spotDetail.first_image)) {
+                if (currentCourse && currentCourse.photos) {
+                  const spotIndex = currentCourse.spots.findIndex(spot => spot.id === selectedCompletedSpot?.id);
+                  const photoUrl = currentCourse.photos[spotIndex];
+                  
+                  console.log('[TripsScreen] 완료된 장소 모달 - completedPhotos 사용:');
+                  console.log('  - currentCourse:', currentCourse);
+                  console.log('  - spotIndex:', spotIndex);
+                  console.log('  - photoUrl:', photoUrl);
+                  console.log('  - currentCourse.photos:', currentCourse.photos);
+                  
                   return (
                     <View style={{ marginBottom: 20 }}>
-                      <Image
-                        source={{ 
-                          uri: userPhoto && userPhoto.image_url 
-                            ? userPhoto.image_url 
-                            : spotDetail.first_image.replace("http://", "https://")
-                        }}
+                      <PhotoWithFallback 
+                        photo={photoUrl}
+                        index={spotIndex}
                         style={{
                           width: '100%',
                           height: 200,
@@ -1633,12 +1629,29 @@ const renderCompletedTab = () => (
                           borderWidth: 1,
                           borderColor: '#e0e0e0',
                         }}
-                        resizeMode="cover"
+                        isModal={true}
+                      />
+                    </View>
+                  );
+                } else {
+                  // fallback: 기본 이미지
+                  return (
+                    <View style={{ marginBottom: 20 }}>
+                      <PhotoWithFallback 
+                        photo={require('../../assets/images/대동여지도.jpg')}
+                        index={0}
+                        style={{
+                          width: '100%',
+                          height: 200,
+                          borderRadius: 12,
+                          borderWidth: 1,
+                          borderColor: '#e0e0e0',
+                        }}
+                        isModal={true}
                       />
                     </View>
                   );
                 }
-                return null;
               })()}
 
               {/* 장소 정보 */}
@@ -1662,9 +1675,7 @@ const renderCompletedTab = () => (
                       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
                         <Ionicons name="information-circle" size={18} color={INCHEON_BLUE} style={{ marginRight: 8 }} />
                         <Text style={{
-                          ...FONT_STYLES.pixel,
-                          fontSize: 18,
-                          fontWeight: 'bold',
+                          ...TEXT_STYLES.heading,
                           color: '#333'
                         }}>
                           장소 정보
@@ -1672,8 +1683,7 @@ const renderCompletedTab = () => (
                       </View>
                       
                       <Text style={{
-                        ...FONT_STYLES.pixel,
-                        fontSize: 14,
+                        ...TEXT_STYLES.small,
                         color: '#333',
                         lineHeight: 20,
                         marginBottom: 12,
@@ -1685,8 +1695,7 @@ const renderCompletedTab = () => (
                         <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 8 }}>
                           <Ionicons name="location-outline" size={14} color="#666" style={{ marginRight: 6, marginTop: 2 }} />
                           <Text style={{
-                            ...FONT_STYLES.pixel,
-                            fontSize: 13,
+                            ...TEXT_STYLES.small,
                             color: '#666',
                             flex: 1,
                             lineHeight: 18,
@@ -1700,8 +1709,7 @@ const renderCompletedTab = () => (
                         <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
                           <Ionicons name="map-outline" size={14} color="#666" style={{ marginRight: 6, marginTop: 2 }} />
                           <Text style={{
-                            ...FONT_STYLES.pixel,
-                            fontSize: 13,
+                            ...TEXT_STYLES.small,
                             color: '#666',
                             flex: 1,
                             lineHeight: 18,
@@ -1716,7 +1724,7 @@ const renderCompletedTab = () => (
                 return null;
               })()}
             </View>
-          </ScrollView>
+        </ScrollView>
 
           {/* 푸터 */}
           <View style={{
@@ -1745,10 +1753,8 @@ const renderCompletedTab = () => (
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <Ionicons name="checkmark" size={18} color="#fff" style={{ marginRight: 6 }} />
                 <Text style={{
-                  ...FONT_STYLES.pixel,
+                  ...TEXT_STYLES.button,
                   color: '#fff',
-                  fontSize: 16,
-                  fontWeight: 'bold',
                 }}>
                   확인
                 </Text>

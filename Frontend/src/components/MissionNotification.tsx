@@ -18,6 +18,7 @@ interface MissionNotificationProps {
   onClose: () => void;
   onStartMission: (mission: Mission) => void;
   onCompleteVisit: (mission: Mission) => void;
+  onMissionComplete?: (mission: Mission) => void;
 }
 
 const MissionNotification: React.FC<MissionNotificationProps> = ({
@@ -26,6 +27,7 @@ const MissionNotification: React.FC<MissionNotificationProps> = ({
   onClose,
   onStartMission,
   onCompleteVisit,
+  onMissionComplete,
 }) => {
   const handleStartMission = () => {
     if (mission) {

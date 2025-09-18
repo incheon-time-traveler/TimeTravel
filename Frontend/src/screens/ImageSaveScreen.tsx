@@ -5,6 +5,7 @@ import RNFS from 'react-native-fs';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { INCHEON_BLUE, INCHEON_BLUE_LIGHT, INCHEON_GRAY, TEXT_STYLES } from '../styles/fonts';
 import { BACKEND_API } from '../config/apiKeys';
+import authService from '../services/authService';
 
 const { width, height } = Dimensions.get('window');
 
@@ -52,14 +53,18 @@ export default function ImageSaveScreen({ route, navigation }) {
   const handleSave = async () => {
     if (!skiaRef.current) return;
     try {
+      const user = await authService.getUser();
       const snapshot = skiaRef.current.makeImageSnapshot();
       const base64 = snapshot.encodeToBase64();
       const newPath = `${RNFS.DocumentDirectoryPath}/${Date.now()}.jpg`;
       await RNFS.writeFile(newPath, base64, 'base64');
+      const userId = user.id;
 
-      // 1. 로컬 저장 (기존 로직)
-      const savedJSON = await AsyncStorage.getItem('saved_photos');
-      const photosArray = savedJSON ? JSON.parse(savedJSON) : [];
+      // 1. 로컬 저장 - 사용자 분리
+      const userPhotosKey = `saved_photos_${userId}`;
+
+      const savedPhotosJSON = await AsyncStorage.getItem(userPhotosKey);
+      const photosArray = savedPhotosJSON ? JSON.parse(savedPhotosJSON) : [];
       const newPhotoData = {
         path: newPath, // 실제 저장된 파일 경로
         missionInfo: { // MissionScreen에서 넘어온 과거 사진 정보
@@ -71,7 +76,7 @@ export default function ImageSaveScreen({ route, navigation }) {
       };
 
       photosArray.push(newPhotoData);
-      await AsyncStorage.setItem('saved_photos', JSON.stringify(photosArray));
+      await AsyncStorage.setItem(userPhotosKey, JSON.stringify(photosArray));
 
       // 2. 백엔드 DB 저장
       try {

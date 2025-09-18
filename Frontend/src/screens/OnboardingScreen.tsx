@@ -51,24 +51,29 @@ const pages = [
 
 type OnboardingScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Onboarding'>;
 
-const OnboardingScreen = () => {
+const OnboardingScreen = ({ route }: any) => {
   const [currentPage, setCurrentPage] = useState(0);
   const navigation = useNavigation<OnboardingScreenNavigationProp>();
   const flatListRef = React.useRef<FlatList>(null); // FlatList 참조 생성
+  const onComplete = route?.params?.onComplete;
 
   const handleSkip = async () => {
     await AsyncStorage.setItem('@viewedOnboarding', 'true');
-      navigation.reset({
-        index: 0,
-        routes: [
-          { name: 'RootAfterOnboarding',
-            params: {
-              screen: 'MainTabs',
-              params: { screen: 'Home', params: { screen: 'HomeMain' } }
-            }
+    // 온보딩 완료 상태 업데이트
+    if (onComplete) {
+      onComplete();
+    }
+    navigation.reset({
+      index: 0,
+      routes: [
+        { name: 'RootAfterOnboarding',
+          params: {
+            screen: 'MainTabs',
+            params: { screen: 'Home', params: { screen: 'HomeMain' } }
           }
-        ],
-      });
+        }
+      ],
+    });
   };
 
 
@@ -80,16 +85,20 @@ const OnboardingScreen = () => {
       // setCurrentPage(currentPage + 1); // onMomentumScrollEnd에서 처리하므로 주석 처리
     } else {
       await AsyncStorage.setItem('@viewedOnboarding', 'true');
-        navigation.reset({
-          index: 0,
-          routes: [
-            { name: 'RootAfterOnboarding',
-              params: {
-                screen: 'MainTabs',
-                params: { screen: 'Home', params: { screen: 'HomeMain' } }
-              }
+      // 온보딩 완료 상태 업데이트
+      if (onComplete) {
+        onComplete();
+      }
+      navigation.reset({
+        index: 0,
+        routes: [
+          { name: 'RootAfterOnboarding',
+            params: {
+              screen: 'MainTabs',
+              params: { screen: 'Home', params: { screen: 'HomeMain' } }
             }
-          ],
+          }
+        ],
       });
     }
   };

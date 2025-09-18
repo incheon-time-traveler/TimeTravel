@@ -192,6 +192,11 @@ export default function App() {
     }
   };
 
+  // 온보딩 완료 상태를 업데이트하는 함수
+  const handleOnboardingComplete = () => {
+    setIsOnboardingComplete(true);
+  };
+
   if (isOnboardingComplete === null) {
     return null; // 로딩 중
   }
@@ -204,7 +209,11 @@ export default function App() {
             <Stack.Screen name="Root" component={RootNavigator} />
           ) : (
             <>
-              <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+              <Stack.Screen 
+                name="Onboarding" 
+                component={OnboardingScreen}
+                initialParams={{ onComplete: handleOnboardingComplete }}
+              />
               <Stack.Screen name="RootAfterOnboarding" component={RootNavigator} />
             </>
           )}

@@ -1,3 +1,65 @@
+# 🕒 TimeTravel: Incheon Time Travel 
+
+*You can read Korean version below*
+
+> "Beyond a mere journey, the start of immersion that dissolves the boundaries of time."  
+> Incheon Time Machine is a travel application that maximizes the charm of Incheon, where the past and present coexist, providing travelers with a deep sense of immersion.
+
+## 🌟 Service Introduction
+Don't you want to escape from tedious trips where you just mechanically read travel information?  
+Developed by **Team Time Explorers**, 'Incheon Time Machine' offers a special experience where you can feel the flow of time beyond the mere movement through space.
+
+## ✨ Key Features
+
+### 1. 📷 Mission: Discover the Past
+Experience the history embedded in locations, moving beyond simple tourist information.
+* Missions can be performed at **16 selected major landmarks** out of approximately 400 locations in Incheon.
+* **Past Photo Discovery & Overlay**: Provides a unique experience of completing missions by overlaying historical photos onto current buildings through your smartphone camera.
+
+### 2. 🎯 Personalized Course Recommendations
+We suggest travel routes that perfectly fit your personal taste.
+* **Customized Curation**: Analyzes your travel style through 5 simple questions.
+* **Flexible Responses**: You don't have to answer all the questions; selecting even one condition you prioritize most allows the system to configure an optimal course.
+
+### 3. 🤖 AI Travel Mate
+An AI chatbot joins you so that you never feel lonely, even when traveling solo.
+* **Real-time Information**: A smart guide that instantly answers any questions you have during your trip.
+* **Conversational Interface**: Enhances the joy of travel by allowing you to exchange information as comfortably as talking to a friend.
+
+## 🚀 Download
+You can download the Android application from the link below:
+* [Download](https://m.onestore.co.kr/v2/ko-kr/app/0001002257)
+
+## 🏃‍♂️ Running the Code
+Currently, the experience is optimized for the Android environment.
+
+### Installation and Execution
+```bash
+git clone [https://github.com/incheon-time-traveler/TimeTravel.git](https://github.com/incheon-time-traveler/TimeTravel.git)
+```
+```bash
+npm install
+# or
+yarn install
+```
+```bash
+npx react-native run-android
+```
+
+# 🛠 Tech Stack
+- ​Frontend: React Native / Android Studio
+​- Backend: Django / FastAPI
+- ​Database: Weaviate (Vector DB) / PostgreSQL
+- ​AI/ML: LangGraph-based process
+​
+# 👥 Team Information: Time Explorers
+​We pursue a form of travel that experiences time beyond space, allowing travelers to feel a deeper emotional connection to Incheon.
+# ​📜 License
+​This project is licensed under the MIT License - see the LICENSE file for details.
+
+
+---
+
 # ​🕒 TimeTravel: 인천시간여행
 
 > ​"단순한 여행을 넘어, 시간의 경계를 허무는 몰입의 시작" > 인천 타임머신은 과거와 현재가 공존하는 인천의 매력을 극대화하여 여행자에게 깊은 몰입감을 선사하는 여행 어플리케이션입니다.
